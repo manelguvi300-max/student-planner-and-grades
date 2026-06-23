@@ -52,6 +52,14 @@ type Draft = {
   room: string
 }
 
+type MultiDraft = {
+  subjectId: string
+  days: number[]
+  block: number
+  group: string
+  rooms: Record<number, string>
+}
+
 function DroppableSlot({ id, children, className = "" }: { id: string; children?: React.ReactNode; className?: string }) {
   const { isOver, setNodeRef } = useDroppable({ id })
   return (
@@ -135,6 +143,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
   const [open, setOpen] = useState(false)
   const [manageOpen, setManageOpen] = useState(false)
   const [draft, setDraft] = useState<Draft | null>(null)
+  const [multiDraft, setMultiDraft] = useState<MultiDraft | null>(null)
   const [isNew, setIsNew] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [selectedMobileDay, setSelectedMobileDay] = useState(0)
@@ -147,34 +156,76 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
 
   function openEdit(c: ClassSession) {
     setDraft({ ...c })
+    setMultiDraft(null)
     setIsNew(false)
     setOpen(true)
   }
 
   function openNew() {
-    setDraft({
-      id: crypto.randomUUID(),
-      subjectId: subjects.length > 0 ? subjects[0].id : "",
-      day: selectedMobileDay,
+    const firstSubjectId = subjects.length > 0 ? subjects[0].id : ""
+    setDraft(null)
+    setMultiDraft({
+      subjectId: firstSubjectId,
+      days: [selectedMobileDay],
       block: 0,
       group: "",
-      room: "",
+      rooms: { [selectedMobileDay]: "" },
     })
     setIsNew(true)
     setOpen(true)
   }
 
   function save() {
-    if (!draft) return
-    setClasses((prev) =>
-      isNew ? [...prev, draft] : prev.map((c) => (c.id === draft.id ? draft : c)),
-    )
+    if (draft) {
+      setClasses((prev) =>
+        isNew ? [...prev, draft] : prev.map((c) => (c.id === draft.id ? draft : c)),
+      )
+      setOpen(false)
+      return
+    }
+
+    if (!multiDraft || multiDraft.days.length === 0) return
+
+    const newClasses: ClassSession[] = multiDraft.days.map((day) => ({
+      id: crypto.randomUUID(),
+      subjectId: multiDraft.subjectId,
+      day,
+      block: multiDraft.block,
+      group: multiDraft.group,
+      room: multiDraft.rooms[day] ?? "",
+    }))
+
+    setClasses((prev) => [...prev, ...newClasses])
     setOpen(false)
   }
 
   function remove(id: string) {
     setClasses((prev) => prev.filter((c) => c.id !== id))
     setOpen(false)
+  }
+
+  function toggleDraftDay(day: number) {
+    setMultiDraft((current) => {
+      if (!current) return current
+
+      const exists = current.days.includes(day)
+      const nextDays = exists ? current.days.filter((selectedDay) => selectedDay !== day) : [...current.days, day]
+      const nextRooms = { ...current.rooms }
+
+      if (!exists && nextRooms[day] === undefined) {
+        nextRooms[day] = ""
+      }
+
+      if (exists) {
+        delete nextRooms[day]
+      }
+
+      return {
+        ...current,
+        days: nextDays,
+        rooms: nextRooms,
+      }
+    })
   }
 
   function classAt(day: number, block: number) {
@@ -472,6 +523,113 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                   onChange={(e) => setDraft({ ...draft, room: e.target.value })}
                   className="transition-all focus:scale-[1.01]"
                 />
+              </div>
+            </div>
+          )}
+          {multiDraft && (
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label>Materia</Label>
+                <Select
+                  value={multiDraft.subjectId}
+                  onValueChange={(v) => v && setMultiDraft({ ...multiDraft, subjectId: v })}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue>{() => getSubject(subjects, multiDraft.subjectId)?.name}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subjects.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        <div className="flex items-center gap-2">
+                          <div className="size-3 rounded-full" style={{ backgroundColor: s.bg, border: `1px solid ${s.border}` }} />
+                          {s.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Días</Label>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {DAYS.map((dayName, dayIndex) => {
+                    const active = multiDraft.days.includes(dayIndex)
+                    return (
+                      <button
+                        key={dayName}
+                        type="button"
+                        onClick={() => toggleDraftDay(dayIndex)}
+                        className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
+                          active
+                            ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                            : "border-border bg-background text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {dayName}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Horario</Label>
+                <Select
+                  value={String(multiDraft.block)}
+                  onValueChange={(v) => v && setMultiDraft({ ...multiDraft, block: Number(v) })}
+                >
+                  <SelectTrigger>
+                    <SelectValue>{() => BLOCKS[multiDraft.block]}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BLOCKS.map((b, i) => (
+                      <SelectItem key={b} value={String(i)}>
+                        {b}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="group-multi">Grupo</Label>
+                <Input
+                  id="group-multi"
+                  value={multiDraft.group}
+                  placeholder="Ej: 402"
+                  onChange={(e) => setMultiDraft({ ...multiDraft, group: e.target.value })}
+                  className="transition-all focus:scale-[1.01]"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <Label>Salón por día</Label>
+                <div className="space-y-3 rounded-xl border bg-muted/20 p-3">
+                  {multiDraft.days.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Selecciona al menos un día para asignar su salón.</p>
+                  ) : (
+                    multiDraft.days
+                      .slice()
+                      .sort((a, b) => a - b)
+                      .map((day) => (
+                        <div key={day} className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">{DAYS[day]}</Label>
+                          <Input
+                            value={multiDraft.rooms[day] ?? ""}
+                            placeholder={`Salón para ${DAYS[day]}`}
+                            onChange={(e) =>
+                              setMultiDraft({
+                                ...multiDraft,
+                                rooms: { ...multiDraft.rooms, [day]: e.target.value },
+                              })
+                            }
+                            className="transition-all focus:scale-[1.01]"
+                          />
+                        </div>
+                      ))
+                  )}
+                </div>
               </div>
             </div>
           )}
