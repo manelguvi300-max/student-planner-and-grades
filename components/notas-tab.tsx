@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   FINAL_WEIGHT,
   PASSING_GRADE,
@@ -25,6 +26,25 @@ type Props = {
 }
 
 export function NotasTab({ subjects, grades, setGrades }: Props) {
+  const [selectedSubjectId, setSelectedSubjectId] = useState(subjects[0]?.id ?? "")
+
+  useEffect(() => {
+    if (subjects.length === 0) {
+      setSelectedSubjectId("")
+      return
+    }
+
+    setSelectedSubjectId((current) => {
+      if (current && subjects.some((subject) => subject.id === current)) {
+        return current
+      }
+
+      return subjects[0].id
+    })
+  }, [subjects])
+
+  const selectedSubject = subjects.find((subject) => subject.id === selectedSubjectId) ?? subjects[0]
+
   return (
     <div className="space-y-6">
       <div>
@@ -42,19 +62,51 @@ export function NotasTab({ subjects, grades, setGrades }: Props) {
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2 animate-slide-up">
-          {subjects.map((s) => (
-            <SubjectGrades
-              key={s.id}
-              subjectId={s.id}
-              name={s.name}
-              bg={s.bg}
-              border={s.border}
-              grades={grades[s.id] ?? []}
-              setGrades={setGrades}
-            />
-          ))}
-        </div>
+        <>
+          <div className="sm:hidden space-y-3 rounded-2xl border bg-card p-4 shadow-sm animate-slide-up">
+            <div className="space-y-1">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Materia visible</p>
+              <Select value={selectedSubject?.id ?? ""} onValueChange={setSelectedSubjectId}>
+                <SelectTrigger className="h-10 rounded-xl">
+                  <SelectValue placeholder="Selecciona una materia" />
+                </SelectTrigger>
+                <SelectContent>
+                  {subjects.map((subject) => (
+                    <SelectItem key={subject.id} value={subject.id}>
+                      {subject.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedSubject ? (
+              <SubjectGrades
+                key={selectedSubject.id}
+                subjectId={selectedSubject.id}
+                name={selectedSubject.name}
+                bg={selectedSubject.bg}
+                border={selectedSubject.border}
+                grades={grades[selectedSubject.id] ?? []}
+                setGrades={setGrades}
+              />
+            ) : null}
+          </div>
+
+          <div className="hidden sm:grid gap-4 lg:grid-cols-2 animate-slide-up">
+            {subjects.map((s) => (
+              <SubjectGrades
+                key={s.id}
+                subjectId={s.id}
+                name={s.name}
+                bg={s.bg}
+                border={s.border}
+                grades={grades[s.id] ?? []}
+                setGrades={setGrades}
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   )

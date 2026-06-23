@@ -35,7 +35,7 @@ function SyncBadge({ status }: { status: "loading" | "saving" | "saved" }) {
   )
 }
 
-export function PlannerView({ userName }: { userName: string }) {
+export function PlannerView({ userName, userEmail }: { userName: string; userEmail: string }) {
   const router = useRouter()
   const { subjects, setSubjects, classes, setClasses, grades, setGrades, exams, setExams, status } = usePlanner()
 
@@ -47,14 +47,20 @@ export function PlannerView({ userName }: { userName: string }) {
 
   return (
     <main className="mx-auto min-h-svh w-full max-w-5xl px-3 py-6 md:px-4 md:py-12 animate-fade-in">
-      <header className="mb-6 md:mb-8 flex items-start justify-between gap-4">
+      <header className="mb-6 md:mb-8 flex flex-col gap-4 rounded-2xl border bg-card/70 p-4 shadow-sm backdrop-blur sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-balance md:text-3xl">Mi semestre</h1>
           <p className="mt-1 text-sm text-muted-foreground text-pretty">
             Hola{userName ? `, ${userName.split(" ")[0]}` : ""}. Horario, notas y exámenes sincronizados en tu cuenta.
           </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Sesión activa: <span className="font-medium text-foreground">{userEmail || "correo no disponible"}</span>
+          </p>
         </div>
-        <div className="flex flex-col items-end gap-2">
+        <div className="flex flex-col items-start gap-2 sm:items-end">
+          <div className="rounded-full border bg-background/80 px-3 py-1 text-xs text-muted-foreground shadow-sm">
+            <span className="font-medium text-foreground">{userEmail || "Sin correo"}</span>
+          </div>
           <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
             <LogOut className="size-4" />
             <span className="hidden sm:inline">Salir</span>
@@ -80,7 +86,14 @@ export function PlannerView({ userName }: { userName: string }) {
         </TabsList>
 
         <TabsContent value="horario" className="mt-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <HorarioTab subjects={subjects} setSubjects={setSubjects} classes={classes} setClasses={setClasses} setGrades={setGrades} setExams={setExams} />
+          <HorarioTab
+            subjects={subjects}
+            setSubjects={setSubjects}
+            classes={classes}
+            setClasses={setClasses}
+            setGrades={setGrades}
+            setExams={setExams}
+          />
         </TabsContent>
         <TabsContent value="notas" className="mt-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <NotasTab subjects={subjects} grades={grades} setGrades={setGrades} />
