@@ -318,20 +318,27 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
         >
           {/* Mobile View: Selectable Day Tabs */}
           <div className="sm:hidden space-y-4">
-            <div className="flex gap-1 overflow-x-auto pb-2 scrollbar-hide snap-x">
-              {DAYS.map((d, i) => (
+            <div className="flex items-center justify-between gap-2 overflow-x-auto pb-2 scrollbar-hide snap-x">
+              {DAYS.map((d, i) => {
+                const shortLabel = i === 0 ? "L" : i === 1 ? "M" : i === 2 ? "Mi" : i === 3 ? "J" : "V"
+
+                return (
                 <button
                   key={d}
+                  type="button"
                   onClick={() => setSelectedMobileDay(i)}
-                  className={`snap-center shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                  aria-label={d}
+                  title={d}
+                  className={`snap-center shrink-0 grid h-10 w-10 place-items-center rounded-full border text-sm font-semibold transition-all ${
                     selectedMobileDay === i
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      ? "border-primary bg-primary text-primary-foreground shadow-sm scale-105"
+                      : "border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
                   }`}
                 >
-                  {d}
+                  <span className="leading-none">{shortLabel}</span>
                 </button>
-              ))}
+                )
+              })}
             </div>
 
             <div className="grid gap-3 animate-slide-up" key={selectedMobileDay}>
@@ -552,21 +559,25 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
 
               <div className="space-y-2">
                 <Label>Días</Label>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 scrollbar-hide">
                   {DAYS.map((dayName, dayIndex) => {
                     const active = multiDraft.days.includes(dayIndex)
+                    const shortLabel = dayIndex === 0 ? "L" : dayIndex === 1 ? "M" : dayIndex === 2 ? "Mi" : dayIndex === 3 ? "J" : "V"
+
                     return (
                       <button
                         key={dayName}
                         type="button"
                         onClick={() => toggleDraftDay(dayIndex)}
-                        className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
+                        aria-label={dayName}
+                        title={dayName}
+                        className={`grid h-10 w-10 shrink-0 place-items-center rounded-full border text-sm font-semibold transition-all ${
                           active
-                            ? "border-primary bg-primary text-primary-foreground shadow-sm"
-                            : "border-border bg-background text-muted-foreground hover:bg-muted"
+                            ? "border-primary bg-primary text-primary-foreground shadow-sm scale-105"
+                            : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
                         }`}
                       >
-                        {dayName}
+                        <span className="leading-none">{shortLabel}</span>
                       </button>
                     )
                   })}
