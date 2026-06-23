@@ -46,8 +46,8 @@ export function PlannerView({ userName }: { userName: string }) {
   }
 
   return (
-    <main className="mx-auto min-h-svh w-full max-w-5xl px-4 py-8 md:py-12">
-      <header className="mb-8 flex items-start justify-between gap-4">
+    <main className="mx-auto min-h-svh w-full max-w-5xl px-3 py-6 md:px-4 md:py-12 animate-fade-in">
+      <header className="mb-6 md:mb-8 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-balance md:text-3xl">Mi semestre</h1>
           <p className="mt-1 text-sm text-muted-foreground text-pretty">
@@ -64,28 +64,28 @@ export function PlannerView({ userName }: { userName: string }) {
       </header>
 
       <Tabs defaultValue="horario" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 sm:w-auto sm:inline-flex">
-          <TabsTrigger value="horario" className="gap-2">
-            <CalendarDays className="size-4" />
-            <span className="hidden sm:inline">Horario</span>
+        <TabsList className="grid w-full grid-cols-3 sm:w-auto sm:inline-flex p-1 bg-muted/50 rounded-xl">
+          <TabsTrigger value="horario" className="gap-2 rounded-lg data-[state=active]:shadow-sm">
+            <CalendarDays className="size-4 md:size-4" />
+            <span className="text-xs sm:text-sm md:inline">Horario</span>
           </TabsTrigger>
-          <TabsTrigger value="notas" className="gap-2">
-            <GraduationCap className="size-4" />
-            <span className="hidden sm:inline">Notas</span>
+          <TabsTrigger value="notas" className="gap-2 rounded-lg data-[state=active]:shadow-sm">
+            <GraduationCap className="size-4 md:size-4" />
+            <span className="text-xs sm:text-sm md:inline">Notas</span>
           </TabsTrigger>
-          <TabsTrigger value="examenes" className="gap-2">
-            <ClipboardList className="size-4" />
-            <span className="hidden sm:inline">Exámenes</span>
+          <TabsTrigger value="examenes" className="gap-2 rounded-lg data-[state=active]:shadow-sm">
+            <ClipboardList className="size-4 md:size-4" />
+            <span className="text-xs sm:text-sm md:inline">Exámenes</span>
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="horario" className="mt-6">
+        <TabsContent value="horario" className="mt-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <HorarioTab classes={classes} setClasses={setClasses} />
         </TabsContent>
-        <TabsContent value="notas" className="mt-6">
+        <TabsContent value="notas" className="mt-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <NotasTab grades={grades} setGrades={setGrades} />
         </TabsContent>
-        <TabsContent value="examenes" className="mt-6">
+        <TabsContent value="examenes" className="mt-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <ExamenesTab exams={exams} setExams={setExams} />
         </TabsContent>
       </Tabs>

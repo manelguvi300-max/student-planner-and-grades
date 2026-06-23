@@ -41,7 +41,7 @@ export function SignInCard() {
   }
 
   return (
-    <Card className="w-full max-w-sm">
+    <Card className="w-full max-w-sm animate-scale-in">
       <CardHeader className="text-center">
         <CardTitle className="text-2xl text-balance">Mi semestre</CardTitle>
         <CardDescription className="text-pretty">

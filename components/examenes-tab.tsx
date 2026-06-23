@@ -60,7 +60,7 @@ export function ExamenesTab({ exams, setExams }: Props) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div>
         <h2 className="text-lg font-semibold">Fechas de exámenes</h2>
         <p className="text-sm text-muted-foreground">
@@ -69,7 +69,7 @@ export function ExamenesTab({ exams, setExams }: Props) {
       </div>
 
       {/* Form */}
-      <Card className="p-4">
+      <Card className="p-4 animate-slide-up">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6 lg:items-end">
           <div className="space-y-1 lg:col-span-2">
             <Label>Materia</Label>
@@ -139,13 +139,13 @@ export function ExamenesTab({ exams, setExams }: Props) {
 
       {/* Lista */}
       {sorted.length > 0 ? (
-        <div className="space-y-2">
+        <div className="space-y-3 animate-slide-up" style={{ animationDelay: '100ms' }}>
           {sorted.map((e) => {
             const subject = getSubject(e.subjectId)
             return (
               <div
                 key={e.id}
-                className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-3"
+                className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-3 animate-pop"
               >
                 <span
                   className="size-3 shrink-0 rounded-full"

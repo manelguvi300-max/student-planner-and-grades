@@ -33,7 +33,7 @@ export function NotasTab({ grades, setGrades }: Props) {
         </p>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 animate-slide-up">
         {SUBJECTS.map((s) => (
           <SubjectGrades
             key={s.id}
@@ -114,7 +114,7 @@ function SubjectGrades({
   const impossible = needed > 5
 
   return (
-    <Card className="overflow-hidden p-0">
+    <Card className="overflow-hidden p-0 animate-pop">
       <div
         className="px-4 py-3 text-neutral-900"
         style={{ backgroundColor: bg, borderBottom: `1px solid ${border}` }}
@@ -128,7 +128,7 @@ function SubjectGrades({
             {grades.map((g) => (
               <li
                 key={g.id}
-                className="flex items-center justify-between gap-2 rounded-md bg-muted/60 px-3 py-1.5 text-sm"
+                className="flex items-center justify-between gap-2 rounded-md bg-muted/60 px-3 py-1.5 text-sm animate-fade-in"
               >
                 <span className="truncate">{g.name}</span>
                 <span className="flex items-center gap-3 whitespace-nowrap text-muted-foreground">
@@ -151,7 +151,7 @@ function SubjectGrades({
         )}
 
         {/* Form para agregar */}
-        <div className="grid grid-cols-[1fr_auto_auto_auto] items-end gap-2">
+        <div className="flex flex-col sm:grid sm:grid-cols-[1fr_auto_auto_auto] items-stretch sm:items-end gap-3 sm:gap-2">
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Nombre</label>
             <Input
