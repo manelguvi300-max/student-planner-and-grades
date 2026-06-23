@@ -68,7 +68,9 @@ export function NotasTab({ subjects, grades, setGrades }: Props) {
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Materia visible</p>
               <Select value={selectedSubject?.id ?? ""} onValueChange={setSelectedSubjectId}>
                 <SelectTrigger className="h-10 rounded-xl">
-                  <SelectValue placeholder="Selecciona una materia" />
+                  <SelectValue placeholder="Selecciona una materia">
+                    {() => selectedSubject?.name}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {subjects.map((subject) => (
