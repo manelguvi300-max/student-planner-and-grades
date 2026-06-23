@@ -17,6 +17,9 @@ export const auth = betterAuth({
     },
   },
   trustedOrigins: [
+    // Previews de v0 (el iframe corre en *.vusercontent.net)
+    "https://*.vusercontent.net",
+    "https://*.v0.app",
     ...(process.env.V0_RUNTIME_URL ? [process.env.V0_RUNTIME_URL] : []),
     ...(process.env.VERCEL_URL ? [`https://${process.env.VERCEL_URL}`] : []),
     ...(process.env.VERCEL_PROJECT_PRODUCTION_URL
