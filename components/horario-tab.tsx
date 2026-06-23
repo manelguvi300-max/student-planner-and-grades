@@ -186,7 +186,14 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
 
     if (!multiDraft || multiDraft.days.length === 0) return
 
-    const newClasses: ClassSession[] = multiDraft.days.map((day) => ({
+    const occupiedDays = multiDraft.days.filter((day) =>
+      classes.some((c) => c.day === day && c.block === multiDraft.block),
+    )
+
+    const freeDays = multiDraft.days.filter((day) => !occupiedDays.includes(day))
+    if (freeDays.length === 0) return
+
+    const newClasses: ClassSession[] = freeDays.map((day) => ({
       id: crypto.randomUUID(),
       subjectId: multiDraft.subjectId,
       day,
@@ -217,6 +224,11 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
       }
 
       if (exists) {
+
+  function availableSlotLabel(day: number) {
+    const occupied = classes.find((c) => c.day === day && c.block === multiDraft?.block)
+    return occupied ? `Ocupado por ${getSubject(subjects, occupied.subjectId)?.name ?? "otra materia"}` : "Disponible"
+  }
         delete nextRooms[day]
       }
 
@@ -559,10 +571,11 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
 
               <div className="space-y-2">
                 <Label>Días</Label>
-                <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                <div className="flex flex-wrap gap-2">
                   {DAYS.map((dayName, dayIndex) => {
                     const active = multiDraft.days.includes(dayIndex)
                     const shortLabel = dayIndex === 0 ? "L" : dayIndex === 1 ? "M" : dayIndex === 2 ? "Mi" : dayIndex === 3 ? "J" : "V"
+                    const occupied = classes.some((c) => c.day === dayIndex && c.block === multiDraft.block)
 
                     return (
                       <button
@@ -571,16 +584,34 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                         onClick={() => toggleDraftDay(dayIndex)}
                         aria-label={dayName}
                         title={dayName}
-                        className={`grid h-10 w-10 shrink-0 place-items-center rounded-full border text-sm font-semibold transition-all ${
+                        className={`grid h-11 min-w-11 place-items-center rounded-full border px-3 text-sm font-semibold transition-all ${
                           active
-                            ? "border-primary bg-primary text-primary-foreground shadow-sm scale-105"
-                            : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+                            ? occupied
+                              ? "border-destructive bg-destructive text-destructive-foreground shadow-sm"
+                              : "border-primary bg-primary text-primary-foreground shadow-sm scale-105"
+                            : occupied
+                              ? "border-destructive/30 bg-destructive/5 text-destructive hover:bg-destructive/10"
+                              : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
                         }`}
                       >
                         <span className="leading-none">{shortLabel}</span>
                       </button>
                     )
                   })}
+                </div>
+                <div className="flex flex-wrap gap-2 pt-1 text-[11px] text-muted-foreground">
+                  {multiDraft.days.length > 0 ? (
+                    multiDraft.days
+                      .slice()
+                      .sort((a, b) => a - b)
+                      .map((day) => (
+                        <span key={day} className="rounded-full border bg-muted/40 px-2.5 py-1">
+                          {DAYS[day]}: {availableSlotLabel(day)}
+                        </span>
+                      ))
+                  ) : (
+                    <span className="rounded-full border bg-muted/40 px-2.5 py-1">Selecciona al menos un día</span>
+                  )}
                 </div>
               </div>
 
@@ -616,7 +647,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
 
               <div className="space-y-3">
                 <Label>Salón por día</Label>
-                <div className="space-y-3 rounded-xl border bg-muted/20 p-3">
+                <div className="space-y-3 rounded-2xl border bg-muted/20 p-3 shadow-sm">
                   {multiDraft.days.length === 0 ? (
                     <p className="text-sm text-muted-foreground">Selecciona al menos un día para asignar su salón.</p>
                   ) : (
@@ -624,8 +655,13 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                       .slice()
                       .sort((a, b) => a - b)
                       .map((day) => (
-                        <div key={day} className="space-y-1.5">
-                          <Label className="text-xs text-muted-foreground">{DAYS[day]}</Label>
+                        <div key={day} className="space-y-1.5 rounded-xl border bg-background p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <Label className="text-xs font-semibold text-foreground">{DAYS[day]}</Label>
+                            <span className="text-[11px] text-muted-foreground">
+                              {classes.some((c) => c.day === day && c.block === multiDraft.block) ? "Ya existe un bloque en ese horario" : "Nuevo bloque"}
+                            </span>
+                          </div>
                           <Input
                             value={multiDraft.rooms[day] ?? ""}
                             placeholder={`Salón para ${DAYS[day]}`}
