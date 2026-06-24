@@ -277,7 +277,7 @@ function SubjectGrades({
             className="rounded-lg p-3"
             style={{
               backgroundColor: alreadyPassed
-                ? "#dcfce7"
+                ? "#DCDCDC"
                 : impossible
                   ? "#676767"
                   : "#AEAEAE",
