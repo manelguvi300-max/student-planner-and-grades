@@ -279,7 +279,7 @@ function SubjectGrades({
               backgroundColor: alreadyPassed
                 ? "#dcfce7"
                 : impossible
-                  ? "#424242"
+                  ? "#676767"
                   : "#AEAEAE",
             }}
           >

@@ -159,7 +159,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
                   <div className="flex items-center gap-2 text-sm bg-amber-50 border border-amber-200 text-amber-700 rounded-lg px-3 py-2">
                     <AlertTriangle className="size-4 shrink-0" />
                     <span>
-                      ¡Cuidado! Solo te queda{safeRemaining === 1 ? "" : "n"} <strong>{safeRemaining}</strong> falta{safeRemaining !== 1 ? "s" : ""} segura{safeRemaining !== 1 ? "s" : ""}.
+                      ¡Cuidado! Solo te queda{safeRemaining === 1 ? "" : "n"} <strong>{safeRemaining}</strong> falta{safeRemaining !== 1 ? "s" : ""}.
                     </span>
                   </div>
                 ) : (

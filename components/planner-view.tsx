@@ -62,9 +62,6 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
           <p className="mt-1 text-sm text-muted-foreground text-pretty">
             Hola{userName ? `, ${userName.split(" ")[0]}` : ""}.
           </p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Sesión activa: <span className="font-medium text-foreground">{userEmail || "correo no disponible"}</span>
-          </p>
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-end">
           <div className="rounded-full border bg-background/80 px-3 py-1 text-xs text-muted-foreground shadow-sm">
