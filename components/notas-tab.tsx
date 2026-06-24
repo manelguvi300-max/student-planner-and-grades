@@ -283,7 +283,7 @@ function SubjectGrades({
                   : "#AEAEAE",
             }}
           >
-            <p className="text-xs text-neutral-700">Necesitas en el final ({FINAL_WEIGHT}%)</p>
+            <p className="text-xs font-semibold text-neutral-900">Necesitas en el final ({FINAL_WEIGHT}%)</p>
             {alreadyPassed ? (
               <p className="text-xl font-semibold text-neutral-900">Ya ganaste la materia</p>
             ) : impossible ? (
@@ -291,7 +291,7 @@ function SubjectGrades({
             ) : (
               <p className="text-xl font-semibold text-neutral-900">{needed.toFixed(2)}</p>
             )}
-            <p className="text-[11px] text-neutral-700">para quedar en {PASSING_GRADE.toFixed(1)}</p>
+            <p className="text-[11px] font-semibold text-neutral-900">para quedar en {PASSING_GRADE.toFixed(1)}</p>
           </div>
         </div>
       </div>
