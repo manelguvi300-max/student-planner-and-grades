@@ -29,6 +29,7 @@ export type Exam = {
   group: "individual" | "grupal"
   kind: "examen" | "presentacion"
   weight: number
+  notes?: string   // 👈 nuevo campo, opcional
 }
 
 export type Absence = {
