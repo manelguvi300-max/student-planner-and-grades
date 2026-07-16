@@ -231,17 +231,17 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
         <>
           {/* Vista móvil */}
           <div className="sm:hidden space-y-4">
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide snap-x">
+            <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-3 scrollbar-hide snap-x snap-mandatory touch-pan-x overscroll-x-contain scroll-smooth">
               {DAYS.map((d, i) => (
                 <button
                   key={d}
                   type="button"
                   onClick={() => setSelectedMobileDay(i)}
                   aria-label={d}
-                  className={`snap-center shrink-0 grid h-10 w-10 place-items-center rounded-full border text-sm font-semibold transition-all ${
+                  className={`snap-center shrink-0 grid h-12 min-w-12 place-items-center rounded-full border px-3 text-sm font-semibold transition-all duration-200 ${
                     selectedMobileDay === i
-                      ? "border-primary bg-primary text-primary-foreground shadow-sm scale-105"
-                      : "border-border bg-muted/40 text-muted-foreground hover:bg-muted"
+                      ? "border-primary bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-105"
+                      : "border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:shadow-sm"
                   }`}
                 >
                   {DAY_SHORT[i]}

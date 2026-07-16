@@ -160,9 +160,9 @@ export function ExamenesTab({ subjects, exams, setExams }: Props) {
           )}
         >
           <div className="overflow-hidden">
-            <div className="border-t px-4 pb-4 pt-3">
-              <div className="grid grid-cols-2 gap-3 lg:grid-cols-6 lg:items-end">
-                <div className="col-span-2 space-y-1 lg:col-span-2">
+            <div className="border-t px-4 pb-4 pt-3 sm:px-6">
+              <div className="mx-auto grid max-w-5xl grid-cols-2 gap-3 lg:grid-cols-12 lg:items-end lg:gap-4">
+                <div className="col-span-2 space-y-1 lg:col-span-4">
                   <Label>Materia</Label>
                   <Select value={subjectId} onValueChange={(v) => v && setSubjectId(v)}>
                     <SelectTrigger disabled={subjects.length === 0}>
@@ -181,7 +181,7 @@ export function ExamenesTab({ subjects, exams, setExams }: Props) {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 lg:col-span-2">
                   <Label htmlFor="exam-date">Fecha</Label>
                   <Input
                     id="exam-date"
@@ -190,7 +190,7 @@ export function ExamenesTab({ subjects, exams, setExams }: Props) {
                     onChange={(e) => setDate(e.target.value)}
                   />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 lg:col-span-2">
                   <Label>Modalidad</Label>
                   <Select value={group} onValueChange={(v) => v && setGroup(v as Exam["group"])}>
                     <SelectTrigger>
@@ -202,7 +202,7 @@ export function ExamenesTab({ subjects, exams, setExams }: Props) {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1 lg:col-span-2">
                   <Label>Tipo</Label>
                   <Select value={kind} onValueChange={(v) => v && setKind(v as Exam["kind"])}>
                     <SelectTrigger>
@@ -214,7 +214,7 @@ export function ExamenesTab({ subjects, exams, setExams }: Props) {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="col-span-2 space-y-1 lg:col-span-1">
+                <div className="col-span-2 space-y-1 lg:col-span-2">
                   <Label htmlFor="exam-weight">Vale %</Label>
                   <div className="flex gap-2">
                     <Input
@@ -232,7 +232,7 @@ export function ExamenesTab({ subjects, exams, setExams }: Props) {
               </div>
 
               {/* Nota / descripción opcional al crear */}
-              <div className="mt-3 border-t pt-3">
+              <div className="mx-auto mt-3 max-w-3xl border-t pt-3">
                 {showNoteInput ? (
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
@@ -275,7 +275,7 @@ export function ExamenesTab({ subjects, exams, setExams }: Props) {
 
       {/* Lista */}
       {sorted.length > 0 ? (
-        <div className="space-y-3 animate-slide-up" style={{ animationDelay: '100ms' }}>
+        <div className="mx-auto max-w-5xl space-y-3 animate-slide-up" style={{ animationDelay: '100ms' }}>
           {sorted.map((e) => {
             const subject = getSubject(subjects, e.subjectId)
             const isExpanded = expandedIds[e.id] ?? false
@@ -305,7 +305,7 @@ export function ExamenesTab({ subjects, exams, setExams }: Props) {
                     style={{ backgroundColor: subject?.border }}
                     aria-hidden
                   />
-                  <div className="min-w-[140px] flex-1">
+                  <div className="min-w-35 flex-1">
                     <p className="font-medium leading-tight flex items-center gap-1.5">
                       {subject?.name}
                       {hasNotes && (
