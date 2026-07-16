@@ -139,11 +139,11 @@ export function ExamenesTab({ subjects, exams, setExams }: Props) {
           role="button"
           tabIndex={0}
           aria-expanded={formOpen}
-          className="flex items-center justify-between gap-2 px-4 py-3 cursor-pointer select-none"
+          className="flex items-center justify-between gap-2 px-4 py-4 cursor-pointer select-none"
         >
           <div className="flex items-center gap-2 min-w-0">
             <CalendarPlus className="size-4 shrink-0 text-muted-foreground" />
-            <h3 className="font-semibold leading-tight">Agregar examen</h3>
+            <h3 className="m-0 font-semibold leading-none">Agregar examen</h3>
           </div>
           <ChevronDown
             className={cn(
@@ -159,8 +159,8 @@ export function ExamenesTab({ subjects, exams, setExams }: Props) {
             formOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
           )}
         >
-          <div className="overflow-hidden">
-            <div className="border-t px-4 pb-4 pt-3 sm:px-6">
+          <div className="overflow-hidden min-h-0">
+            <div className="border-t px-4 pb-4 pt-4 sm:px-6">
               <div className="mx-auto grid max-w-5xl grid-cols-2 gap-4 lg:grid-cols-12 lg:items-end">
                 <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-4">
                   <Label>Materia</Label>
