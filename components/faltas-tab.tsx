@@ -1,17 +1,10 @@
 "use client"
 
-import { useState } from "react"
-import { Plus, Trash2, AlertTriangle, CheckCircle2, XCircle, UserX } from "lucide-react"
+import { useMemo, useState } from "react"
+import { Plus, Pencil, Trash2, CalendarDays, Settings2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
 import {
   Select,
   SelectContent,
@@ -19,337 +12,592 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { type Subject, type Absence, type SubjectConfig, absenceLimit } from "@/lib/horario-data"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  DAYS,
+  DEFAULT_START_HOUR,
+  DEFAULT_END_HOUR,
+  getSubject,
+  minutesToLabel,
+  minutesToTime,
+  timeToMinutes,
+  type ClassSession,
+  type Exam,
+  type Grade,
+  type Subject,
+} from "@/lib/horario-data"
+import { MateriasDialog } from "./materias-dialog"
+
+// Píxeles por hora en el grid (más compacto: una clase de 2h ya no domina la vista)
+const PX_PER_HOUR = 44
+// Espacio reservado arriba/abajo del grid para que las etiquetas de hora
+// nunca se encimen con el encabezado de días ni se corten al final
+const GRID_PAD_TOP = 14
+const GRID_PAD_BOTTOM = 6
 
 type Props = {
   subjects: Subject[]
-  absences: Absence[]
-  setAbsences: React.Dispatch<React.SetStateAction<Absence[]>>
-  subjectConfigs: Record<string, SubjectConfig>
-  setSubjectConfigs: React.Dispatch<React.SetStateAction<Record<string, SubjectConfig>>>
+  setSubjects: React.Dispatch<React.SetStateAction<Subject[]>>
+  classes: ClassSession[]
+  setClasses: React.Dispatch<React.SetStateAction<ClassSession[]>>
+  setGrades: React.Dispatch<React.SetStateAction<Record<string, Grade[]>>>
+  setExams: React.Dispatch<React.SetStateAction<Exam[]>>
 }
 
-export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, setSubjectConfigs }: Props) {
-  const [addOpen, setAddOpen] = useState(false)
-  const [configOpen, setConfigOpen] = useState(false)
-  const [draftSubjectId, setDraftSubjectId] = useState<string>("")
-  const [draftDate, setDraftDate] = useState<string>(() => new Date().toISOString().split("T")[0])
-  const [configSubjectId, setConfigSubjectId] = useState<string>("")
-  const [draftHours, setDraftHours] = useState<string>("")
+type SessionDraft = {
+  id: string
+  subjectId: string
+  day: number
+  startTime: string // "HH:MM"
+  endTime: string   // "HH:MM"
+  group: string
+  rooms: Record<number, string> // day -> room
+  days: number[]    // para creación multi-día
+}
 
-  function openAdd() {
-    setDraftSubjectId(subjects[0]?.id ?? "")
-    setDraftDate(new Date().toISOString().split("T")[0])
-    setAddOpen(true)
-  }
+function timeLabel(minutes: number) {
+  return minutesToLabel(minutes)
+}
 
-  function handleAddAbsence() {
-    if (!draftSubjectId || !draftDate) return
-    const newAbsence: Absence = {
-      id: crypto.randomUUID(),
-      subjectId: draftSubjectId,
-      date: draftDate,
+export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrades, setExams }: Props) {
+  const [open, setOpen] = useState(false)
+  const [manageOpen, setManageOpen] = useState(false)
+  const [draft, setDraft] = useState<SessionDraft | null>(null)
+  const [isNew, setIsNew] = useState(false)
+  const [selectedMobileDay, setSelectedMobileDay] = useState(0)
+
+  // Calcular rango horario dinámico
+  const { gridStartMin, gridEndMin, hours } = useMemo(() => {
+    const startH = DEFAULT_START_HOUR
+    let endH = DEFAULT_END_HOUR
+
+    if (classes.length > 0) {
+      const maxEnd = Math.max(...classes.map((c) => c.endTime))
+      const maxEndHour = Math.ceil(maxEnd / 60)
+      const desiredEndH = maxEndHour + 1 // siempre 1 hora extra en blanco tras la última clase
+      if (desiredEndH > endH) endH = desiredEndH
     }
-    setAbsences((prev) => [...prev, newAbsence])
-    setAddOpen(false)
+
+    const startMin = startH * 60
+    const endMin = endH * 60
+    const hrs: number[] = []
+    for (let h = startH; h <= endH; h++) hrs.push(h)
+
+    return { gridStartMin: startMin, gridEndMin: endMin, hours: hrs }
+  }, [classes])
+
+  const totalMinutes = gridEndMin - gridStartMin
+  const gridHeight = (totalMinutes / 60) * PX_PER_HOUR + GRID_PAD_TOP + GRID_PAD_BOTTOM
+
+  function minutesToPx(minutes: number) {
+    return ((minutes - gridStartMin) / 60) * PX_PER_HOUR + GRID_PAD_TOP
   }
 
-  function handleDeleteAbsence(id: string) {
-    setAbsences((prev) => prev.filter((a) => a.id !== id))
+  function durationPx(startTime: number, endTime: number) {
+    return ((endTime - startTime) / 60) * PX_PER_HOUR
   }
 
-  function openConfig(subjectId: string) {
-    setConfigSubjectId(subjectId)
-    setDraftHours(String(subjectConfigs[subjectId]?.directHours ?? ""))
-    setConfigOpen(true)
+  function openNew() {
+    const firstSubjectId = subjects[0]?.id ?? ""
+    setDraft({
+      id: crypto.randomUUID(),
+      subjectId: firstSubjectId,
+      day: selectedMobileDay,
+      startTime: "06:00",
+      endTime: "08:00",
+      group: "",
+      rooms: {},
+      days: [selectedMobileDay],
+    })
+    setIsNew(true)
+    setOpen(true)
   }
 
-  function handleSaveConfig() {
-    const hours = parseFloat(draftHours)
-    if (isNaN(hours) || hours <= 0) return
-    setSubjectConfigs((prev) => ({
-      ...prev,
-      [configSubjectId]: { directHours: hours },
-    }))
-    setConfigOpen(false)
+  function openEdit(c: ClassSession) {
+    setDraft({
+      id: c.id,
+      subjectId: c.subjectId,
+      day: c.day,
+      startTime: minutesToTime(c.startTime),
+      endTime: minutesToTime(c.endTime),
+      group: c.group,
+      rooms: { [c.day]: c.room },
+      days: [c.day],
+    })
+    setIsNew(false)
+    setOpen(true)
   }
 
-  function getAbsencesForSubject(subjectId: string) {
-    return absences
-      .filter((a) => a.subjectId === subjectId)
-      .sort((a, b) => a.date.localeCompare(b.date))
+  function toggleDraftDay(day: number) {
+    if (!draft) return
+    const exists = draft.days.includes(day)
+    const nextDays = exists
+      ? draft.days.filter((d) => d !== day)
+      : [...draft.days, day]
+    const nextRooms = { ...draft.rooms }
+    if (!exists) nextRooms[day] = nextRooms[day] ?? ""
+    else delete nextRooms[day]
+    setDraft({ ...draft, days: nextDays, rooms: nextRooms })
   }
 
-  function formatDate(dateStr: string) {
-    const [year, month, day] = dateStr.split("-")
-    return `${day}/${month}/${year}`
+  function save() {
+    if (!draft) return
+    const startMin = timeToMinutes(draft.startTime)
+    const endMin = timeToMinutes(draft.endTime)
+    if (endMin <= startMin) return
+
+    if (!isNew) {
+      // Editar clase existente (solo 1 día)
+      setClasses((prev) =>
+        prev.map((c) =>
+          c.id === draft.id
+            ? { ...c, subjectId: draft.subjectId, startTime: startMin, endTime: endMin, group: draft.group, room: draft.rooms[c.day] ?? c.room }
+            : c
+        )
+      )
+    } else {
+      // Crear en múltiples días
+      const newClasses: ClassSession[] = draft.days.map((day) => ({
+        id: crypto.randomUUID(),
+        subjectId: draft.subjectId,
+        day,
+        startTime: startMin,
+        endTime: endMin,
+        group: draft.group,
+        room: draft.rooms[day] ?? "",
+      }))
+      setClasses((prev) => [...prev, ...newClasses])
+    }
+    setOpen(false)
   }
 
-  if (subjects.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed rounded-xl bg-card animate-scale-in">
-        <div className="bg-primary/10 p-3 rounded-full mb-4">
-          <UserX className="size-6 text-primary" />
-        </div>
-        <h3 className="font-semibold text-lg mb-1">Sin materias</h3>
-        <p className="text-sm text-muted-foreground max-w-[260px]">
-          Primero crea tus materias en la pestaña de Horario para poder registrar faltas.
-        </p>
-      </div>
-    )
+  function remove(id: string) {
+    setClasses((prev) => prev.filter((c) => c.id !== id))
+    setOpen(false)
   }
+
+  function classesForDay(day: number) {
+    return classes.filter((c) => c.day === day).sort((a, b) => a.startTime - b.startTime)
+  }
+
+  const DAY_SHORT = ["L", "M", "Mi", "J", "V"]
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between gap-3">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">Faltas</h2>
-          <p className="text-sm text-muted-foreground hidden sm:block">
-            Registra tus faltas por materia y mira cuántas faltas te quedan antes de cancelar.
-          </p>
+          <h2 className="text-lg font-semibold">Mi horario</h2>
+          <p className="text-sm text-muted-foreground hidden sm:block">Toca una clase para editarla.</p>
+          <p className="text-sm text-muted-foreground sm:hidden">Toca una clase para editarla.</p>
         </div>
-        <Button onClick={openAdd} size="sm" className="rounded-full shadow-sm">
-          <Plus className="size-4 mr-1" /> Registrar falta
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setManageOpen(true)} variant="outline" size="sm" className="rounded-full shadow-sm">
+            <Settings2 className="size-4 sm:mr-1" />
+            <span className="hidden sm:inline">Materias</span>
+          </Button>
+          <Button onClick={openNew} size="sm" className="rounded-full shadow-sm hover:shadow" disabled={subjects.length === 0}>
+            <Plus className="size-4 mr-1" /> Clase
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {subjects.map((subject) => {
-          const config = subjectConfigs[subject.id]
-          const subjectAbsences = getAbsencesForSubject(subject.id)
-          const count = subjectAbsences.length
-          const limit = config ? absenceLimit(config.directHours) : null
-          const safeRemaining = limit !== null ? limit - count : null
-          const isCancelled = limit !== null && count > limit
-          const isAtRisk = limit !== null && !isCancelled && safeRemaining !== null && safeRemaining <= 1
+      {classes.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed rounded-xl bg-card animate-scale-in">
+          <div className="bg-primary/10 p-3 rounded-full mb-4">
+            <CalendarDays className="size-6 text-primary" />
+          </div>
+          <h3 className="font-semibold text-lg mb-1">Tu horario está vacío</h3>
+          <p className="text-sm text-muted-foreground mb-4 max-w-[250px]">
+            {subjects.length === 0
+              ? "Primero crea algunas materias para poder agregarlas al horario."
+              : "Agrega tu primera clase para empezar a organizar tu semestre."}
+          </p>
+          {subjects.length === 0 ? (
+            <Button onClick={() => setManageOpen(true)} variant="secondary">Crear primera materia</Button>
+          ) : (
+            <Button onClick={openNew} variant="secondary">Agregar primera clase</Button>
+          )}
+        </div>
+      )}
 
-          return (
-            <div
-              key={subject.id}
-              className="rounded-xl border bg-card shadow-sm overflow-hidden"
-            >
-              {/* Header de la materia */}
-              <div
-                className="flex items-center justify-between gap-2 px-4 py-3"
-                style={{ backgroundColor: subject.bg, borderBottom: `1px solid ${subject.border}` }}
-              >
-                <span className="font-semibold text-sm text-neutral-900 truncate">{subject.name}</span>
+      {classes.length > 0 && (
+        <>
+          {/* Vista móvil */}
+          <div className="sm:hidden space-y-4">
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide snap-x">
+              {DAYS.map((d, i) => (
                 <button
-                  onClick={() => openConfig(subject.id)}
-                  className="shrink-0 text-[11px] font-medium text-neutral-700 bg-black/10 hover:bg-black/20 rounded-full px-2.5 py-1 transition-colors"
+                  key={d}
+                  type="button"
+                  onClick={() => setSelectedMobileDay(i)}
+                  aria-label={d}
+                  className={`snap-center shrink-0 grid h-10 w-10 place-items-center rounded-full border text-sm font-semibold transition-all ${
+                    selectedMobileDay === i
+                      ? "border-primary bg-primary text-primary-foreground shadow-sm scale-105"
+                      : "border-border bg-muted/40 text-muted-foreground hover:bg-muted"
+                  }`}
                 >
-                  {config ? `${config.directHours}h` : "Configurar horas"}
+                  {DAY_SHORT[i]}
                 </button>
-              </div>
+              ))}
+            </div>
 
-              {/* Cuerpo */}
-              <div className="p-4 space-y-4">
-                {/* Indicador de estado */}
-                {config === undefined ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/40 rounded-lg px-3 py-2">
-                    <AlertTriangle className="size-4 shrink-0 text-amber-500" />
-                    <span>Configura las horas de clase para calcular el límite de faltas.</span>
-                  </div>
-                ) : isCancelled ? (
-                  <div className="flex items-center gap-2 text-sm bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2">
-                    <XCircle className="size-4 shrink-0" />
-                    <span className="font-semibold">Materia cancelada — te pasaste del límite de {limit} falta{limit !== 1 ? "s" : ""}.</span>
-                  </div>
-                ) : isAtRisk ? (
-                  <div className="flex items-center gap-2 text-sm bg-amber-50 border border-amber-200 text-amber-700 rounded-lg px-3 py-2">
-                    <AlertTriangle className="size-4 shrink-0" />
-                    <span>
-                      ¡Cuidado! Solo te queda{safeRemaining === 1 ? "" : "n"} <strong>{safeRemaining}</strong> falta{safeRemaining !== 1 ? "s" : ""}.
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-sm bg-green-50 border border-green-200 text-green-700 rounded-lg px-3 py-2">
-                    <CheckCircle2 className="size-4 shrink-0" />
-                    <span>
-                      {safeRemaining !== null
-                        ? <>Te quedan <strong>{safeRemaining}</strong> falta{safeRemaining !== 1 ? "s" : ""} segura{safeRemaining !== 1 ? "s" : ""}.</>
-                        : "Sin faltas registradas."}
-                    </span>
-                  </div>
-                )}
-
-                {/* Contador */}
-                {config && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Faltas registradas</span>
-                    <span className="font-semibold">
-                      {count} / {limit}
-                      <span className="text-muted-foreground font-normal ml-1 text-xs">(límite)</span>
-                    </span>
-                  </div>
-                )}
-
-                {/* Barra de progreso */}
-                {config && limit !== null && limit > 0 && (
-                  <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+            {/* Grid móvil: columna de horas + columna de eventos */}
+            <div className="rounded-xl border bg-card overflow-hidden shadow-sm" key={selectedMobileDay}>
+              <div className="flex overflow-hidden">
+                {/* Columna de horas */}
+                <div className="w-12 shrink-0 relative border-r bg-muted/20" style={{ height: gridHeight }}>
+                  {hours.map((h) => (
                     <div
-                      className={`h-full rounded-full transition-all ${
-                        isCancelled ? "bg-red-500" : isAtRisk ? "bg-amber-400" : "bg-green-500"
-                      }`}
-                      style={{ width: `${Math.min((count / (limit + 1)) * 100, 100)}%` }}
-                    />
-                  </div>
-                )}
+                      key={h}
+                      className="absolute right-0 left-0 flex items-start justify-end pr-2 text-[10px] font-medium text-muted-foreground tabular-nums"
+                      style={{ top: minutesToPx(h * 60) - 6 }}
+                    >
+                      {h}:00
+                    </div>
+                  ))}
+                </div>
 
-                {/* Historial de faltas */}
-                {subjectAbsences.length > 0 ? (
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-medium text-muted-foreground">Historial</p>
-                    <ul className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-                      {subjectAbsences.map((absence, index) => (
-                        <li
-                          key={absence.id}
-                          className="flex items-center justify-between gap-2 rounded-md border bg-muted/20 px-3 py-1.5 text-sm"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground w-5 shrink-0">#{index + 1}</span>
-                            <span>{formatDate(absence.date)}</span>
-                          </div>
-                          <button
-                            onClick={() => handleDeleteAbsence(absence.id)}
-                            className="p-1 text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-                            title="Eliminar falta"
-                          >
-                            <Trash2 className="size-3.5" />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground italic text-center py-2">
-                    Sin faltas registradas.
-                  </p>
-                )}
+                {/* Columna de eventos */}
+                <div className="flex-1 relative" style={{ height: gridHeight }}>
+                  {/* Líneas de hora */}
+                  {hours.map((h) => (
+                    <div
+                      key={h}
+                      className="absolute left-0 right-0 border-t border-border/40"
+                      style={{ top: minutesToPx(h * 60) }}
+                    />
+                  ))}
+
+                  {classesForDay(selectedMobileDay).map((c) => {
+                    const subject = getSubject(subjects, c.subjectId)
+                    if (!subject) return null
+                    const blockHeight = Math.max(durationPx(c.startTime, c.endTime) - 3, 26)
+                    const isCompact = blockHeight < 42
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => openEdit(c)}
+                        className="absolute left-1 right-1 rounded-md pl-2 pr-1.5 py-1 text-left text-neutral-900 text-[11px] leading-tight shadow-sm hover:shadow-md hover:brightness-[0.97] active:scale-[0.99] transition-all overflow-hidden border-l-[3px]"
+                        style={{
+                          top: minutesToPx(c.startTime) + 1,
+                          height: blockHeight,
+                          backgroundColor: subject.bg,
+                          borderLeftColor: subject.border,
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
+                        }}
+                      >
+                        <p className="font-semibold truncate">{subject.name}</p>
+                        {!isCompact && (
+                          <p className="opacity-70 text-[10px] mt-0.5">{timeLabel(c.startTime)}–{timeLabel(c.endTime)}</p>
+                        )}
+                        {!isCompact && c.room && <p className="opacity-70 text-[10px] truncate">{c.room}</p>}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             </div>
-          )
-        })}
-      </div>
+          </div>
 
-      {/* Dialog: Registrar falta */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="sm:max-w-[380px] animate-scale-in">
+          {/* Vista escritorio */}
+          <div className="hidden sm:block overflow-x-auto rounded-xl border bg-card shadow-sm animate-slide-up">
+            <div className="min-w-[700px]">
+              {/* Cabecera de días */}
+              <div className="flex border-b bg-muted/30 rounded-t-xl overflow-hidden">
+                <div className="w-16 shrink-0 border-r p-3 text-xs font-semibold text-muted-foreground flex items-center">Hora</div>
+                {DAYS.map((d) => (
+                  <div key={d} className="flex-1 p-3 text-center text-sm font-semibold border-r last:border-r-0">
+                    {d}
+                  </div>
+                ))}
+              </div>
+
+              {/* Cuerpo del grid */}
+              <div className="flex overflow-hidden" style={{ height: gridHeight }}>
+                {/* Columna de horas */}
+                <div className="w-16 shrink-0 border-r relative bg-muted/10">
+                  {hours.map((h) => (
+                    <div
+                      key={h}
+                      className="absolute right-0 left-0 flex items-start justify-end pr-2 text-[11px] font-medium text-muted-foreground tabular-nums"
+                      style={{ top: minutesToPx(h * 60) - 7 }}
+                    >
+                      {h}:00
+                    </div>
+                  ))}
+                </div>
+
+                {/* Columnas de días */}
+                {DAYS.map((d, dayIndex) => (
+                  <div key={d} className="flex-1 border-r last:border-r-0 relative">
+                    {/* Líneas de hora */}
+                    {hours.map((h) => (
+                      <div
+                        key={h}
+                        className="absolute left-0 right-0 border-t border-border/30"
+                        style={{ top: minutesToPx(h * 60) }}
+                      />
+                    ))}
+
+                    {classesForDay(dayIndex).map((c) => {
+                      const subject = getSubject(subjects, c.subjectId)
+                      if (!subject) return null
+                      const blockHeight = Math.max(durationPx(c.startTime, c.endTime) - 3, 28)
+                      const isCompact = blockHeight < 46
+                      return (
+                        <button
+                          key={c.id}
+                          onClick={() => openEdit(c)}
+                          className="absolute left-1 right-1 rounded-md pl-2 pr-1.5 py-1 text-left text-neutral-900 text-[11px] leading-tight shadow-sm hover:shadow-md hover:brightness-[0.97] active:scale-[0.99] transition-all overflow-hidden animate-pop border-l-[3px]"
+                          style={{
+                            top: minutesToPx(c.startTime) + 1,
+                            height: blockHeight,
+                            backgroundColor: subject.bg,
+                            borderLeftColor: subject.border,
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
+                          }}
+                        >
+                          <p className="font-semibold truncate">{subject.name}</p>
+                          {!isCompact && (
+                            <p className="opacity-70 text-[10px] mt-0.5">{timeLabel(c.startTime)}–{timeLabel(c.endTime)}</p>
+                          )}
+                          {!isCompact && c.group && <p className="opacity-70 text-[10px]">Gr: {c.group}</p>}
+                          {!isCompact && c.room && <p className="opacity-70 text-[10px] truncate">{c.room}</p>}
+                        </button>
+                      )
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Leyenda */}
+      {classes.length > 0 && (
+        <div className="flex flex-wrap gap-2 pt-2">
+          {subjects.map((s) => (
+            <span
+              key={s.id}
+              className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium text-neutral-900 shadow-sm hover:scale-105 transition-transform"
+              style={{ backgroundColor: s.bg, border: `1px solid ${s.border}` }}
+            >
+              {s.name}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Dialog agregar/editar */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-[440px] animate-scale-in max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Registrar falta</DialogTitle>
+            <DialogTitle>{isNew ? "Agregar clase" : "Editar clase"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Materia</Label>
-              <Select value={draftSubjectId} onValueChange={setDraftSubjectId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Selecciona una materia">
-                    {draftSubjectId &&
-                      (() => {
-                        const s = subjects.find((s) => s.id === draftSubjectId)
+          {draft && (
+            <div className="space-y-4 py-2">
+              {/* Materia */}
+              <div className="space-y-2">
+                <Label>Materia</Label>
+                <Select
+                  value={draft.subjectId}
+                  onValueChange={(v) => v && setDraft({ ...draft, subjectId: v })}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue>
+                      {draft.subjectId && (() => {
+                        const s = subjects.find((s) => s.id === draft.subjectId)
                         return s ? (
                           <div className="flex items-center gap-2">
-                            <div
-                              className="size-3 rounded-full"
-                              style={{
-                                backgroundColor: s.bg,
-                                border: `1px solid ${s.border}`,
-                              }}
-                            />
+                            <div className="size-3 rounded-full" style={{ backgroundColor: s.bg, border: `1px solid ${s.border}` }} />
                             {s.name}
                           </div>
                         ) : null
                       })()}
-                  </SelectValue>
-                </SelectTrigger>
-
-                <SelectContent>
-                  {subjects.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="size-3 rounded-full"
-                          style={{
-                            backgroundColor: s.bg,
-                            border: `1px solid ${s.border}`,
-                          }}
-                        />
-                        {s.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="absence-date">Fecha de la falta</Label>
-              <Input
-                id="absence-date"
-                type="date"
-                value={draftDate}
-                onChange={(e) => setDraftDate(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleAddAbsence} className="w-full rounded-full" disabled={!draftSubjectId || !draftDate}>
-              Registrar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog: Configurar horas de la materia */}
-      <Dialog open={configOpen} onOpenChange={setConfigOpen}>
-        <DialogContent className="sm:max-w-[380px] animate-scale-in">
-          <DialogHeader>
-            <DialogTitle>Configurar horas de clase</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            {configSubjectId && (
-              <p className="text-sm text-muted-foreground">
-                Materia: <span className="font-semibold text-foreground">{subjects.find(s => s.id === configSubjectId)?.name}</span>
-              </p>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="direct-hours">Horas de trabajo directo del semestre</Label>
-              <Input
-                id="direct-hours"
-                type="number"
-                min="1"
-                placeholder="Ej: 48"
-                value={draftHours}
-                onChange={(e) => setDraftHours(e.target.value)}
-              />
-            </div>
-            {draftHours && !isNaN(parseFloat(draftHours)) && parseFloat(draftHours) > 0 && (
-              <div className="rounded-lg border bg-muted/30 px-4 py-3 space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">20% de {draftHours}h</span>
-                  <span className="font-medium">{(parseFloat(draftHours) * 0.2).toFixed(1)}h</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Límite de faltas</span>
-                  <span className="font-bold text-primary">{absenceLimit(parseFloat(draftHours))} faltas</span>
-                </div>
-                <p className="text-xs text-muted-foreground pt-1">
-                  Con {absenceLimit(parseFloat(draftHours)) + 1} faltas la materia queda cancelada.
-                </p>
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subjects.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        <div className="flex items-center gap-2">
+                          <div className="size-3 rounded-full" style={{ backgroundColor: s.bg, border: `1px solid ${s.border}` }} />
+                          {s.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            )}
-          </div>
-          <DialogFooter>
+
+              {/* Días (solo en creación) */}
+              {isNew && (
+                <div className="space-y-2">
+                  <Label>Días</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {DAYS.map((dayName, dayIndex) => {
+                      const active = draft.days.includes(dayIndex)
+                      return (
+                        <button
+                          key={dayName}
+                          type="button"
+                          onClick={() => toggleDraftDay(dayIndex)}
+                          className={`grid h-10 min-w-10 place-items-center rounded-full border px-3 text-sm font-semibold transition-all ${
+                            active
+                              ? "border-primary bg-primary text-primary-foreground shadow-sm scale-105"
+                              : "border-border bg-background text-muted-foreground hover:bg-muted"
+                          }`}
+                        >
+                          {DAY_SHORT[dayIndex]}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Día (solo en edición) */}
+              {!isNew && (
+                <div className="space-y-2">
+                  <Label>Día</Label>
+                  <Select
+                    value={String(draft.day)}
+                    onValueChange={(v) => v && setDraft({ ...draft, day: Number(v) })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue>{DAYS[draft.day]}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DAYS.map((d, i) => (
+                        <SelectItem key={d} value={String(i)}>{d}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Hora inicio y fin */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="start-time">Hora inicio</Label>
+                  <Input
+                    id="start-time"
+                    type="time"
+                    value={draft.startTime}
+                    onChange={(e) => setDraft({ ...draft, startTime: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="end-time">Hora fin</Label>
+                  <Input
+                    id="end-time"
+                    type="time"
+                    value={draft.endTime}
+                    onChange={(e) => setDraft({ ...draft, endTime: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {/* Duración calculada */}
+              {draft.startTime && draft.endTime && (() => {
+                const start = timeToMinutes(draft.startTime)
+                const end = timeToMinutes(draft.endTime)
+                const diff = end - start
+                if (diff <= 0) return (
+                  <p className="text-xs text-destructive">La hora de fin debe ser mayor que la de inicio.</p>
+                )
+                const h = Math.floor(diff / 60)
+                const m = diff % 60
+                return (
+                  <p className="text-xs text-muted-foreground">
+                    Duración: {h > 0 ? `${h}h ` : ""}{m > 0 ? `${m}min` : ""}
+                  </p>
+                )
+              })()}
+
+              {/* Grupo */}
+              <div className="space-y-2">
+                <Label htmlFor="group">Grupo</Label>
+                <Input
+                  id="group"
+                  value={draft.group}
+                  placeholder="Ej: 402"
+                  onChange={(e) => setDraft({ ...draft, group: e.target.value })}
+                />
+              </div>
+
+              {/* Salón(es) */}
+              {isNew ? (
+                <div className="space-y-2">
+                  <Label>Salón por día</Label>
+                  {draft.days.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Selecciona al menos un día.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {draft.days.slice().sort((a, b) => a - b).map((day) => (
+                        <div key={day} className="flex items-center gap-2">
+                          <span className="text-xs font-medium w-8 shrink-0 text-muted-foreground">{DAY_SHORT[day]}</span>
+                          <Input
+                            value={draft.rooms[day] ?? ""}
+                            placeholder={`Salón ${DAYS[day]}`}
+                            onChange={(e) => setDraft({ ...draft, rooms: { ...draft.rooms, [day]: e.target.value } })}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="room">Salón</Label>
+                  <Input
+                    id="room"
+                    value={draft.rooms[draft.day] ?? ""}
+                    placeholder="Sin asignar"
+                    onChange={(e) => setDraft({ ...draft, rooms: { ...draft.rooms, [draft.day]: e.target.value } })}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter className="flex flex-row justify-between gap-2 pt-2">
+            {!isNew && draft ? (
+              <Button
+                variant="ghost"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => remove(draft.id)}
+              >
+                <Trash2 className="size-4 mr-1.5" /> Eliminar
+              </Button>
+            ) : <div />}
             <Button
-              onClick={handleSaveConfig}
-              className="w-full rounded-full"
-              disabled={!draftHours || isNaN(parseFloat(draftHours)) || parseFloat(draftHours) <= 0}
+              onClick={save}
+              className="px-6 rounded-full"
+              disabled={!draft || !draft.subjectId || (isNew && draft.days.length === 0) || timeToMinutes(draft?.endTime ?? "00:00") <= timeToMinutes(draft?.startTime ?? "00:00")}
             >
               Guardar
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <MateriasDialog
+        open={manageOpen}
+        onOpenChange={setManageOpen}
+        subjects={subjects}
+        setSubjects={setSubjects}
+        setClasses={setClasses}
+        setGrades={setGrades}
+        setExams={setExams}
+      />
     </div>
   )
 }
