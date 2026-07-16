@@ -63,7 +63,7 @@ export function NotasTab({ subjects, grades, setGrades }: Props) {
           </p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 animate-slide-up">
+        <div className="grid items-start gap-4 sm:grid-cols-2 animate-slide-up">
           {subjects.map((s) => (
             <SubjectGrades
               key={s.id}

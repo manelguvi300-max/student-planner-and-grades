@@ -135,7 +135,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid items-start gap-4 sm:grid-cols-2">
         {subjects.map((subject) => {
           const config = subjectConfigs[subject.id]
           const subjectAbsences = getAbsencesForSubject(subject.id)
