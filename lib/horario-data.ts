@@ -8,8 +8,9 @@ export type Subject = {
 export type ClassSession = {
   id: string
   subjectId: string
-  day: number
-  block: number
+  day: number       // 0=Lunes … 4=Viernes
+  startTime: number // minutos desde medianoche, ej: 360 = 6:00
+  endTime: number   // minutos desde medianoche, ej: 480 = 8:00
   group: string
   room: string
 }
@@ -30,22 +31,44 @@ export type Exam = {
   weight: number
 }
 
-// NUEVO: una falta registrada
 export type Absence = {
   id: string
   subjectId: string
-  date: string // yyyy-mm-dd
+  date: string
 }
 
-// NUEVO: configuración de horas por materia
 export type SubjectConfig = {
-  directHours: number // horas de trabajo directo de clase
+  directHours: number
 }
 
 export const DAYS = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"]
-export const BLOCKS = ["6 a 8", "8 a 10", "10 a 12", "12 a 2", "2 a 4", "4 a 6"]
+
+// Hora mínima por defecto: 6:00 (360 min), máxima por defecto: 20:00 (1200 min)
+export const DEFAULT_START_HOUR = 6
+export const DEFAULT_END_HOUR = 20
+
+/** Convierte "HH:MM" a minutos desde medianoche */
+export function timeToMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number)
+  return h * 60 + (m || 0)
+}
+
+/** Convierte minutos desde medianoche a "HH:MM" */
+export function minutesToTime(minutes: number): string {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
+}
+
+/** Convierte minutos a etiqueta legible "6:00", "8:30", etc. */
+export function minutesToLabel(minutes: number): string {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  return m === 0 ? `${h}:00` : `${h}:${String(m).padStart(2, "0")}`
+}
 
 export const COLORS_PALETTE = [
+  // Pasteles originales
   { bg: "#fbeec6", border: "#e0b53e" },
   { bg: "#f5aaa3", border: "#e26b60" },
   { bg: "#aecdee", border: "#5b94d6" },
@@ -55,11 +78,23 @@ export const COLORS_PALETTE = [
   { bg: "#f3e8ff", border: "#c084fc" },
   { bg: "#ccfbf1", border: "#2dd4bf" },
   { bg: "#ffedd5", border: "#fb923c" },
+  // Nuevos pasteles
+  { bg: "#fce7f3", border: "#f472b6" },
+  { bg: "#ede9fe", border: "#a78bfa" },
+  { bg: "#d1fae5", border: "#34d399" },
+  { bg: "#fef9c3", border: "#facc15" },
+  { bg: "#fee2e2", border: "#f87171" },
+  { bg: "#e0f2fe", border: "#38bdf8" },
+  { bg: "#f0fdf4", border: "#4ade80" },
+  { bg: "#fff7ed", border: "#fb923c" },
+  { bg: "#fdf4ff", border: "#e879f9" },
+  { bg: "#ecfdf5", border: "#10b981" },
+  { bg: "#f8fafc", border: "#94a3b8" },
+  { bg: "#fef2f2", border: "#ef4444" },
 ]
 
 export const PASSING_GRADE = 3.0
 export const FINAL_WEIGHT = 25
-
 export const DEFAULT_CLASSES: ClassSession[] = []
 
 export function getSubject(subjects: Subject[], id: string) {
@@ -79,9 +114,6 @@ export function neededOnFinal(grades: Grade[]) {
   return (PASSING_GRADE - points) / (FINAL_WEIGHT / 100)
 }
 
-// NUEVO: calcula el límite de faltas permitidas
-// límite = floor((horas * 0.20) / 2)
-// con la falta (límite + 1) la materia queda cancelada
 export function absenceLimit(directHours: number): number {
   return Math.floor((directHours * 0.2) / 2)
 }
