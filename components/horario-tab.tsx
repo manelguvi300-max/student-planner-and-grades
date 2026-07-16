@@ -35,7 +35,7 @@ import {
 import { MateriasDialog } from "./materias-dialog"
 
 // Píxeles por hora en el grid (más compacto: una clase de 2h ya no domina la vista)
-const PX_PER_HOUR = 44
+const PX_PER_HOUR = 38
 // Espacio reservado arriba/abajo del grid para que las etiquetas de hora
 // nunca se encimen con el encabezado de días ni se corten al final
 const GRID_PAD_TOP = 14
