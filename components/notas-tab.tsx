@@ -63,19 +63,20 @@ export function NotasTab({ subjects, grades, setGrades }: Props) {
           </p>
         </div>
       ) : (
-        <div className="grid items-start gap-4 sm:grid-cols-2 animate-slide-up">
+        <div className="columns-1 gap-4 sm:columns-2 animate-slide-up">
           {subjects.map((s) => (
-            <SubjectGrades
-              key={s.id}
-              subjectId={s.id}
-              name={s.name}
-              bg={s.bg}
-              border={s.border}
-              grades={grades[s.id] ?? []}
-              setGrades={setGrades}
-              expanded={expanded[s.id] ?? false}
-              onToggle={() => toggleExpanded(s.id)}
-            />
+            <div key={s.id} className="mb-4 break-inside-avoid">
+              <SubjectGrades
+                subjectId={s.id}
+                name={s.name}
+                bg={s.bg}
+                border={s.border}
+                grades={grades[s.id] ?? []}
+                setGrades={setGrades}
+                expanded={expanded[s.id] ?? false}
+                onToggle={() => toggleExpanded(s.id)}
+              />
+            </div>
           ))}
         </div>
       )}

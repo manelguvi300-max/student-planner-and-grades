@@ -135,7 +135,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
         </Button>
       </div>
 
-      <div className="grid items-start gap-4 sm:grid-cols-2">
+      <div className="columns-1 gap-4 sm:columns-2">
         {subjects.map((subject) => {
           const config = subjectConfigs[subject.id]
           const subjectAbsences = getAbsencesForSubject(subject.id)
@@ -149,7 +149,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
           return (
             <div
               key={subject.id}
-              className="rounded-xl border bg-card shadow-sm overflow-hidden"
+              className="mb-4 break-inside-avoid rounded-xl border bg-card shadow-sm overflow-hidden"
             >
               {/* Header de la materia (clic para contraer/expandir) */}
               <div
