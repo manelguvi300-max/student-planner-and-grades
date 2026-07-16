@@ -135,8 +135,8 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
         </Button>
       </div>
 
-      <div className="columns-1 gap-4 sm:columns-2">
-        {subjects.map((subject) => {
+      {(() => {
+        const renderCard = (subject: Subject) => {
           const config = subjectConfigs[subject.id]
           const subjectAbsences = getAbsencesForSubject(subject.id)
           const count = subjectAbsences.length
@@ -149,7 +149,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
           return (
             <div
               key={subject.id}
-              className="mb-4 break-inside-avoid rounded-xl border bg-card shadow-sm overflow-hidden"
+              className="rounded-xl border bg-card shadow-sm overflow-hidden"
             >
               {/* Header de la materia (clic para contraer/expandir) */}
               <div
@@ -301,8 +301,27 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
               </div>
             </div>
           )
-        })}
-      </div>
+        }
+
+        return (
+          <>
+            {/* Móvil: una sola lista en el orden original */}
+            <div className="space-y-4 sm:hidden">
+              {subjects.map((subject) => renderCard(subject))}
+            </div>
+
+            {/* Escritorio: dos columnas independientes, conservando el mismo orden/emparejamiento de siempre */}
+            <div className="hidden gap-4 sm:grid sm:grid-cols-2 sm:items-start">
+              <div className="space-y-4">
+                {subjects.filter((_, i) => i % 2 === 0).map((subject) => renderCard(subject))}
+              </div>
+              <div className="space-y-4">
+                {subjects.filter((_, i) => i % 2 === 1).map((subject) => renderCard(subject))}
+              </div>
+            </div>
+          </>
+        )
+      })()}
 
       {/* Dialog: Registrar falta */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>

@@ -63,10 +63,12 @@ export function NotasTab({ subjects, grades, setGrades }: Props) {
           </p>
         </div>
       ) : (
-        <div className="columns-1 gap-4 sm:columns-2 animate-slide-up">
-          {subjects.map((s) => (
-            <div key={s.id} className="mb-4 break-inside-avoid">
+        <>
+          {/* Móvil: una sola lista en el orden original */}
+          <div className="space-y-4 sm:hidden animate-slide-up">
+            {subjects.map((s) => (
               <SubjectGrades
+                key={s.id}
                 subjectId={s.id}
                 name={s.name}
                 bg={s.bg}
@@ -76,9 +78,47 @@ export function NotasTab({ subjects, grades, setGrades }: Props) {
                 expanded={expanded[s.id] ?? false}
                 onToggle={() => toggleExpanded(s.id)}
               />
+            ))}
+          </div>
+
+          {/* Escritorio: dos columnas independientes, conservando el mismo orden/emparejamiento de siempre */}
+          <div className="hidden gap-4 sm:grid sm:grid-cols-2 sm:items-start animate-slide-up">
+            <div className="space-y-4">
+              {subjects
+                .filter((_, i) => i % 2 === 0)
+                .map((s) => (
+                  <SubjectGrades
+                    key={s.id}
+                    subjectId={s.id}
+                    name={s.name}
+                    bg={s.bg}
+                    border={s.border}
+                    grades={grades[s.id] ?? []}
+                    setGrades={setGrades}
+                    expanded={expanded[s.id] ?? false}
+                    onToggle={() => toggleExpanded(s.id)}
+                  />
+                ))}
             </div>
-          ))}
-        </div>
+            <div className="space-y-4">
+              {subjects
+                .filter((_, i) => i % 2 === 1)
+                .map((s) => (
+                  <SubjectGrades
+                    key={s.id}
+                    subjectId={s.id}
+                    name={s.name}
+                    bg={s.bg}
+                    border={s.border}
+                    grades={grades[s.id] ?? []}
+                    setGrades={setGrades}
+                    expanded={expanded[s.id] ?? false}
+                    onToggle={() => toggleExpanded(s.id)}
+                  />
+                ))}
+            </div>
+          </div>
+        </>
       )}
     </div>
   )
