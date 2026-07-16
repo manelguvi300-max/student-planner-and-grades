@@ -80,7 +80,8 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
     if (classes.length > 0) {
       const maxEnd = Math.max(...classes.map((c) => c.endTime))
       const maxEndHour = Math.ceil(maxEnd / 60)
-      if (maxEndHour > endH) endH = maxEndHour
+      const desiredEndH = maxEndHour + 1 // siempre 1 hora extra en blanco tras la última clase
+      if (desiredEndH > endH) endH = desiredEndH
     }
 
     const startMin = startH * 60
