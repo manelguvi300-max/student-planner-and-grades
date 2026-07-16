@@ -255,8 +255,8 @@ function SubjectGrades({
             )}
 
             {/* Form para agregar */}
-            <div className="flex flex-col sm:grid sm:grid-cols-[1fr_auto_auto_auto] items-stretch sm:items-end gap-3 sm:gap-2">
-              <div className="space-y-1">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+              <div className="flex-1 space-y-1">
                 <label className="text-xs text-muted-foreground">Nombre</label>
                 <Input
                   value={gName}
@@ -265,35 +265,37 @@ function SubjectGrades({
                   className="h-9"
                 />
               </div>
-              <div className="w-16 space-y-1">
-                <label className="text-xs text-muted-foreground">Nota</label>
-                <Input
-                  value={gScore}
-                  onChange={(e) => setGScore(e.target.value)}
-                  placeholder="3.5"
-                  inputMode="decimal"
-                  className="h-9"
-                />
+              <div className="flex items-end gap-2">
+                <div className="w-20 space-y-1">
+                  <label className="text-xs text-muted-foreground">Nota</label>
+                  <Input
+                    value={gScore}
+                    onChange={(e) => setGScore(e.target.value)}
+                    placeholder="3.5"
+                    inputMode="decimal"
+                    className="h-9"
+                  />
+                </div>
+                <div className="w-20 space-y-1">
+                  <label className="text-xs text-muted-foreground">Vale %</label>
+                  <Input
+                    value={gWeight}
+                    onChange={(e) => setGWeight(e.target.value)}
+                    placeholder="20"
+                    inputMode="numeric"
+                    className="h-9"
+                  />
+                </div>
+                <Button
+                  onClick={add}
+                  size="icon"
+                  className="h-9 w-10 shrink-0"
+                  aria-label="Agregar nota"
+                  disabled={remainingWeight <= 0}
+                >
+                  <Plus className="size-4" />
+                </Button>
               </div>
-              <div className="w-16 space-y-1">
-                <label className="text-xs text-muted-foreground">Vale %</label>
-                <Input
-                  value={gWeight}
-                  onChange={(e) => setGWeight(e.target.value)}
-                  placeholder="20"
-                  inputMode="numeric"
-                  className="h-9"
-                />
-              </div>
-              <Button
-                onClick={add}
-                size="icon"
-                className="h-9 w-9"
-                aria-label="Agregar nota"
-                disabled={remainingWeight <= 0}
-              >
-                <Plus className="size-4" />
-              </Button>
             </div>
 
             {error ? (

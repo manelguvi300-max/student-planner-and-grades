@@ -31,9 +31,7 @@ type Props = {
 }
 
 export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, setSubjectConfigs }: Props) {
-  const [addOpen, setAddOpen] = useState(false)
   const [configOpen, setConfigOpen] = useState(false)
-  const [draftSubjectId, setDraftSubjectId] = useState<string>("")
   const [draftDate, setDraftDate] = useState<string>(() => new Date().toISOString().split("T")[0])
   const [configSubjectId, setConfigSubjectId] = useState<string>("")
   const [draftHours, setDraftHours] = useState<string>("")
@@ -59,21 +57,14 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
     setExpanded((prev) => ({ ...prev, [id]: !(prev[id] ?? false) }))
   }
 
-  function openAdd() {
-    setDraftSubjectId(subjects[0]?.id ?? "")
-    setDraftDate(new Date().toISOString().split("T")[0])
-    setAddOpen(true)
-  }
-
-  function handleAddAbsence() {
-    if (!draftSubjectId || !draftDate) return
+  function handleAddAbsence(subjectId: string) {
+    if (!draftDate) return
     const newAbsence: Absence = {
       id: crypto.randomUUID(),
-      subjectId: draftSubjectId,
+      subjectId,
       date: draftDate,
     }
     setAbsences((prev) => [...prev, newAbsence])
-    setAddOpen(false)
   }
 
   function handleDeleteAbsence(id: string) {
@@ -130,9 +121,6 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
             Registra tus faltas por materia y mira cuántas faltas te quedan antes de cancelar.
           </p>
         </div>
-        <Button onClick={openAdd} size="sm" className="rounded-full shadow-sm">
-          <Plus className="size-4 mr-1" /> Registrar falta
-        </Button>
       </div>
 
       {(() => {
@@ -267,9 +255,29 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
                     )}
 
                     {/* Historial de faltas */}
-                    {subjectAbsences.length > 0 ? (
-                      <div className="space-y-1.5">
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
                         <p className="text-xs font-medium text-muted-foreground">Historial</p>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="date"
+                            value={draftDate}
+                            onChange={(e) => setDraftDate(e.target.value)}
+                            className="h-7 px-2 text-[11px] w-[115px]"
+                          />
+                          <Button
+                            size="icon"
+                            variant="secondary"
+                            className="h-7 w-7 rounded-md shrink-0"
+                            onClick={() => handleAddAbsence(subject.id)}
+                            title="Agregar falta"
+                          >
+                            <Plus className="size-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      {subjectAbsences.length > 0 ? (
                         <ul className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
                           {subjectAbsences.map((absence, index) => (
                             <li
@@ -290,12 +298,12 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
                             </li>
                           ))}
                         </ul>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground italic text-center py-2">
-                        Sin faltas registradas.
-                      </p>
-                    )}
+                      ) : (
+                        <p className="text-xs text-muted-foreground italic text-center py-2">
+                          Sin faltas registradas.
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -322,74 +330,6 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
           </>
         )
       })()}
-
-      {/* Dialog: Registrar falta */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="sm:max-w-[380px] animate-scale-in">
-          <DialogHeader>
-            <DialogTitle>Registrar falta</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Materia</Label>
-              <Select value={draftSubjectId} onValueChange={(v) => v && setDraftSubjectId(v)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Selecciona una materia">
-                    {draftSubjectId &&
-                      (() => {
-                        const s = subjects.find((s) => s.id === draftSubjectId)
-                        return s ? (
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="size-3 rounded-full"
-                              style={{
-                                backgroundColor: s.bg,
-                                border: `1px solid ${s.border}`,
-                              }}
-                            />
-                            {s.name}
-                          </div>
-                        ) : null
-                      })()}
-                  </SelectValue>
-                </SelectTrigger>
-
-                <SelectContent>
-                  {subjects.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="size-3 rounded-full"
-                          style={{
-                            backgroundColor: s.bg,
-                            border: `1px solid ${s.border}`,
-                          }}
-                        />
-                        {s.name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="absence-date">Fecha de la falta</Label>
-              <Input
-                id="absence-date"
-                type="date"
-                value={draftDate}
-                onChange={(e) => setDraftDate(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleAddAbsence} className="w-full rounded-full" disabled={!draftSubjectId || !draftDate}>
-              Registrar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Dialog: Configurar horas de la materia */}
       <Dialog open={configOpen} onOpenChange={setConfigOpen}>
