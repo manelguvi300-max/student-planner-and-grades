@@ -105,9 +105,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
           <UserX className="size-6 text-primary" />
         </div>
         <h3 className="font-semibold text-lg mb-1">Sin materias</h3>
-        <p className="text-sm text-muted-foreground max-w-[260px]">
-          Primero tienes que crear materias en la pestaña de Horario para poder registrar faltas y adicional tienes que mirar en el pensum las horas de trabajo directo [HD] de la materia y agregarla.
-        </p>
+
       </div>
     )
   }
@@ -118,7 +116,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
         <div>
           <h2 className="text-lg font-semibold">Faltas</h2>
           <p className="text-sm text-muted-foreground hidden sm:block">
-            Registra tus faltas por materia y mira cuántas faltas te quedan antes de cancelar.
+            Primero tienes que crear materias en la pestaña de Horario para poder registrar faltas y adicional tienes que mirar en el pensum las horas de trabajo directo [HD] de la materia y agregarla.
           </p>
         </div>
       </div>
