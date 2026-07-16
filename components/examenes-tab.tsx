@@ -161,8 +161,8 @@ export function ExamenesTab({ subjects, exams, setExams }: Props) {
         >
           <div className="overflow-hidden">
             <div className="border-t px-4 pb-4 pt-3 sm:px-6">
-              <div className="mx-auto grid max-w-5xl grid-cols-2 gap-3 lg:grid-cols-12 lg:items-end lg:gap-4">
-                <div className="col-span-2 space-y-1 lg:col-span-4">
+              <div className="mx-auto grid max-w-5xl grid-cols-2 gap-4 lg:grid-cols-12 lg:items-end">
+                <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-4">
                   <Label>Materia</Label>
                   <Select value={subjectId} onValueChange={(v) => v && setSubjectId(v)}>
                     <SelectTrigger disabled={subjects.length === 0}>
@@ -181,7 +181,7 @@ export function ExamenesTab({ subjects, exams, setExams }: Props) {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1 lg:col-span-2">
+                <div className="flex flex-col gap-1.5 lg:col-span-2">
                   <Label htmlFor="exam-date">Fecha</Label>
                   <Input
                     id="exam-date"
@@ -190,7 +190,7 @@ export function ExamenesTab({ subjects, exams, setExams }: Props) {
                     onChange={(e) => setDate(e.target.value)}
                   />
                 </div>
-                <div className="space-y-1 lg:col-span-2">
+                <div className="flex flex-col gap-1.5 lg:col-span-2">
                   <Label>Modalidad</Label>
                   <Select value={group} onValueChange={(v) => v && setGroup(v as Exam["group"])}>
                     <SelectTrigger>
@@ -202,7 +202,7 @@ export function ExamenesTab({ subjects, exams, setExams }: Props) {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1 lg:col-span-2">
+                <div className="flex flex-col gap-1.5 lg:col-span-2">
                   <Label>Tipo</Label>
                   <Select value={kind} onValueChange={(v) => v && setKind(v as Exam["kind"])}>
                     <SelectTrigger>
@@ -214,7 +214,7 @@ export function ExamenesTab({ subjects, exams, setExams }: Props) {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="col-span-2 space-y-1 lg:col-span-2">
+                <div className="col-span-2 flex flex-col gap-1.5 lg:col-span-2">
                   <Label htmlFor="exam-weight">Vale %</Label>
                   <div className="flex gap-2">
                     <Input

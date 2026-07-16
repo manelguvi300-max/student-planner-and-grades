@@ -96,12 +96,12 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
 
       <Tabs value={tab} onValueChange={setTab} className="w-full">
         {/* Navegación de escritorio: pestañas con más espacio entre sí para que no se sientan "pegadas" */}
-        <TabsList className="hidden w-full gap-2 rounded-2xl bg-muted/50 p-2 sm:inline-flex sm:w-auto sm:items-stretch sm:shadow-sm">
+        <TabsList className="hidden w-full gap-2 rounded-2xl bg-muted/50 p-1.5 sm:inline-flex sm:w-auto sm:items-center sm:shadow-sm sm:h-auto">
           {NAV_ITEMS.map((item) => (
             <TabsTrigger
               key={item.value}
               value={item.value}
-              className="group min-h-12 gap-2 rounded-xl px-5 py-3 text-sm font-medium transition-all duration-200 hover:-translate-y-0.5 hover:bg-background hover:shadow-md data-[state=active]:bg-background data-[state=active]:shadow-md"
+              className="group gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 hover:bg-background/80 hover:text-foreground data-active:bg-background data-active:shadow-md"
             >
               <item.icon className="size-4 transition-transform duration-200 group-hover:scale-110" />
               <span className="text-sm">{item.label}</span>
