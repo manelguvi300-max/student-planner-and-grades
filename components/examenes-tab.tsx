@@ -122,7 +122,7 @@ export function ExamenesTab({ subjects, exams, setExams }: Props) {
       <div>
         <h2 className="text-lg font-semibold">Fechas de exámenes</h2>
         <p className="text-sm text-muted-foreground">
-          Anota las fechas de tus exámenes.
+          Anota las fechas de los exámenes.
         </p>
       </div>
 

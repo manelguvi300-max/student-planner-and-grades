@@ -71,6 +71,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
   const [draft, setDraft] = useState<SessionDraft | null>(null)
   const [isNew, setIsNew] = useState(false)
   const [selectedMobileDay, setSelectedMobileDay] = useState(0)
+  const [slideDirection, setSlideDirection] = useState<"left" | "right" | "">("")
 
   const touchStartX = useRef<number | null>(null)
   const touchStartY = useRef<number | null>(null)
@@ -78,6 +79,12 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX
     touchStartY.current = e.touches[0].clientY
+  }
+
+  const changeMobileDay = (newDay: number) => {
+    if (newDay === selectedMobileDay) return
+    setSlideDirection(newDay > selectedMobileDay ? "left" : "right")
+    setSelectedMobileDay(newDay)
   }
 
   const handleTouchEnd = (e: React.TouchEvent) => {
@@ -90,9 +97,9 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
 
     if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 40) {
       if (diffX > 0) {
-        setSelectedMobileDay((prev) => Math.min(prev + 1, DAYS.length - 1))
+        if (selectedMobileDay < DAYS.length - 1) changeMobileDay(selectedMobileDay + 1)
       } else {
-        setSelectedMobileDay((prev) => Math.max(prev - 1, 0))
+        if (selectedMobileDay > 0) changeMobileDay(selectedMobileDay - 1)
       }
     }
     touchStartX.current = null
@@ -257,13 +264,13 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
       {classes.length > 0 && (
         <>
           {/* Vista móvil */}
-          <div className="sm:hidden space-y-4">
-            <div className="flex w-full items-center p-1 bg-muted/40 rounded-xl overflow-hidden">
+          <div className="sm:hidden space-y-4 overflow-hidden">
+            <div className="flex w-full items-center p-1 bg-muted/40 rounded-xl">
               {DAYS.map((d, i) => (
                 <button
                   key={d}
                   type="button"
-                  onClick={() => setSelectedMobileDay(i)}
+                  onClick={() => changeMobileDay(i)}
                   aria-label={d}
                   className={`flex-1 py-2.5 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-300 ease-out select-none ${
                     selectedMobileDay === i
@@ -278,7 +285,9 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
 
             {/* Grid móvil: columna de horas + columna de eventos */}
             <div 
-              className="rounded-xl border bg-card overflow-hidden shadow-sm touch-pan-y" 
+              className={`rounded-xl border bg-card overflow-hidden shadow-sm touch-pan-y animate-in fade-in duration-300 fill-mode-both ${
+                slideDirection === "left" ? "slide-in-from-right-12" : slideDirection === "right" ? "slide-in-from-left-12" : ""
+              }`}
               key={selectedMobileDay}
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}

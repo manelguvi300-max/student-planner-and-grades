@@ -137,10 +137,6 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
       </Tabs>
 
       <footer className="mt-10 flex flex-col items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
-        <div className="flex items-center justify-center gap-1.5">
-          <CloudOff className="size-3.5" />
-          <span>La información se sincroniza entre dispositivos.</span>
-        </div>
         <p>Por Manuel Gutiérrez. Todos los derechos reservados.</p>
       </footer>
 

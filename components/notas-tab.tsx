@@ -50,10 +50,6 @@ export function NotasTab({ subjects, grades, setGrades }: Props) {
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold">Mis notas</h2>
-        <p className="text-sm text-muted-foreground">
-          Agrega cada nota con su porcentaje. El final siempre vale {FINAL_WEIGHT}% y abajo
-          verás cuánto necesitas sacar en el final para que la materia te quede en {PASSING_GRADE.toFixed(1)}.
-        </p>
       </div>
 
       {subjects.length === 0 ? (
