@@ -67,31 +67,79 @@ export function minutesToLabel(minutes: number): string {
   return m === 0 ? `${h}:00` : `${h}:${String(m).padStart(2, "0")}`
 }
 
-export const COLORS_PALETTE = [
-  // Pasteles originales
-  { bg: "#fbeec6", border: "#e0b53e" },
-  { bg: "#f5aaa3", border: "#e26b60" },
-  { bg: "#aecdee", border: "#5b94d6" },
-  { bg: "#d8e7f6", border: "#8fb8e0" },
-  { bg: "#f4c79c", border: "#df9750" },
-  { bg: "#bcdcab", border: "#7cb45f" },
-  { bg: "#f3e8ff", border: "#c084fc" },
-  { bg: "#ccfbf1", border: "#2dd4bf" },
-  { bg: "#ffedd5", border: "#fb923c" },
-  // Nuevos pasteles
-  { bg: "#fce7f3", border: "#f472b6" },
-  { bg: "#ede9fe", border: "#a78bfa" },
-  { bg: "#d1fae5", border: "#34d399" },
-  { bg: "#fef9c3", border: "#facc15" },
-  { bg: "#fee2e2", border: "#f87171" },
-  { bg: "#e0f2fe", border: "#38bdf8" },
-  { bg: "#f0fdf4", border: "#4ade80" },
-  { bg: "#fff7ed", border: "#fb923c" },
-  { bg: "#fdf4ff", border: "#e879f9" },
-  { bg: "#ecfdf5", border: "#10b981" },
-  { bg: "#f8fafc", border: "#94a3b8" },
-  { bg: "#fef2f2", border: "#ef4444" },
+export type ColorSwatch = {
+  bg: string
+  border: string
+}
+
+// Únicamente los colores principales (pasteles curados). El usuario puede
+// agregar colores personalizados adicionales, que se guardan aparte.
+export const COLORS_PALETTE: ColorSwatch[] = [
+  { bg: "#fbeec6", border: "#e0b53e" }, // crema
+  { bg: "#f5aaa3", border: "#e26b60" }, // salmón
+  { bg: "#aecdee", border: "#5b94d6" }, // azul
+  { bg: "#d8e7f6", border: "#8fb8e0" }, // azul claro
+  { bg: "#f4c79c", border: "#df9750" }, // naranja
+  { bg: "#bcdcab", border: "#7cb45f" }, // verde
 ]
+
+const CUSTOM_COLORS_KEY = "horario-custom-colors"
+
+/** Genera un borde en tono más oscuro/saturado a partir de un color de fondo (hex). */
+export function borderFromBg(hex: string): string {
+  const clean = hex.replace("#", "")
+  if (clean.length !== 6) return hex
+  const r = parseInt(clean.slice(0, 2), 16)
+  const g = parseInt(clean.slice(2, 4), 16)
+  const b = parseInt(clean.slice(4, 6), 16)
+  const darken = (c: number) => Math.max(0, Math.round(c * 0.72))
+  const toHex = (c: number) => c.toString(16).padStart(2, "0")
+  return `#${toHex(darken(r))}${toHex(darken(g))}${toHex(darken(b))}`
+}
+
+/** Lee del localStorage los colores personalizados guardados por el usuario. */
+export function loadCustomColors(): ColorSwatch[] {
+  if (typeof window === "undefined") return []
+  try {
+    const raw = window.localStorage.getItem(CUSTOM_COLORS_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter(
+      (c): c is ColorSwatch => typeof c?.bg === "string" && typeof c?.border === "string"
+    )
+  } catch {
+    return []
+  }
+}
+
+/** Guarda un nuevo color personalizado (evitando duplicados) y devuelve la lista actualizada. */
+export function saveCustomColor(swatch: ColorSwatch): ColorSwatch[] {
+  const current = loadCustomColors()
+  const exists = current.some((c) => c.bg.toLowerCase() === swatch.bg.toLowerCase())
+  const next = exists ? current : [...current, swatch]
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(CUSTOM_COLORS_KEY, JSON.stringify(next))
+    } catch {
+      // almacenamiento no disponible, se ignora silenciosamente
+    }
+  }
+  return next
+}
+
+/** Elimina un color personalizado guardado y devuelve la lista actualizada. */
+export function removeCustomColor(bg: string): ColorSwatch[] {
+  const next = loadCustomColors().filter((c) => c.bg.toLowerCase() !== bg.toLowerCase())
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(CUSTOM_COLORS_KEY, JSON.stringify(next))
+    } catch {
+      // almacenamiento no disponible, se ignora silenciosamente
+    }
+  }
+  return next
+}
 
 export const PASSING_GRADE = 3.0
 export const FINAL_WEIGHT = 25

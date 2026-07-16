@@ -34,8 +34,12 @@ import {
 } from "@/lib/horario-data"
 import { MateriasDialog } from "./materias-dialog"
 
-// Píxeles por hora en el grid
-const PX_PER_HOUR = 64
+// Píxeles por hora en el grid (más compacto: una clase de 2h ya no domina la vista)
+const PX_PER_HOUR = 44
+// Espacio reservado arriba/abajo del grid para que las etiquetas de hora
+// nunca se encimen con el encabezado de días ni se corten al final
+const GRID_PAD_TOP = 14
+const GRID_PAD_BOTTOM = 6
 
 type Props = {
   subjects: Subject[]
@@ -88,10 +92,10 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
   }, [classes])
 
   const totalMinutes = gridEndMin - gridStartMin
-  const gridHeight = (totalMinutes / 60) * PX_PER_HOUR
+  const gridHeight = (totalMinutes / 60) * PX_PER_HOUR + GRID_PAD_TOP + GRID_PAD_BOTTOM
 
   function minutesToPx(minutes: number) {
-    return ((minutes - gridStartMin) / 60) * PX_PER_HOUR
+    return ((minutes - gridStartMin) / 60) * PX_PER_HOUR + GRID_PAD_TOP
   }
 
   function durationPx(startTime: number, endTime: number) {
@@ -245,15 +249,15 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
             </div>
 
             {/* Grid móvil: columna de horas + columna de eventos */}
-            <div className="rounded-xl border bg-card overflow-hidden" key={selectedMobileDay}>
-              <div className="flex">
+            <div className="rounded-xl border bg-card overflow-hidden shadow-sm" key={selectedMobileDay}>
+              <div className="flex overflow-hidden">
                 {/* Columna de horas */}
-                <div className="w-14 shrink-0 relative border-r" style={{ height: gridHeight }}>
+                <div className="w-12 shrink-0 relative border-r bg-muted/20" style={{ height: gridHeight }}>
                   {hours.map((h) => (
                     <div
                       key={h}
-                      className="absolute right-0 flex items-center justify-end pr-2 text-[10px] text-muted-foreground"
-                      style={{ top: minutesToPx(h * 60) - 8, height: 16 }}
+                      className="absolute right-0 left-0 flex items-start justify-end pr-2 text-[10px] font-medium text-muted-foreground tabular-nums"
+                      style={{ top: minutesToPx(h * 60) - 6 }}
                     >
                       {h}:00
                     </div>
@@ -274,21 +278,26 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                   {classesForDay(selectedMobileDay).map((c) => {
                     const subject = getSubject(subjects, c.subjectId)
                     if (!subject) return null
+                    const blockHeight = Math.max(durationPx(c.startTime, c.endTime) - 3, 26)
+                    const isCompact = blockHeight < 42
                     return (
                       <button
                         key={c.id}
                         onClick={() => openEdit(c)}
-                        className="absolute left-1 right-1 rounded-lg p-1.5 text-left text-neutral-900 text-xs shadow-sm hover:brightness-95 transition-all overflow-hidden"
+                        className="absolute left-1 right-1 rounded-md pl-2 pr-1.5 py-1 text-left text-neutral-900 text-[11px] leading-tight shadow-sm hover:shadow-md hover:brightness-[0.97] active:scale-[0.99] transition-all overflow-hidden border-l-[3px]"
                         style={{
                           top: minutesToPx(c.startTime) + 1,
-                          height: Math.max(durationPx(c.startTime, c.endTime) - 2, 24),
+                          height: blockHeight,
                           backgroundColor: subject.bg,
-                          border: `1px solid ${subject.border}`,
+                          borderLeftColor: subject.border,
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
                         }}
                       >
-                        <p className="font-semibold leading-tight truncate">{subject.name}</p>
-                        <p className="opacity-70 text-[10px]">{timeLabel(c.startTime)}–{timeLabel(c.endTime)}</p>
-                        {c.room && <p className="opacity-70 text-[10px] truncate">{c.room}</p>}
+                        <p className="font-semibold truncate">{subject.name}</p>
+                        {!isCompact && (
+                          <p className="opacity-70 text-[10px] mt-0.5">{timeLabel(c.startTime)}–{timeLabel(c.endTime)}</p>
+                        )}
+                        {!isCompact && c.room && <p className="opacity-70 text-[10px] truncate">{c.room}</p>}
                       </button>
                     )
                   })}
@@ -301,8 +310,8 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
           <div className="hidden sm:block overflow-x-auto rounded-xl border bg-card shadow-sm animate-slide-up">
             <div className="min-w-[700px]">
               {/* Cabecera de días */}
-              <div className="flex border-b bg-muted/30">
-                <div className="w-16 shrink-0 border-r p-3 text-xs font-semibold text-muted-foreground">Hora</div>
+              <div className="flex border-b bg-muted/30 rounded-t-xl overflow-hidden">
+                <div className="w-16 shrink-0 border-r p-3 text-xs font-semibold text-muted-foreground flex items-center">Hora</div>
                 {DAYS.map((d) => (
                   <div key={d} className="flex-1 p-3 text-center text-sm font-semibold border-r last:border-r-0">
                     {d}
@@ -311,14 +320,14 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
               </div>
 
               {/* Cuerpo del grid */}
-              <div className="flex" style={{ height: gridHeight }}>
+              <div className="flex overflow-hidden" style={{ height: gridHeight }}>
                 {/* Columna de horas */}
-                <div className="w-16 shrink-0 border-r relative">
+                <div className="w-16 shrink-0 border-r relative bg-muted/10">
                   {hours.map((h) => (
                     <div
                       key={h}
-                      className="absolute right-0 flex items-center justify-end pr-2 text-[11px] text-muted-foreground"
-                      style={{ top: minutesToPx(h * 60) - 9, height: 18 }}
+                      className="absolute right-0 left-0 flex items-start justify-end pr-2 text-[11px] font-medium text-muted-foreground tabular-nums"
+                      style={{ top: minutesToPx(h * 60) - 7 }}
                     >
                       {h}:00
                     </div>
@@ -340,22 +349,27 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                     {classesForDay(dayIndex).map((c) => {
                       const subject = getSubject(subjects, c.subjectId)
                       if (!subject) return null
+                      const blockHeight = Math.max(durationPx(c.startTime, c.endTime) - 3, 28)
+                      const isCompact = blockHeight < 46
                       return (
                         <button
                           key={c.id}
                           onClick={() => openEdit(c)}
-                          className="absolute left-1 right-1 rounded-lg p-1.5 text-left text-neutral-900 text-xs shadow-sm hover:brightness-95 transition-all overflow-hidden animate-pop"
+                          className="absolute left-1 right-1 rounded-md pl-2 pr-1.5 py-1 text-left text-neutral-900 text-[11px] leading-tight shadow-sm hover:shadow-md hover:brightness-[0.97] active:scale-[0.99] transition-all overflow-hidden animate-pop border-l-[3px]"
                           style={{
                             top: minutesToPx(c.startTime) + 1,
-                            height: Math.max(durationPx(c.startTime, c.endTime) - 2, 24),
+                            height: blockHeight,
                             backgroundColor: subject.bg,
-                            border: `1px solid ${subject.border}`,
+                            borderLeftColor: subject.border,
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
                           }}
                         >
-                          <p className="font-semibold leading-tight truncate">{subject.name}</p>
-                          <p className="opacity-70 text-[10px]">{timeLabel(c.startTime)}–{timeLabel(c.endTime)}</p>
-                          {c.group && <p className="opacity-70 text-[10px]">Gr: {c.group}</p>}
-                          {c.room && <p className="opacity-70 text-[10px] truncate">{c.room}</p>}
+                          <p className="font-semibold truncate">{subject.name}</p>
+                          {!isCompact && (
+                            <p className="opacity-70 text-[10px] mt-0.5">{timeLabel(c.startTime)}–{timeLabel(c.endTime)}</p>
+                          )}
+                          {!isCompact && c.group && <p className="opacity-70 text-[10px]">Gr: {c.group}</p>}
+                          {!isCompact && c.room && <p className="opacity-70 text-[10px] truncate">{c.room}</p>}
                         </button>
                       )
                     })}
