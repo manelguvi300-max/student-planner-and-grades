@@ -30,21 +30,6 @@ type Props = {
   setSubjectConfigs: React.Dispatch<React.SetStateAction<Record<string, SubjectConfig>>>
 }
 
-// Detecta si el viewport es móvil (breakpoint sm de Tailwind = 640px)
-function useIsMobile(breakpoint = 640) {
-  const [isMobile, setIsMobile] = useState<boolean | null>(null)
-
-  useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${breakpoint - 1}px)`)
-    const update = () => setIsMobile(mql.matches)
-    update()
-    mql.addEventListener("change", update)
-    return () => mql.removeEventListener("change", update)
-  }, [breakpoint])
-
-  return isMobile
-}
-
 export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, setSubjectConfigs }: Props) {
   const [addOpen, setAddOpen] = useState(false)
   const [configOpen, setConfigOpen] = useState(false)
@@ -53,27 +38,25 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
   const [configSubjectId, setConfigSubjectId] = useState<string>("")
   const [draftHours, setDraftHours] = useState<string>("")
 
-  const isMobile = useIsMobile()
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
-  // Define el estado inicial de cada materia: contraída en móvil, expandida en escritorio.
+  // Todas las materias inician contraídas (en móvil y en escritorio).
   useEffect(() => {
-    if (isMobile === null) return
     setExpanded((prev) => {
       let changed = false
       const next = { ...prev }
       for (const s of subjects) {
         if (!(s.id in next)) {
-          next[s.id] = !isMobile
+          next[s.id] = false
           changed = true
         }
       }
       return changed ? next : prev
     })
-  }, [subjects, isMobile])
+  }, [subjects])
 
   function toggleExpanded(id: string) {
-    setExpanded((prev) => ({ ...prev, [id]: !(prev[id] ?? true) }))
+    setExpanded((prev) => ({ ...prev, [id]: !(prev[id] ?? false) }))
   }
 
   function openAdd() {
@@ -161,7 +144,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
           const safeRemaining = limit !== null ? limit - count : null
           const isCancelled = limit !== null && count > limit
           const isAtRisk = limit !== null && !isCancelled && safeRemaining !== null && safeRemaining <= 1
-          const isExpanded = expanded[subject.id] ?? true
+          const isExpanded = expanded[subject.id] ?? false
 
           return (
             <div
@@ -330,7 +313,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Materia</Label>
-              <Select value={draftSubjectId} onValueChange={setDraftSubjectId}>
+              <Select value={draftSubjectId} onValueChange={(v) => v && setDraftSubjectId(v)}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Selecciona una materia">
                     {draftSubjectId &&

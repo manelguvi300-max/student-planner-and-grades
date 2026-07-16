@@ -24,43 +24,26 @@ type Props = {
   setGrades: React.Dispatch<React.SetStateAction<GradesMap>>
 }
 
-// Detecta si el viewport es móvil (breakpoint sm de Tailwind = 640px)
-function useIsMobile(breakpoint = 640) {
-  const [isMobile, setIsMobile] = useState<boolean | null>(null)
-
-  useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${breakpoint - 1}px)`)
-    const update = () => setIsMobile(mql.matches)
-    update()
-    mql.addEventListener("change", update)
-    return () => mql.removeEventListener("change", update)
-  }, [breakpoint])
-
-  return isMobile
-}
-
 export function NotasTab({ subjects, grades, setGrades }: Props) {
-  const isMobile = useIsMobile()
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
-  // Define el estado inicial de cada materia: contraída en móvil, expandida en escritorio.
+  // Todas las materias inician contraídas (en móvil y en escritorio).
   useEffect(() => {
-    if (isMobile === null) return
     setExpanded((prev) => {
       let changed = false
       const next = { ...prev }
       for (const s of subjects) {
         if (!(s.id in next)) {
-          next[s.id] = !isMobile
+          next[s.id] = false
           changed = true
         }
       }
       return changed ? next : prev
     })
-  }, [subjects, isMobile])
+  }, [subjects])
 
   function toggleExpanded(id: string) {
-    setExpanded((prev) => ({ ...prev, [id]: !(prev[id] ?? true) }))
+    setExpanded((prev) => ({ ...prev, [id]: !(prev[id] ?? false) }))
   }
 
   return (
@@ -90,7 +73,7 @@ export function NotasTab({ subjects, grades, setGrades }: Props) {
               border={s.border}
               grades={grades[s.id] ?? []}
               setGrades={setGrades}
-              expanded={expanded[s.id] ?? true}
+              expanded={expanded[s.id] ?? false}
               onToggle={() => toggleExpanded(s.id)}
             />
           ))}

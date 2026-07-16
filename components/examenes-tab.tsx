@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Plus, Trash2, Users, User, FileText, Presentation, StickyNote, ChevronDown } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Plus, Trash2, Users, User, FileText, Presentation, StickyNote, ChevronDown, CalendarPlus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -23,6 +23,21 @@ type Props = {
   setExams: React.Dispatch<React.SetStateAction<Exam[]>>
 }
 
+// Detecta si el viewport es móvil (breakpoint sm de Tailwind = 640px)
+function useIsMobile(breakpoint = 640) {
+  const [isMobile, setIsMobile] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    const mql = window.matchMedia(`(max-width: ${breakpoint - 1}px)`)
+    const update = () => setIsMobile(mql.matches)
+    update()
+    mql.addEventListener("change", update)
+    return () => mql.removeEventListener("change", update)
+  }, [breakpoint])
+
+  return isMobile
+}
+
 export function ExamenesTab({ subjects, exams, setExams }: Props) {
   const [subjectId, setSubjectId] = useState(subjects.length > 0 ? subjects[0].id : "")
   const [date, setDate] = useState("")
@@ -31,6 +46,17 @@ export function ExamenesTab({ subjects, exams, setExams }: Props) {
   const [weight, setWeight] = useState("")
   const [showNoteInput, setShowNoteInput] = useState(false)
   const [draftNote, setDraftNote] = useState("")
+
+  // El formulario de "agregar examen" inicia abierto en PC y cerrado en móvil,
+  // para que en móvil no ocupe toda la pantalla al entrar a la pestaña.
+  const isMobile = useIsMobile()
+  const [formOpen, setFormOpen] = useState(false)
+  const [formInitialized, setFormInitialized] = useState(false)
+  useEffect(() => {
+    if (isMobile === null || formInitialized) return
+    setFormOpen(!isMobile)
+    setFormInitialized(true)
+  }, [isMobile, formInitialized])
 
   // Estado de expansión y borrador de nota por examen ya creado
   const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({})
@@ -52,6 +78,7 @@ export function ExamenesTab({ subjects, exams, setExams }: Props) {
     setWeight("")
     setDraftNote("")
     setShowNoteInput(false)
+    if (isMobile) setFormOpen(false)
   }
 
   function remove(id: string) {
@@ -99,114 +126,150 @@ export function ExamenesTab({ subjects, exams, setExams }: Props) {
         </p>
       </div>
 
-      {/* Form */}
-      <Card className="p-4 animate-slide-up">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6 lg:items-end">
-          <div className="space-y-1 lg:col-span-2">
-            <Label>Materia</Label>
-            <Select value={subjectId} onValueChange={(v) => v && setSubjectId(v)}>
-              <SelectTrigger disabled={subjects.length === 0}>
-                <SelectValue placeholder="Selecciona una materia">{() => getSubject(subjects, subjectId)?.name}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {subjects.length === 0 ? (
-                  <div className="p-2 text-sm text-muted-foreground text-center">No hay materias</div>
-                ) : (
-                  subjects.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
+      {/* Form (colapsable) */}
+      <Card className="overflow-hidden p-0 animate-slide-up">
+        <div
+          onClick={() => setFormOpen((o) => !o)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault()
+              setFormOpen((o) => !o)
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-expanded={formOpen}
+          className="flex items-center justify-between gap-2 px-4 py-3 cursor-pointer select-none"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <CalendarPlus className="size-4 shrink-0 text-muted-foreground" />
+            <h3 className="font-semibold leading-tight">Agregar examen</h3>
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="exam-date">Fecha</Label>
-            <Input
-              id="exam-date"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>Modalidad</Label>
-            <Select value={group} onValueChange={(v) => v && setGroup(v as Exam["group"])}>
-              <SelectTrigger>
-                <SelectValue>{(v) => (v === "grupal" ? "Grupal" : "Individual")}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="individual">Individual</SelectItem>
-                <SelectItem value="grupal">Grupal</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label>Tipo</Label>
-            <Select value={kind} onValueChange={(v) => v && setKind(v as Exam["kind"])}>
-              <SelectTrigger>
-                <SelectValue>{(v) => (v === "presentacion" ? "Presentación" : "Examen")}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="examen">Examen</SelectItem>
-                <SelectItem value="presentacion">Presentación</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="exam-weight">Vale %</Label>
-            <div className="flex gap-2">
-              <Input
-                id="exam-weight"
-                value={weight}
-                onChange={(e) => setWeight(e.target.value)}
-                placeholder="25"
-                inputMode="numeric"
-              />
-              <Button onClick={add} size="icon" aria-label="Agregar examen" className="shrink-0" disabled={subjects.length === 0}>
-                <Plus className="size-4" />
-              </Button>
-            </div>
-          </div>
+          <ChevronDown
+            className={cn(
+              "size-4 shrink-0 text-muted-foreground transition-transform duration-300",
+              formOpen && "rotate-180"
+            )}
+          />
         </div>
 
-        {/* Nota / descripción opcional al crear */}
-        <div className="mt-3 border-t pt-3">
-          {showNoteInput ? (
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="exam-note">Nota o descripción (opcional)</Label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowNoteInput(false)
-                    setDraftNote("")
-                  }}
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                >
-                  Quitar
-                </button>
-              </div>
-              <textarea
-                id="exam-note"
-                value={draftNote}
-                onChange={(e) => setDraftNote(e.target.value)}
-                rows={2}
-                placeholder="Ej: Trae calculadora, tema: derivadas e integrales..."
-                className="w-full resize-none rounded-lg border border-input bg-transparent px-3 py-2 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-              />
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowNoteInput(true)}
-              disabled={subjects.length === 0}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline disabled:opacity-50 disabled:no-underline"
-            >
-              <StickyNote className="size-3.5" /> Agregar nota o descripción
-            </button>
+        <div
+          className={cn(
+            "grid transition-[grid-template-rows] duration-300 ease-in-out",
+            formOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
           )}
+        >
+          <div className="overflow-hidden">
+            <div className="border-t px-4 pb-4 pt-3">
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-6 lg:items-end">
+                <div className="col-span-2 space-y-1 lg:col-span-2">
+                  <Label>Materia</Label>
+                  <Select value={subjectId} onValueChange={(v) => v && setSubjectId(v)}>
+                    <SelectTrigger disabled={subjects.length === 0}>
+                      <SelectValue placeholder="Selecciona una materia">{() => getSubject(subjects, subjectId)?.name}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {subjects.length === 0 ? (
+                        <div className="p-2 text-sm text-muted-foreground text-center">No hay materias</div>
+                      ) : (
+                        subjects.map((s) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.name}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="exam-date">Fecha</Label>
+                  <Input
+                    id="exam-date"
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Modalidad</Label>
+                  <Select value={group} onValueChange={(v) => v && setGroup(v as Exam["group"])}>
+                    <SelectTrigger>
+                      <SelectValue>{(v) => (v === "grupal" ? "Grupal" : "Individual")}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="individual">Individual</SelectItem>
+                      <SelectItem value="grupal">Grupal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Tipo</Label>
+                  <Select value={kind} onValueChange={(v) => v && setKind(v as Exam["kind"])}>
+                    <SelectTrigger>
+                      <SelectValue>{(v) => (v === "presentacion" ? "Presentación" : "Examen")}</SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="examen">Examen</SelectItem>
+                      <SelectItem value="presentacion">Presentación</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2 space-y-1 lg:col-span-1">
+                  <Label htmlFor="exam-weight">Vale %</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="exam-weight"
+                      value={weight}
+                      onChange={(e) => setWeight(e.target.value)}
+                      placeholder="25"
+                      inputMode="numeric"
+                    />
+                    <Button onClick={add} size="icon" aria-label="Agregar examen" className="shrink-0" disabled={subjects.length === 0}>
+                      <Plus className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Nota / descripción opcional al crear */}
+              <div className="mt-3 border-t pt-3">
+                {showNoteInput ? (
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="exam-note">Nota o descripción (opcional)</Label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowNoteInput(false)
+                          setDraftNote("")
+                        }}
+                        className="text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                    <textarea
+                      id="exam-note"
+                      value={draftNote}
+                      onChange={(e) => setDraftNote(e.target.value)}
+                      rows={2}
+                      placeholder="Ej: Trae calculadora, tema: derivadas e integrales..."
+                      className="w-full resize-none rounded-lg border border-input bg-transparent px-3 py-2 text-sm shadow-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    />
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowNoteInput(true)}
+                    disabled={subjects.length === 0}
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline disabled:opacity-50 disabled:no-underline"
+                  >
+                    <StickyNote className="size-3.5" /> Agregar nota o descripción
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </Card>
 

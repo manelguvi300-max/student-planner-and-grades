@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { CalendarDays, GraduationCap, ClipboardList, LogOut, Cloud, CloudOff, Loader2, UserX } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -10,6 +11,14 @@ import { FaltasTab } from "@/components/faltas-tab"
 import { usePlanner } from "@/lib/use-planner"
 import { authClient } from "@/lib/auth-client"
 import { useRouter } from "next/navigation"
+import { cn } from "@/lib/utils"
+
+const NAV_ITEMS = [
+  { value: "horario", label: "Horario", icon: CalendarDays },
+  { value: "notas", label: "Notas", icon: GraduationCap },
+  { value: "examenes", label: "Exámenes", icon: ClipboardList },
+  { value: "faltas", label: "Faltas", icon: UserX },
+] as const
 
 function SyncBadge({ status }: { status: "loading" | "saving" | "saved" }) {
   if (status === "loading") {
@@ -38,6 +47,7 @@ function SyncBadge({ status }: { status: "loading" | "saving" | "saved" }) {
 
 export function PlannerView({ userName, userEmail }: { userName: string; userEmail: string }) {
   const router = useRouter()
+  const [tab, setTab] = useState("horario")
   const {
     subjects, setSubjects,
     classes, setClasses,
@@ -55,47 +65,51 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
   }
 
   return (
-    <main className="mx-auto min-h-svh w-full max-w-5xl px-3 py-6 md:px-4 md:py-12 animate-fade-in">
-      <header className="mb-6 md:mb-8 flex flex-col gap-4 rounded-2xl border bg-card/70 p-4 shadow-sm backdrop-blur sm:flex-row sm:items-start sm:justify-between">
+    <main className="mx-auto min-h-svh w-full max-w-5xl px-3 pb-24 pt-5 sm:px-4 sm:py-6 sm:pb-6 md:py-12 md:pb-12 animate-fade-in">
+      {/* Header: compacto en móvil (todo en una fila), más espacioso en pantallas grandes */}
+      <header className="mb-4 flex flex-col gap-3 rounded-2xl border bg-card/70 p-3 shadow-sm backdrop-blur sm:mb-8 sm:gap-4 sm:p-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-balance md:text-3xl">Mi semestre</h1>
-          <p className="mt-1 text-sm text-muted-foreground text-pretty">
+          <h1 className="text-xl font-bold tracking-tight text-balance sm:text-2xl md:text-3xl">Mi semestre</h1>
+          <p className="mt-0.5 text-xs text-muted-foreground text-pretty sm:mt-1 sm:text-sm">
             Hola{userName ? `, ${userName.split(" ")[0]}` : ""}.
           </p>
         </div>
-        <div className="flex flex-col items-start gap-2 sm:items-end">
-          <div className="rounded-full border bg-background/80 px-3 py-1 text-xs text-muted-foreground shadow-sm">
-            <span className="font-medium text-foreground">{userEmail || "Sin correo"}</span>
+        <div className="flex flex-row items-center justify-between gap-2 sm:flex-col sm:items-end">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="min-w-0 truncate rounded-full border bg-background/80 px-2.5 py-1 text-[11px] text-muted-foreground shadow-sm sm:px-3 sm:text-xs">
+              <span className="font-medium text-foreground">{userEmail || "Sin correo"}</span>
+            </div>
+            <div className="hidden sm:block">
+              <SyncBadge status={status} />
+            </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
+          <Button variant="ghost" size="sm" onClick={handleSignOut} className="shrink-0 gap-1.5 sm:gap-2">
             <LogOut className="size-4" />
             <span className="hidden sm:inline">Salir</span>
           </Button>
+        </div>
+        {/* En móvil el badge de sincronización va en su propia fila para no apretar el header */}
+        <div className="sm:hidden">
           <SyncBadge status={status} />
         </div>
       </header>
 
-      <Tabs defaultValue="horario" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 sm:w-auto sm:inline-flex p-1 bg-muted/50 rounded-xl">
-          <TabsTrigger value="horario" className="gap-2 rounded-lg data-[state=active]:shadow-sm">
-            <CalendarDays className="size-4" />
-            <span className="text-xs sm:text-sm">Horario</span>
-          </TabsTrigger>
-          <TabsTrigger value="notas" className="gap-2 rounded-lg data-[state=active]:shadow-sm">
-            <GraduationCap className="size-4" />
-            <span className="text-xs sm:text-sm">Notas</span>
-          </TabsTrigger>
-          <TabsTrigger value="examenes" className="gap-2 rounded-lg data-[state=active]:shadow-sm">
-            <ClipboardList className="size-4" />
-            <span className="text-xs sm:text-sm">Exámenes</span>
-          </TabsTrigger>
-          <TabsTrigger value="faltas" className="gap-2 rounded-lg data-[state=active]:shadow-sm">
-            <UserX className="size-4" />
-            <span className="text-xs sm:text-sm">Faltas</span>
-          </TabsTrigger>
+      <Tabs value={tab} onValueChange={setTab} className="w-full">
+        {/* Navegación de escritorio: pestañas con más espacio entre sí para que no se sientan "pegadas" */}
+        <TabsList className="hidden w-full gap-1.5 rounded-xl bg-muted/50 p-1.5 sm:inline-flex sm:w-auto">
+          {NAV_ITEMS.map((item) => (
+            <TabsTrigger
+              key={item.value}
+              value={item.value}
+              className="gap-2 rounded-lg px-4 data-[state=active]:shadow-sm"
+            >
+              <item.icon className="size-4" />
+              <span className="text-sm">{item.label}</span>
+            </TabsTrigger>
+          ))}
         </TabsList>
 
-        <TabsContent value="horario" className="mt-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <TabsContent value="horario" className="mt-4 animate-in fade-in slide-in-from-bottom-2 duration-300 sm:mt-6">
           <HorarioTab
             subjects={subjects}
             setSubjects={setSubjects}
@@ -105,13 +119,13 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
             setExams={setExams}
           />
         </TabsContent>
-        <TabsContent value="notas" className="mt-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <TabsContent value="notas" className="mt-4 animate-in fade-in slide-in-from-bottom-2 duration-300 sm:mt-6">
           <NotasTab subjects={subjects} grades={grades} setGrades={setGrades} />
         </TabsContent>
-        <TabsContent value="examenes" className="mt-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <TabsContent value="examenes" className="mt-4 animate-in fade-in slide-in-from-bottom-2 duration-300 sm:mt-6">
           <ExamenesTab subjects={subjects} exams={exams} setExams={setExams} />
         </TabsContent>
-        <TabsContent value="faltas" className="mt-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <TabsContent value="faltas" className="mt-4 animate-in fade-in slide-in-from-bottom-2 duration-300 sm:mt-6">
           <FaltasTab
             subjects={subjects}
             absences={absences}
@@ -129,6 +143,33 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
         </div>
         <p>Por Manuel Gutiérrez. Todos los derechos reservados.</p>
       </footer>
+
+      {/* Navegación de móvil: barra inferior fija, más cómoda para el pulgar que las pestañas apretadas arriba */}
+      <nav
+        className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 shadow-[0_-2px_10px_rgba(0,0,0,0.04)] backdrop-blur sm:hidden"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <div className="mx-auto flex max-w-5xl items-stretch justify-around gap-1 px-2 py-1.5">
+          {NAV_ITEMS.map((item) => {
+            const active = tab === item.value
+            return (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => setTab(item.value)}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "flex flex-1 flex-col items-center gap-0.5 rounded-lg px-2 py-1.5 text-[11px] font-medium transition-colors",
+                  active ? "bg-muted text-foreground" : "text-muted-foreground"
+                )}
+              >
+                <item.icon className={cn("size-5", active && "text-foreground")} />
+                {item.label}
+              </button>
+            )
+          })}
+        </div>
+      </nav>
     </main>
   )
 }
