@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useRef } from "react"
 import { Plus, Pencil, Trash2, CalendarDays, Settings2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -71,6 +71,33 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
   const [draft, setDraft] = useState<SessionDraft | null>(null)
   const [isNew, setIsNew] = useState(false)
   const [selectedMobileDay, setSelectedMobileDay] = useState(0)
+
+  const touchStartX = useRef<number | null>(null)
+  const touchStartY = useRef<number | null>(null)
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return
+    const touchEndX = e.changedTouches[0].clientX
+    const touchEndY = e.changedTouches[0].clientY
+
+    const diffX = touchStartX.current - touchEndX
+    const diffY = touchStartY.current - touchEndY
+
+    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 40) {
+      if (diffX > 0) {
+        setSelectedMobileDay((prev) => Math.min(prev + 1, DAYS.length - 1))
+      } else {
+        setSelectedMobileDay((prev) => Math.max(prev - 1, 0))
+      }
+    }
+    touchStartX.current = null
+    touchStartY.current = null
+  }
 
   // Calcular rango horario dinámico
   const { gridStartMin, gridEndMin, hours } = useMemo(() => {
@@ -231,26 +258,31 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
         <>
           {/* Vista móvil */}
           <div className="sm:hidden space-y-4">
-            <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-3 scrollbar-hide snap-x snap-mandatory touch-pan-x overscroll-x-contain scroll-smooth">
+            <div className="flex w-full items-center p-1 bg-muted/40 rounded-xl overflow-hidden">
               {DAYS.map((d, i) => (
                 <button
                   key={d}
                   type="button"
                   onClick={() => setSelectedMobileDay(i)}
                   aria-label={d}
-                  className={`snap-center shrink-0 grid h-12 min-w-12 place-items-center rounded-full border px-3 text-sm font-semibold transition-all duration-200 ${
+                  className={`flex-1 py-2.5 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-300 ease-out select-none ${
                     selectedMobileDay === i
-                      ? "border-primary bg-primary text-primary-foreground shadow-md shadow-primary/20 scale-105"
-                      : "border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:shadow-sm"
+                      ? "bg-background text-foreground shadow-sm ring-1 ring-border/50"
+                      : "text-muted-foreground hover:text-foreground active:bg-muted/60"
                   }`}
                 >
-                  {DAY_SHORT[i]}
+                  {d.slice(0, 3)}
                 </button>
               ))}
             </div>
 
             {/* Grid móvil: columna de horas + columna de eventos */}
-            <div className="rounded-xl border bg-card overflow-hidden shadow-sm" key={selectedMobileDay}>
+            <div 
+              className="rounded-xl border bg-card overflow-hidden shadow-sm touch-pan-y" 
+              key={selectedMobileDay}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+            >
               <div className="flex overflow-hidden">
                 {/* Columna de horas */}
                 <div className="w-12 shrink-0 relative border-r bg-muted/20" style={{ height: gridHeight }}>
