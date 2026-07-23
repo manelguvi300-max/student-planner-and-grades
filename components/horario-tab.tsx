@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useRef } from "react"
 import { Plus, Pencil, Trash2, CalendarDays, Settings2, GraduationCap, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -36,7 +36,7 @@ import { MateriasDialog } from "./materias-dialog"
 import { TeacherFormFields, ProfesorMobileSheet, type TeacherField } from "./profesor-popover"
 
 // Píxeles por hora en el grid (más compacto: una clase de 2h ya no domina la vista)
-const PX_PER_HOUR = 44
+const PX_PER_HOUR = 38
 // Espacio reservado arriba/abajo del grid para que las etiquetas de hora
 // nunca se encimen con el encabezado de días ni se corten al final
 const GRID_PAD_TOP = 14
@@ -73,6 +73,33 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
   const [isNew, setIsNew] = useState(false)
   const [selectedMobileDay, setSelectedMobileDay] = useState(0)
   const [expandedTeacherId, setExpandedTeacherId] = useState<string | null>(null)
+
+  const touchStartX = useRef<number | null>(null)
+  const touchStartY = useRef<number | null>(null)
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return
+    const touchEndX = e.changedTouches[0].clientX
+    const touchEndY = e.changedTouches[0].clientY
+
+    const diffX = touchStartX.current - touchEndX
+    const diffY = touchStartY.current - touchEndY
+
+    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 40) {
+      if (diffX > 0) {
+        setSelectedMobileDay((prev) => Math.min(prev + 1, DAYS.length - 1))
+      } else {
+        setSelectedMobileDay((prev) => Math.max(prev - 1, 0))
+      }
+    }
+    touchStartX.current = null
+    touchStartY.current = null
+  }
 
   // Calcular rango horario dinámico
   const { gridStartMin, gridEndMin, hours } = useMemo(() => {
@@ -258,7 +285,12 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
             </div>
 
             {/* Grid móvil: columna de horas + columna de eventos */}
-            <div className="rounded-xl border bg-card overflow-hidden shadow-sm" key={selectedMobileDay}>
+            <div
+              className="rounded-xl border bg-card overflow-hidden shadow-sm touch-pan-y"
+              key={selectedMobileDay}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+            >
               <div className="flex overflow-hidden">
                 {/* Columna de horas */}
                 <div className="w-12 shrink-0 relative border-r bg-muted/20" style={{ height: gridHeight }}>
@@ -395,7 +427,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
         <div className="rounded-xl border bg-card shadow-sm overflow-hidden animate-slide-up">
           <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
             <GraduationCap className="size-4 text-primary shrink-0" />
-            <h3 className="text-sm font-semibold">Materias</h3>
+            <h3 className="text-sm font-semibold">Profesores</h3>
             <span className="text-[11px] text-muted-foreground ml-auto">Toca una materia</span>
           </div>
           <ul className="divide-y">
@@ -404,7 +436,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
               const isExpanded = expandedTeacherId === s.id
               const subtitle = hasInfo
                 ? [s.teacherName, s.officeHours].filter(Boolean).join(" · ") || "Información guardada"
-                : "Agregar profesor, correo, etc…"
+                : "Agregar profesor, correo, horario…"
               return (
                 <li key={s.id}>
                   <button
