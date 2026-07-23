@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useRef } from "react"
+import { useMemo, useState } from "react"
 import { Plus, Pencil, Trash2, CalendarDays, Settings2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -33,9 +33,10 @@ import {
   type Subject,
 } from "@/lib/horario-data"
 import { MateriasDialog } from "./materias-dialog"
+import { ProfesorPopover } from "./profesor-popover"
 
 // Píxeles por hora en el grid (más compacto: una clase de 2h ya no domina la vista)
-const PX_PER_HOUR = 38
+const PX_PER_HOUR = 44
 // Espacio reservado arriba/abajo del grid para que las etiquetas de hora
 // nunca se encimen con el encabezado de días ni se corten al final
 const GRID_PAD_TOP = 14
@@ -71,40 +72,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
   const [draft, setDraft] = useState<SessionDraft | null>(null)
   const [isNew, setIsNew] = useState(false)
   const [selectedMobileDay, setSelectedMobileDay] = useState(0)
-  const [slideDirection, setSlideDirection] = useState<"left" | "right" | "">("")
-
-  const touchStartX = useRef<number | null>(null)
-  const touchStartY = useRef<number | null>(null)
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX
-    touchStartY.current = e.touches[0].clientY
-  }
-
-  const changeMobileDay = (newDay: number) => {
-    if (newDay === selectedMobileDay) return
-    setSlideDirection(newDay > selectedMobileDay ? "left" : "right")
-    setSelectedMobileDay(newDay)
-  }
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current === null || touchStartY.current === null) return
-    const touchEndX = e.changedTouches[0].clientX
-    const touchEndY = e.changedTouches[0].clientY
-
-    const diffX = touchStartX.current - touchEndX
-    const diffY = touchStartY.current - touchEndY
-
-    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 40) {
-      if (diffX > 0) {
-        if (selectedMobileDay < DAYS.length - 1) changeMobileDay(selectedMobileDay + 1)
-      } else {
-        if (selectedMobileDay > 0) changeMobileDay(selectedMobileDay - 1)
-      }
-    }
-    touchStartX.current = null
-    touchStartY.current = null
-  }
+  const [profesorPopover, setProfesorPopover] = useState<{ subjectId: string; rect: DOMRect } | null>(null)
 
   // Calcular rango horario dinámico
   const { gridStartMin, gridEndMin, hours } = useMemo(() => {
@@ -138,6 +106,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
   }
 
   function openNew() {
+    setProfesorPopover(null)
     const firstSubjectId = subjects[0]?.id ?? ""
     setDraft({
       id: crypto.randomUUID(),
@@ -154,6 +123,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
   }
 
   function openEdit(c: ClassSession) {
+    setProfesorPopover(null)
     setDraft({
       id: c.id,
       subjectId: c.subjectId,
@@ -220,6 +190,14 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
     return classes.filter((c) => c.day === day).sort((a, b) => a.startTime - b.startTime)
   }
 
+  function updateSubjectTeacherField(
+    id: string,
+    field: "teacherName" | "teacherEmail" | "teacherPhone" | "officeHours",
+    value: string
+  ) {
+    setSubjects((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)))
+  }
+
   const DAY_SHORT = ["L", "M", "Mi", "J", "V"]
 
   return (
@@ -232,7 +210,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
           <p className="text-sm text-muted-foreground sm:hidden">Toca una clase para editarla.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={() => setManageOpen(true)} variant="outline" size="sm" className="rounded-full shadow-sm">
+          <Button onClick={() => { setProfesorPopover(null); setManageOpen(true) }} variant="outline" size="sm" className="rounded-full shadow-sm">
             <Settings2 className="size-4 sm:mr-1" />
             <span className="hidden sm:inline">Materias</span>
           </Button>
@@ -264,34 +242,27 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
       {classes.length > 0 && (
         <>
           {/* Vista móvil */}
-          <div className="sm:hidden space-y-4 overflow-hidden">
-            <div className="flex w-full items-center p-1 bg-muted/40 rounded-xl">
+          <div className="sm:hidden space-y-4">
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide snap-x">
               {DAYS.map((d, i) => (
                 <button
                   key={d}
                   type="button"
-                  onClick={() => changeMobileDay(i)}
+                  onClick={() => setSelectedMobileDay(i)}
                   aria-label={d}
-                  className={`flex-1 py-2.5 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-300 ease-out select-none ${
+                  className={`snap-center shrink-0 grid h-10 w-10 place-items-center rounded-full border text-sm font-semibold transition-all ${
                     selectedMobileDay === i
-                      ? "bg-background text-foreground shadow-sm ring-1 ring-border/50"
-                      : "text-muted-foreground hover:text-foreground active:bg-muted/60"
+                      ? "border-primary bg-primary text-primary-foreground shadow-sm scale-105"
+                      : "border-border bg-muted/40 text-muted-foreground hover:bg-muted"
                   }`}
                 >
-                  {d.slice(0, 3)}
+                  {DAY_SHORT[i]}
                 </button>
               ))}
             </div>
 
             {/* Grid móvil: columna de horas + columna de eventos */}
-            <div 
-              className={`rounded-xl border bg-card overflow-hidden shadow-sm touch-pan-y animate-in fade-in duration-300 fill-mode-both ${
-                slideDirection === "left" ? "slide-in-from-right-12" : slideDirection === "right" ? "slide-in-from-left-12" : ""
-              }`}
-              key={selectedMobileDay}
-              onTouchStart={handleTouchStart}
-              onTouchEnd={handleTouchEnd}
-            >
+            <div className="rounded-xl border bg-card overflow-hidden shadow-sm" key={selectedMobileDay}>
               <div className="flex overflow-hidden">
                 {/* Columna de horas */}
                 <div className="w-12 shrink-0 relative border-r bg-muted/20" style={{ height: gridHeight }}>
@@ -425,18 +396,46 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
 
       {/* Leyenda */}
       {classes.length > 0 && (
-        <div className="flex flex-wrap gap-2 pt-2">
-          {subjects.map((s) => (
-            <span
-              key={s.id}
-              className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium text-neutral-900 shadow-sm hover:scale-105 transition-transform"
-              style={{ backgroundColor: s.bg, border: `1px solid ${s.border}` }}
-            >
-              {s.name}
-            </span>
-          ))}
+        <div className="pt-2">
+          <div className="flex flex-wrap gap-2">
+            {subjects.map((s) => {
+              const hasInfo = !!(s.teacherName || s.teacherEmail || s.teacherPhone || s.officeHours)
+              const isActive = profesorPopover?.subjectId === s.id
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    setProfesorPopover((prev) => (prev?.subjectId === s.id ? null : { subjectId: s.id, rect }))
+                  }}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-neutral-900 shadow-sm transition-all ${
+                    isActive ? "scale-105 ring-2 ring-primary ring-offset-1" : "hover:scale-105 active:scale-100"
+                  }`}
+                  style={{ backgroundColor: s.bg, border: `1px solid ${s.border}` }}
+                >
+                  {s.name}
+                  {hasInfo && <span className="size-1.5 rounded-full bg-neutral-900/40" />}
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-1.5">Toca una materia para ver o editar el profesor.</p>
         </div>
       )}
+
+      {profesorPopover && (() => {
+        const subject = subjects.find((s) => s.id === profesorPopover.subjectId)
+        if (!subject) return null
+        return (
+          <ProfesorPopover
+            subject={subject}
+            anchorRect={profesorPopover.rect}
+            onClose={() => setProfesorPopover(null)}
+            onUpdate={(field, value) => updateSubjectTeacherField(subject.id, field, value)}
+          />
+        )
+      })()}
 
       {/* Dialog agregar/editar */}
       <Dialog open={open} onOpenChange={setOpen}>

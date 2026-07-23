@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Plus, Trash2, X, ChevronDown, ChevronUp, User, Mail, Phone, Clock } from "lucide-react"
+import { Plus, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -50,15 +50,9 @@ export function MateriasDialog({
   const [pickerHex, setPickerHex] = useState("#c9b8f0")
   const colorInputRef = useRef<HTMLInputElement>(null)
 
-  const [expandedId, setExpandedId] = useState<string | null>(null)
-
   useEffect(() => {
     setCustomColors(loadCustomColors())
   }, [])
-
-  function updateTeacherField(id: string, field: "teacherName" | "teacherEmail" | "teacherPhone" | "officeHours", value: string) {
-    setSubjects((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)))
-  }
 
   function confirmCustomColor() {
     const swatch: ColorSwatch = { bg: pickerHex, border: borderFromBg(pickerHex) }
@@ -219,104 +213,22 @@ export function MateriasDialog({
               </p>
             ) : (
               <ul className="space-y-2">
-                {subjects.map((s) => {
-                  const hasTeacherInfo = !!(s.teacherName || s.teacherEmail || s.teacherPhone || s.officeHours)
-                  const isExpanded = expandedId === s.id
-                  return (
-                    <li
-                      key={s.id}
-                      className="rounded-md border overflow-hidden animate-fade-in"
-                      style={{ borderColor: s.border }}
+                {subjects.map((s) => (
+                  <li
+                    key={s.id}
+                    className="flex items-center justify-between gap-2 p-2 rounded-md border animate-fade-in"
+                    style={{ backgroundColor: s.bg, borderColor: s.border }}
+                  >
+                    <span className="text-sm font-medium text-neutral-900 truncate">{s.name}</span>
+                    <button
+                      onClick={() => handleDelete(s.id)}
+                      className="p-1.5 text-neutral-900/50 hover:text-neutral-900 hover:bg-black/10 rounded transition-colors"
+                      title="Eliminar materia"
                     >
-                      <div className="flex items-center justify-between gap-2 p-2" style={{ backgroundColor: s.bg }}>
-                        <button
-                          onClick={() => setExpandedId(isExpanded ? null : s.id)}
-                          className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
-                          type="button"
-                        >
-                          <span className="text-sm font-medium text-neutral-900 truncate">{s.name}</span>
-                          {hasTeacherInfo && (
-                            <span
-                              className="size-1.5 rounded-full bg-neutral-900/40 shrink-0"
-                              title="Tiene información del profesor guardada"
-                            />
-                          )}
-                        </button>
-                        <div className="flex items-center shrink-0">
-                          <button
-                            onClick={() => setExpandedId(isExpanded ? null : s.id)}
-                            className="p-1.5 text-neutral-900/50 hover:text-neutral-900 hover:bg-black/10 rounded transition-colors"
-                            title="Información del profesor"
-                            type="button"
-                          >
-                            {isExpanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
-                          </button>
-                          <button
-                            onClick={() => handleDelete(s.id)}
-                            className="p-1.5 text-neutral-900/50 hover:text-neutral-900 hover:bg-black/10 rounded transition-colors"
-                            title="Eliminar materia"
-                            type="button"
-                          >
-                            <Trash2 className="size-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {isExpanded && (
-                        <div className="p-3 space-y-2.5 bg-muted/20 border-t animate-fade-in">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                            <div className="space-y-1">
-                              <Label className="text-[11px] text-muted-foreground flex items-center gap-1">
-                                <User className="size-3" /> Profesor
-                              </Label>
-                              <Input
-                                placeholder="Nombre del profesor"
-                                value={s.teacherName ?? ""}
-                                onChange={(e) => updateTeacherField(s.id, "teacherName", e.target.value)}
-                                className="h-8 text-sm"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-[11px] text-muted-foreground flex items-center gap-1">
-                                <Phone className="size-3" /> Número
-                              </Label>
-                              <Input
-                                type="tel"
-                                placeholder="Ej: 300 123 4567"
-                                value={s.teacherPhone ?? ""}
-                                onChange={(e) => updateTeacherField(s.id, "teacherPhone", e.target.value)}
-                                className="h-8 text-sm"
-                              />
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[11px] text-muted-foreground flex items-center gap-1">
-                              <Mail className="size-3" /> Correo
-                            </Label>
-                            <Input
-                              type="email"
-                              placeholder="correo@universidad.edu.co"
-                              value={s.teacherEmail ?? ""}
-                              onChange={(e) => updateTeacherField(s.id, "teacherEmail", e.target.value)}
-                              className="h-8 text-sm"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[11px] text-muted-foreground flex items-center gap-1">
-                              <Clock className="size-3" /> Horario de asesorías
-                            </Label>
-                            <Input
-                              placeholder="Ej: Martes 2-4pm, oficina 305"
-                              value={s.officeHours ?? ""}
-                              onChange={(e) => updateTeacherField(s.id, "officeHours", e.target.value)}
-                              className="h-8 text-sm"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </li>
-                  )
-                })}
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </li>
+                ))}
               </ul>
             )}
           </div>
