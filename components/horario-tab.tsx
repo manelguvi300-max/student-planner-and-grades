@@ -71,7 +71,13 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
   const [manageOpen, setManageOpen] = useState(false)
   const [draft, setDraft] = useState<SessionDraft | null>(null)
   const [isNew, setIsNew] = useState(false)
-  const [selectedMobileDay, setSelectedMobileDay] = useState(0)
+  const [selectedMobileDay, setSelectedMobileDay] = useState(() => {
+    // 0=Domingo, 1=Lunes ... 6=Sábado (estándar de JS Date)
+    const jsDay = new Date().getDay()
+    // Nuestro arreglo DAYS es Lunes(0)…Viernes(4). Si es fin de semana, caemos en Lunes.
+    if (jsDay === 0 || jsDay === 6) return 0
+    return jsDay - 1
+  })
   const [expandedTeacherId, setExpandedTeacherId] = useState<string | null>(null)
 
   const touchStartX = useRef<number | null>(null)
@@ -266,20 +272,20 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
         <>
           {/* Vista móvil */}
           <div className="sm:hidden space-y-4">
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide snap-x">
+            <div className="flex w-full items-center p-1 bg-muted/40 rounded-xl overflow-hidden">
               {DAYS.map((d, i) => (
                 <button
                   key={d}
                   type="button"
                   onClick={() => setSelectedMobileDay(i)}
                   aria-label={d}
-                  className={`snap-center shrink-0 grid h-10 w-10 place-items-center rounded-full border text-sm font-semibold transition-all ${
+                  className={`flex-1 py-2.5 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-300 ease-out select-none ${
                     selectedMobileDay === i
-                      ? "border-primary bg-primary text-primary-foreground shadow-sm scale-105"
-                      : "border-border bg-muted/40 text-muted-foreground hover:bg-muted"
+                      ? "bg-background text-foreground shadow-sm ring-1 ring-border/50"
+                      : "text-muted-foreground hover:text-foreground active:bg-muted/60"
                   }`}
                 >
-                  {DAY_SHORT[i]}
+                  {d.slice(0, 3)}
                 </button>
               ))}
             </div>
