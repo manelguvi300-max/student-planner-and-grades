@@ -3,6 +3,10 @@ export type Subject = {
   name: string
   bg: string
   border: string
+  teacherName?: string
+  teacherEmail?: string
+  teacherPhone?: string
+  officeHours?: string
 }
 
 export type ClassSession = {
@@ -29,7 +33,6 @@ export type Exam = {
   group: "individual" | "grupal"
   kind: "examen" | "presentacion"
   weight: number
-  notes?: string   // 👈 nuevo campo, opcional
 }
 
 export type Absence = {
