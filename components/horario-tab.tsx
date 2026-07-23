@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Plus, Pencil, Trash2, CalendarDays, Settings2 } from "lucide-react"
+import { Plus, Pencil, Trash2, CalendarDays, Settings2, GraduationCap, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -394,33 +394,49 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
         </>
       )}
 
-      {/* Leyenda */}
-      {classes.length > 0 && (
-        <div className="pt-2">
-          <div className="flex flex-wrap gap-2">
+      {/* Profesores */}
+      {classes.length > 0 && subjects.length > 0 && (
+        <div className="rounded-xl border bg-card shadow-sm overflow-hidden animate-slide-up">
+          <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
+            <GraduationCap className="size-4 text-primary shrink-0" />
+            <h3 className="text-sm font-semibold">Profesores</h3>
+            <span className="text-[11px] text-muted-foreground ml-auto">Toca una materia</span>
+          </div>
+          <ul className="divide-y">
             {subjects.map((s) => {
               const hasInfo = !!(s.teacherName || s.teacherEmail || s.teacherPhone || s.officeHours)
               const isActive = profesorPopover?.subjectId === s.id
+              const subtitle = hasInfo
+                ? [s.teacherName, s.officeHours].filter(Boolean).join(" · ") || "Información guardada"
+                : "Agregar profesor, correo, horario…"
               return (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect()
-                    setProfesorPopover((prev) => (prev?.subjectId === s.id ? null : { subjectId: s.id, rect }))
-                  }}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium text-neutral-900 shadow-sm transition-all ${
-                    isActive ? "scale-105 ring-2 ring-primary ring-offset-1" : "hover:scale-105 active:scale-100"
-                  }`}
-                  style={{ backgroundColor: s.bg, border: `1px solid ${s.border}` }}
-                >
-                  {s.name}
-                  {hasInfo && <span className="size-1.5 rounded-full bg-neutral-900/40" />}
-                </button>
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      setProfesorPopover((prev) => (prev?.subjectId === s.id ? null : { subjectId: s.id, rect }))
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors group ${
+                      isActive ? "bg-muted/70" : "hover:bg-muted/40 active:bg-muted/60"
+                    }`}
+                  >
+                    <span
+                      className="size-3 rounded-full shrink-0"
+                      style={{ backgroundColor: s.bg, border: `1.5px solid ${s.border}` }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{s.name}</p>
+                      <p className={`text-xs truncate ${hasInfo ? "text-muted-foreground" : "text-muted-foreground/60 italic"}`}>
+                        {subtitle}
+                      </p>
+                    </div>
+                    <ChevronRight className="size-4 text-muted-foreground/50 shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
+                  </button>
+                </li>
               )
             })}
-          </div>
-          <p className="text-[11px] text-muted-foreground mt-1.5">Toca una materia para ver o editar el profesor.</p>
+          </ul>
         </div>
       )}
 
