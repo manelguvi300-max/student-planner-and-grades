@@ -33,7 +33,7 @@ import {
   type Subject,
 } from "@/lib/horario-data"
 import { MateriasDialog } from "./materias-dialog"
-import { ProfesorPopover } from "./profesor-popover"
+import { TeacherFormFields, ProfesorMobileSheet, type TeacherField } from "./profesor-popover"
 
 // Píxeles por hora en el grid (más compacto: una clase de 2h ya no domina la vista)
 const PX_PER_HOUR = 44
@@ -72,7 +72,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
   const [draft, setDraft] = useState<SessionDraft | null>(null)
   const [isNew, setIsNew] = useState(false)
   const [selectedMobileDay, setSelectedMobileDay] = useState(0)
-  const [profesorPopover, setProfesorPopover] = useState<{ subjectId: string; rect: DOMRect } | null>(null)
+  const [expandedTeacherId, setExpandedTeacherId] = useState<string | null>(null)
 
   // Calcular rango horario dinámico
   const { gridStartMin, gridEndMin, hours } = useMemo(() => {
@@ -106,7 +106,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
   }
 
   function openNew() {
-    setProfesorPopover(null)
+    setExpandedTeacherId(null)
     const firstSubjectId = subjects[0]?.id ?? ""
     setDraft({
       id: crypto.randomUUID(),
@@ -123,7 +123,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
   }
 
   function openEdit(c: ClassSession) {
-    setProfesorPopover(null)
+    setExpandedTeacherId(null)
     setDraft({
       id: c.id,
       subjectId: c.subjectId,
@@ -190,11 +190,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
     return classes.filter((c) => c.day === day).sort((a, b) => a.startTime - b.startTime)
   }
 
-  function updateSubjectTeacherField(
-    id: string,
-    field: "teacherName" | "teacherEmail" | "teacherPhone" | "officeHours",
-    value: string
-  ) {
+  function updateSubjectTeacherField(id: string, field: TeacherField, value: string) {
     setSubjects((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)))
   }
 
@@ -210,7 +206,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
           <p className="text-sm text-muted-foreground sm:hidden">Toca una clase para editarla.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={() => { setProfesorPopover(null); setManageOpen(true) }} variant="outline" size="sm" className="rounded-full shadow-sm">
+          <Button onClick={() => { setExpandedTeacherId(null); setManageOpen(true) }} variant="outline" size="sm" className="rounded-full shadow-sm">
             <Settings2 className="size-4 sm:mr-1" />
             <span className="hidden sm:inline">Materias</span>
           </Button>
@@ -399,26 +395,23 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
         <div className="rounded-xl border bg-card shadow-sm overflow-hidden animate-slide-up">
           <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
             <GraduationCap className="size-4 text-primary shrink-0" />
-            <h3 className="text-sm font-semibold">Profesores</h3>
+            <h3 className="text-sm font-semibold">Materias</h3>
             <span className="text-[11px] text-muted-foreground ml-auto">Toca una materia</span>
           </div>
           <ul className="divide-y">
             {subjects.map((s) => {
               const hasInfo = !!(s.teacherName || s.teacherEmail || s.teacherPhone || s.officeHours)
-              const isActive = profesorPopover?.subjectId === s.id
+              const isExpanded = expandedTeacherId === s.id
               const subtitle = hasInfo
                 ? [s.teacherName, s.officeHours].filter(Boolean).join(" · ") || "Información guardada"
-                : "Agregar profesor, correo, horario…"
+                : "Agregar profesor, correo, etc…"
               return (
                 <li key={s.id}>
                   <button
                     type="button"
-                    onClick={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect()
-                      setProfesorPopover((prev) => (prev?.subjectId === s.id ? null : { subjectId: s.id, rect }))
-                    }}
+                    onClick={() => setExpandedTeacherId((prev) => (prev === s.id ? null : s.id))}
                     className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors group ${
-                      isActive ? "bg-muted/70" : "hover:bg-muted/40 active:bg-muted/60"
+                      isExpanded ? "bg-muted/60" : "hover:bg-muted/40 active:bg-muted/60"
                     }`}
                   >
                     <span
@@ -431,8 +424,23 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                         {subtitle}
                       </p>
                     </div>
-                    <ChevronRight className="size-4 text-muted-foreground/50 shrink-0 transition-transform group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
+                    <ChevronRight
+                      className={`size-4 shrink-0 transition-transform duration-200 ${
+                        isExpanded ? "rotate-90 text-foreground" : "text-muted-foreground/50 group-hover:translate-x-0.5 group-hover:text-muted-foreground"
+                      }`}
+                    />
                   </button>
+
+                  {/* Panel inline: solo en escritorio (sm+), aprovechando el espacio disponible */}
+                  {isExpanded && (
+                    <div className="hidden sm:block px-4 pb-4 pt-3 bg-muted/20 border-t animate-fade-in">
+                      <TeacherFormFields
+                        subject={s}
+                        onUpdate={(field, value) => updateSubjectTeacherField(s.id, field, value)}
+                        autoFocus
+                      />
+                    </div>
+                  )}
                 </li>
               )
             })}
@@ -440,14 +448,14 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
         </div>
       )}
 
-      {profesorPopover && (() => {
-        const subject = subjects.find((s) => s.id === profesorPopover.subjectId)
+      {expandedTeacherId && (() => {
+        const subject = subjects.find((s) => s.id === expandedTeacherId)
         if (!subject) return null
+        // La hoja móvil se oculta sola vía CSS en pantallas sm+ (ver ProfesorMobileSheet)
         return (
-          <ProfesorPopover
+          <ProfesorMobileSheet
             subject={subject}
-            anchorRect={profesorPopover.rect}
-            onClose={() => setProfesorPopover(null)}
+            onClose={() => setExpandedTeacherId(null)}
             onUpdate={(field, value) => updateSubjectTeacherField(subject.id, field, value)}
           />
         )
