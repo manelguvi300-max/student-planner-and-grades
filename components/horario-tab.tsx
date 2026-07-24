@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState, useRef } from "react"
-import { Plus, Pencil, Trash2, CalendarDays, Settings2, GraduationCap, ChevronRight } from "lucide-react"
+import { Plus, Pencil, Trash2, CalendarDays, Settings2, GraduationCap, ChevronRight, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -79,6 +79,15 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
     return jsDay - 1
   })
   const [expandedTeacherId, setExpandedTeacherId] = useState<string | null>(null)
+  const [subjectsSectionOpen, setSubjectsSectionOpen] = useState(false)
+
+  function toggleSubjectsSection() {
+    setSubjectsSectionOpen((prev) => {
+      const next = !prev
+      if (!next) setExpandedTeacherId(null)
+      return next
+    })
+  }
 
   const touchStartX = useRef<number | null>(null)
   const touchStartY = useRef<number | null>(null)
@@ -428,61 +437,86 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
         </>
       )}
 
-      {/* Profesores */}
+      {/* Materias (info de profesores) */}
       {classes.length > 0 && subjects.length > 0 && (
         <div className="rounded-xl border bg-card shadow-sm overflow-hidden animate-slide-up">
-          <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/30">
+          <button
+            type="button"
+            onClick={toggleSubjectsSection}
+            className="w-full flex items-center gap-2 px-4 py-3 bg-muted/30 hover:bg-muted/40 active:bg-muted/50 transition-colors"
+            aria-expanded={subjectsSectionOpen}
+          >
             <GraduationCap className="size-4 text-primary shrink-0" />
-            <h3 className="text-sm font-semibold">Profesores</h3>
-            <span className="text-[11px] text-muted-foreground ml-auto">Toca una materia</span>
-          </div>
-          <ul className="divide-y">
-            {subjects.map((s) => {
-              const hasInfo = !!(s.teacherName || s.teacherEmail || s.teacherPhone || s.officeHours)
-              const isExpanded = expandedTeacherId === s.id
-              const subtitle = hasInfo
-                ? [s.teacherName, s.officeHours].filter(Boolean).join(" · ") || "Información guardada"
-                : "Agregar profesor, correo, horario…"
-              return (
-                <li key={s.id}>
-                  <button
-                    type="button"
-                    onClick={() => setExpandedTeacherId((prev) => (prev === s.id ? null : s.id))}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors group ${
-                      isExpanded ? "bg-muted/60" : "hover:bg-muted/40 active:bg-muted/60"
-                    }`}
-                  >
-                    <span
-                      className="size-3 rounded-full shrink-0"
-                      style={{ backgroundColor: s.bg, border: `1.5px solid ${s.border}` }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{s.name}</p>
-                      <p className={`text-xs truncate ${hasInfo ? "text-muted-foreground" : "text-muted-foreground/60 italic"}`}>
-                        {subtitle}
-                      </p>
-                    </div>
-                    <ChevronRight
-                      className={`size-4 shrink-0 transition-transform duration-200 ${
-                        isExpanded ? "rotate-90 text-foreground" : "text-muted-foreground/50 group-hover:translate-x-0.5 group-hover:text-muted-foreground"
-                      }`}
-                    />
-                  </button>
+            <h3 className="text-sm font-semibold">Materias</h3>
+            <span className="text-[11px] text-muted-foreground ml-auto mr-0.5 transition-opacity">
+              {subjectsSectionOpen ? "Toca una materia" : `${subjects.length} materia${subjects.length === 1 ? "" : "s"}`}
+            </span>
+            <ChevronDown
+              className={`size-4 text-muted-foreground shrink-0 transition-transform duration-300 ease-out ${
+                subjectsSectionOpen ? "rotate-180" : ""
+              }`}
+            />
+          </button>
 
-                  {/* Panel inline: solo en escritorio (sm+), aprovechando el espacio disponible */}
-                  {isExpanded && (
-                    <div className="hidden sm:block px-4 pb-4 pt-3 bg-muted/20 border-t animate-fade-in">
-                      <TeacherFormFields
-                        subject={s}
-                        onUpdate={(field, value) => updateSubjectTeacherField(s.id, field, value)}
-                        autoFocus
-                      />
-                    </div>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
+          <div
+            className="grid transition-[grid-template-rows] duration-300 ease-out"
+            style={{ gridTemplateRows: subjectsSectionOpen ? "1fr" : "0fr" }}
+          >
+            <div className="overflow-hidden">
+              <ul className="divide-y border-t">
+                {subjects.map((s) => {
+                  const hasInfo = !!(s.teacherName || s.teacherEmail || s.teacherPhone || s.officeHours)
+                  const isExpanded = expandedTeacherId === s.id
+                  const subtitle = hasInfo
+                    ? [s.teacherName, s.officeHours].filter(Boolean).join(" · ") || "Información guardada"
+                    : "Agregar profesor, correo, horario…"
+                  return (
+                    <li key={s.id}>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedTeacherId((prev) => (prev === s.id ? null : s.id))}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors duration-200 group ${
+                          isExpanded ? "bg-muted/60" : "hover:bg-muted/40 active:bg-muted/60"
+                        }`}
+                      >
+                        <span
+                          className="size-3 rounded-full shrink-0 transition-transform duration-200 group-active:scale-90"
+                          style={{ backgroundColor: s.bg, border: `1.5px solid ${s.border}` }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{s.name}</p>
+                          <p className={`text-xs truncate ${hasInfo ? "text-muted-foreground" : "text-muted-foreground/60 italic"}`}>
+                            {subtitle}
+                          </p>
+                        </div>
+                        <ChevronRight
+                          className={`size-4 shrink-0 transition-transform duration-200 ${
+                            isExpanded ? "rotate-90 text-foreground" : "text-muted-foreground/50 group-hover:translate-x-0.5 group-hover:text-muted-foreground"
+                          }`}
+                        />
+                      </button>
+
+                      {/* Panel inline: solo en escritorio (sm+), con animación de altura fluida */}
+                      <div
+                        className="hidden sm:grid transition-[grid-template-rows] duration-250 ease-out"
+                        style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr" }}
+                      >
+                        <div className="overflow-hidden">
+                          <div className="px-4 pb-4 pt-3 bg-muted/20 border-t">
+                            <TeacherFormFields
+                              subject={s}
+                              onUpdate={(field, value) => updateSubjectTeacherField(s.id, field, value)}
+                              autoFocus={isExpanded}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          </div>
         </div>
       )}
 
