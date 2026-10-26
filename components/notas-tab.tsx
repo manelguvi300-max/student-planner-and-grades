@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ChevronDown, Plus, Trash2 } from "lucide-react"
+import { ChevronDown, Plus, Trash2, Pencil, Check, X, EyeOff, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
@@ -22,9 +22,11 @@ type Props = {
   subjects: Subject[]
   grades: GradesMap
   setGrades: React.Dispatch<React.SetStateAction<GradesMap>>
+  hiddenSubjects: string[]
+  onToggleHidden: (subjectId: string) => void
 }
 
-export function NotasTab({ subjects, grades, setGrades }: Props) {
+export function NotasTab({ subjects, grades, setGrades, hiddenSubjects, onToggleHidden }: Props) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
   // Todas las materias inician contraídas (en móvil y en escritorio).
@@ -46,6 +48,9 @@ export function NotasTab({ subjects, grades, setGrades }: Props) {
     setExpanded((prev) => ({ ...prev, [id]: !(prev[id] ?? false) }))
   }
 
+  const visibleSubjects = subjects.filter((s) => !hiddenSubjects.includes(s.id))
+  const hiddenSubjectsList = subjects.filter((s) => hiddenSubjects.includes(s.id))
+
   return (
     <div className="space-y-6">
       <div>
@@ -60,60 +65,89 @@ export function NotasTab({ subjects, grades, setGrades }: Props) {
         </div>
       ) : (
         <>
-          {/* Móvil: una sola lista en el orden original */}
-          <div className="space-y-4 sm:hidden animate-slide-up">
-            {subjects.map((s) => (
-              <SubjectGrades
-                key={s.id}
-                subjectId={s.id}
-                name={s.name}
-                bg={s.bg}
-                border={s.border}
-                grades={grades[s.id] ?? []}
-                setGrades={setGrades}
-                expanded={expanded[s.id] ?? false}
-                onToggle={() => toggleExpanded(s.id)}
-              />
-            ))}
-          </div>
+          {/* Materias visibles */}
+          <>
+            {/* Móvil: una sola lista en el orden original */}
+            <div className="space-y-4 sm:hidden animate-slide-up">
+              {visibleSubjects.map((s) => (
+                <SubjectGrades
+                  key={s.id}
+                  subjectId={s.id}
+                  name={s.name}
+                  bg={s.bg}
+                  border={s.border}
+                  grades={grades[s.id] ?? []}
+                  setGrades={setGrades}
+                  expanded={expanded[s.id] ?? false}
+                  onToggle={() => toggleExpanded(s.id)}
+                  onToggleHidden={() => onToggleHidden(s.id)}
+                  isHidden={false}
+                />
+              ))}
+            </div>
 
-          {/* Escritorio: dos columnas independientes, conservando el mismo orden/emparejamiento de siempre */}
-          <div className="hidden gap-4 sm:grid sm:grid-cols-2 sm:items-start animate-slide-up">
-            <div className="space-y-4">
-              {subjects
-                .filter((_, i) => i % 2 === 0)
-                .map((s) => (
-                  <SubjectGrades
-                    key={s.id}
-                    subjectId={s.id}
-                    name={s.name}
-                    bg={s.bg}
-                    border={s.border}
-                    grades={grades[s.id] ?? []}
-                    setGrades={setGrades}
-                    expanded={expanded[s.id] ?? false}
-                    onToggle={() => toggleExpanded(s.id)}
-                  />
-                ))}
+            {/* Escritorio: dos columnas independientes, conservando el mismo orden/emparejamiento de siempre */}
+            <div className="hidden gap-4 sm:grid sm:grid-cols-2 sm:items-start animate-slide-up">
+              <div className="space-y-4">
+                {visibleSubjects
+                  .filter((_, i) => i % 2 === 0)
+                  .map((s) => (
+                    <SubjectGrades
+                      key={s.id}
+                      subjectId={s.id}
+                      name={s.name}
+                      bg={s.bg}
+                      border={s.border}
+                      grades={grades[s.id] ?? []}
+                      setGrades={setGrades}
+                      expanded={expanded[s.id] ?? false}
+                      onToggle={() => toggleExpanded(s.id)}
+                      onToggleHidden={() => onToggleHidden(s.id)}
+                      isHidden={false}
+                    />
+                  ))}
+              </div>
+              <div className="space-y-4">
+                {visibleSubjects
+                  .filter((_, i) => i % 2 === 1)
+                  .map((s) => (
+                    <SubjectGrades
+                      key={s.id}
+                      subjectId={s.id}
+                      name={s.name}
+                      bg={s.bg}
+                      border={s.border}
+                      grades={grades[s.id] ?? []}
+                      setGrades={setGrades}
+                      expanded={expanded[s.id] ?? false}
+                      onToggle={() => toggleExpanded(s.id)}
+                      onToggleHidden={() => onToggleHidden(s.id)}
+                      isHidden={false}
+                    />
+                  ))}
+              </div>
             </div>
-            <div className="space-y-4">
-              {subjects
-                .filter((_, i) => i % 2 === 1)
-                .map((s) => (
-                  <SubjectGrades
+          </>
+
+          {/* Materias ocultas (colapsadas con opción de restaurar) */}
+          {hiddenSubjectsList.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground px-1">Materias ocultas en esta vista</p>
+              <div className="flex flex-wrap gap-2">
+                {hiddenSubjectsList.map((s) => (
+                  <button
                     key={s.id}
-                    subjectId={s.id}
-                    name={s.name}
-                    bg={s.bg}
-                    border={s.border}
-                    grades={grades[s.id] ?? []}
-                    setGrades={setGrades}
-                    expanded={expanded[s.id] ?? false}
-                    onToggle={() => toggleExpanded(s.id)}
-                  />
+                    onClick={() => onToggleHidden(s.id)}
+                    className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                    style={{ borderColor: s.border, backgroundColor: s.bg + "60" }}
+                  >
+                    <Eye className="size-3" />
+                    {s.name}
+                  </button>
                 ))}
+              </div>
             </div>
-          </div>
+          )}
         </>
       )}
     </div>
@@ -129,6 +163,7 @@ function SubjectGrades({
   setGrades,
   expanded,
   onToggle,
+  onToggleHidden,
 }: {
   subjectId: string
   name: string
@@ -138,11 +173,21 @@ function SubjectGrades({
   setGrades: React.Dispatch<React.SetStateAction<GradesMap>>
   expanded: boolean
   onToggle: () => void
+  onToggleHidden: () => void
+  isHidden: boolean
 }) {
   const [gName, setGName] = useState("")
   const [gScore, setGScore] = useState("")
   const [gWeight, setGWeight] = useState("")
   const [error, setError] = useState("")
+
+  // Estado de edición inline
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState<{ name: string; score: string; weight: string }>({
+    name: "",
+    score: "",
+    weight: "",
+  })
 
   const usedWeight = coveredWeight(grades)
   const remainingWeight = 100 - usedWeight
@@ -179,6 +224,36 @@ function SubjectGrades({
       ...prev,
       [subjectId]: (prev[subjectId] ?? []).filter((g) => g.id !== id),
     }))
+    if (editingId === id) setEditingId(null)
+  }
+
+  function startEdit(g: Grade) {
+    setEditingId(g.id)
+    setEditDraft({ name: g.name, score: String(g.score), weight: String(g.weight) })
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditDraft({ name: "", score: "", weight: "" })
+  }
+
+  function saveEdit(id: string) {
+    const score = Number(editDraft.score)
+    const weight = Number(editDraft.weight)
+    if (!editDraft.name.trim() || Number.isNaN(score) || Number.isNaN(weight) || weight <= 0) return
+
+    // Verificar que el peso no supere el 100% (excluyendo el peso actual de esta nota)
+    const currentGrade = grades.find((g) => g.id === id)
+    const otherWeight = usedWeight - (currentGrade?.weight ?? 0)
+    if (otherWeight + weight > 100) return
+
+    setGrades((prev) => ({
+      ...prev,
+      [subjectId]: (prev[subjectId] ?? []).map((g) =>
+        g.id === id ? { ...g, name: editDraft.name.trim(), score, weight } : g
+      ),
+    }))
+    setEditingId(null)
   }
 
   const points = accumulatedPoints(grades)
@@ -207,15 +282,26 @@ function SubjectGrades({
           borderBottom: expanded ? `1px solid ${border}` : "1px solid transparent",
         }}
       >
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           <ChevronDown
             className={cn("size-4 shrink-0 transition-transform duration-300", expanded && "rotate-180")}
           />
           <h3 className="font-semibold leading-tight truncate">{name}</h3>
         </div>
-        <span className="shrink-0 text-[11px] font-bold rounded-full bg-black/10 px-2 py-0.5">
-          {grades.length > 0 ? `${points.toFixed(1)} pts · ${covered}%` : "Sin notas"}
-        </span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="text-[11px] font-bold rounded-full bg-black/10 px-2 py-0.5">
+            {grades.length > 0 ? `${points.toFixed(1)} pts · ${covered}%` : "Sin notas"}
+          </span>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onToggleHidden() }}
+            aria-label="Ocultar materia de esta vista"
+            className="rounded-full p-1 text-neutral-600 hover:bg-black/10 transition-colors"
+            title="Ocultar de esta vista"
+          >
+            <EyeOff className="size-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* Cuerpo colapsable (animación fluida con CSS grid) */}
@@ -230,23 +316,87 @@ function SubjectGrades({
             {grades.length > 0 ? (
               <ul className="space-y-1.5">
                 {grades.map((g) => (
-                  <li
-                    key={g.id}
-                    className="flex items-center justify-between gap-2 rounded-md bg-muted/60 px-3 py-1.5 text-sm animate-fade-in"
-                  >
-                    <span className="truncate">{g.name}</span>
-                    <span className="flex items-center gap-3 whitespace-nowrap text-muted-foreground">
-                      <span className="font-medium text-foreground">{g.score.toFixed(1)}</span>
-                      <span>{g.weight}%</span>
-                      <button
-                        type="button"
-                        onClick={() => remove(g.id)}
-                        aria-label={`Eliminar ${g.name}`}
-                        className="text-muted-foreground transition hover:text-destructive"
-                      >
-                        <Trash2 className="size-4" />
-                      </button>
-                    </span>
+                  <li key={g.id}>
+                    {editingId === g.id ? (
+                      /* Modo edición inline */
+                      <div className="flex flex-col gap-2 rounded-md bg-muted/60 px-3 py-2 animate-in fade-in duration-150">
+                        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:gap-2">
+                          <div className="flex-1 space-y-1">
+                            <label className="text-xs text-muted-foreground">Nombre</label>
+                            <Input
+                              value={editDraft.name}
+                              onChange={(e) => setEditDraft((d) => ({ ...d, name: e.target.value }))}
+                              className="h-8 text-sm"
+                              autoFocus
+                            />
+                          </div>
+                          <div className="flex items-end gap-2">
+                            <div className="w-20 space-y-1">
+                              <label className="text-xs text-muted-foreground">Nota</label>
+                              <Input
+                                value={editDraft.score}
+                                onChange={(e) => setEditDraft((d) => ({ ...d, score: e.target.value }))}
+                                inputMode="decimal"
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                            <div className="w-20 space-y-1">
+                              <label className="text-xs text-muted-foreground">Vale %</label>
+                              <Input
+                                value={editDraft.weight}
+                                onChange={(e) => setEditDraft((d) => ({ ...d, weight: e.target.value }))}
+                                inputMode="numeric"
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                            <div className="flex gap-1 pb-0.5">
+                              <Button
+                                size="icon"
+                                className="h-8 w-8 shrink-0"
+                                onClick={() => saveEdit(g.id)}
+                                aria-label="Guardar cambios"
+                              >
+                                <Check className="size-3.5" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 shrink-0"
+                                onClick={cancelEdit}
+                                aria-label="Cancelar edición"
+                              >
+                                <X className="size-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Modo visualización */
+                      <div className="flex items-center justify-between gap-2 rounded-md bg-muted/60 px-3 py-1.5 text-sm animate-fade-in">
+                        <span className="truncate">{g.name}</span>
+                        <span className="flex items-center gap-2 whitespace-nowrap text-muted-foreground shrink-0">
+                          <span className="font-medium text-foreground">{g.score.toFixed(1)}</span>
+                          <span>{g.weight}%</span>
+                          <button
+                            type="button"
+                            onClick={() => startEdit(g)}
+                            aria-label={`Editar ${g.name}`}
+                            className="text-muted-foreground transition hover:text-foreground"
+                          >
+                            <Pencil className="size-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => remove(g.id)}
+                            aria-label={`Eliminar ${g.name}`}
+                            className="text-muted-foreground transition hover:text-destructive"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        </span>
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>

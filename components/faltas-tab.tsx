@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Trash2, AlertTriangle, CheckCircle2, XCircle, UserX, ChevronDown } from "lucide-react"
+import { Plus, Trash2, AlertTriangle, CheckCircle2, XCircle, UserX, ChevronDown, EyeOff, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -28,9 +28,11 @@ type Props = {
   setAbsences: React.Dispatch<React.SetStateAction<Absence[]>>
   subjectConfigs: Record<string, SubjectConfig>
   setSubjectConfigs: React.Dispatch<React.SetStateAction<Record<string, SubjectConfig>>>
+  hiddenSubjects: string[]
+  onToggleHidden: (subjectId: string) => void
 }
 
-export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, setSubjectConfigs }: Props) {
+export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, setSubjectConfigs, hiddenSubjects, onToggleHidden }: Props) {
   const [configOpen, setConfigOpen] = useState(false)
   const [draftDate, setDraftDate] = useState<string>(() => new Date().toISOString().split("T")[0])
   const [configSubjectId, setConfigSubjectId] = useState<string>("")
@@ -155,7 +157,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
                   borderBottom: isExpanded ? `1px solid ${subject.border}` : "1px solid transparent",
                 }}
               >
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
                   <ChevronDown
                     className={cn(
                       "size-4 shrink-0 text-neutral-700 transition-transform duration-300",
@@ -187,6 +189,15 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
                     className="shrink-0 text-[11px] font-medium text-neutral-700 bg-black/10 hover:bg-black/20 rounded-full px-2.5 py-1 transition-colors"
                   >
                     {config ? `${config.directHours}h` : "Configurar horas"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onToggleHidden(subject.id) }}
+                    aria-label="Ocultar materia de esta vista"
+                    className="rounded-full p-1 text-neutral-600 hover:bg-black/10 transition-colors"
+                    title="Ocultar de esta vista"
+                  >
+                    <EyeOff className="size-3.5" />
                   </button>
                 </div>
               </div>
@@ -313,18 +324,38 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
           <>
             {/* Móvil: una sola lista en el orden original */}
             <div className="space-y-4 sm:hidden">
-              {subjects.map((subject) => renderCard(subject))}
+              {subjects.filter(s => !hiddenSubjects.includes(s.id)).map((subject) => renderCard(subject))}
             </div>
 
             {/* Escritorio: dos columnas independientes, conservando el mismo orden/emparejamiento de siempre */}
             <div className="hidden gap-4 sm:grid sm:grid-cols-2 sm:items-start">
               <div className="space-y-4">
-                {subjects.filter((_, i) => i % 2 === 0).map((subject) => renderCard(subject))}
+                {subjects.filter(s => !hiddenSubjects.includes(s.id)).filter((_, i) => i % 2 === 0).map((subject) => renderCard(subject))}
               </div>
               <div className="space-y-4">
-                {subjects.filter((_, i) => i % 2 === 1).map((subject) => renderCard(subject))}
+                {subjects.filter(s => !hiddenSubjects.includes(s.id)).filter((_, i) => i % 2 === 1).map((subject) => renderCard(subject))}
               </div>
             </div>
+
+            {/* Materias ocultas */}
+            {subjects.filter(s => hiddenSubjects.includes(s.id)).length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground px-1">Materias ocultas en esta vista</p>
+                <div className="flex flex-wrap gap-2">
+                  {subjects.filter(s => hiddenSubjects.includes(s.id)).map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => onToggleHidden(s.id)}
+                      className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      style={{ borderColor: s.border, backgroundColor: s.bg + "60" }}
+                    >
+                      <Eye className="size-3" />
+                      {s.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         )
       })()}

@@ -58,6 +58,23 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
     status,
   } = usePlanner()
 
+  // Hidden subjects are per-tab and independent from each other
+  const [hiddenSubjectsByTab, setHiddenSubjectsByTab] = useState<Record<"notas" | "faltas" | "examenes", string[]>>({
+    notas: [],
+    faltas: [],
+    examenes: [],
+  })
+
+  function toggleHidden(tabKey: "notas" | "faltas" | "examenes", subjectId: string) {
+    setHiddenSubjectsByTab((prev) => {
+      const current = prev[tabKey]
+      const next = current.includes(subjectId)
+        ? current.filter((id) => id !== subjectId)
+        : [...current, subjectId]
+      return { ...prev, [tabKey]: next }
+    })
+  }
+
   async function handleSignOut() {
     await authClient.signOut()
     router.push("/sign-in")
@@ -120,10 +137,22 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
           />
         </TabsContent>
         <TabsContent value="notas" className="mt-4 animate-in fade-in slide-in-from-bottom-2 duration-300 sm:mt-6">
-          <NotasTab subjects={subjects} grades={grades} setGrades={setGrades} />
+          <NotasTab
+            subjects={subjects}
+            grades={grades}
+            setGrades={setGrades}
+            hiddenSubjects={hiddenSubjectsByTab.notas}
+            onToggleHidden={(id) => toggleHidden("notas", id)}
+          />
         </TabsContent>
         <TabsContent value="examenes" className="mt-4 animate-in fade-in slide-in-from-bottom-2 duration-300 sm:mt-6">
-          <ExamenesTab subjects={subjects} exams={exams} setExams={setExams} />
+          <ExamenesTab
+            subjects={subjects}
+            exams={exams}
+            setExams={setExams}
+            hiddenSubjects={hiddenSubjectsByTab.examenes}
+            onToggleHidden={(id) => toggleHidden("examenes", id)}
+          />
         </TabsContent>
         <TabsContent value="faltas" className="mt-4 animate-in fade-in slide-in-from-bottom-2 duration-300 sm:mt-6">
           <FaltasTab
@@ -132,6 +161,8 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
             setAbsences={setAbsences}
             subjectConfigs={subjectConfigs}
             setSubjectConfigs={setSubjectConfigs}
+            hiddenSubjects={hiddenSubjectsByTab.faltas}
+            onToggleHidden={(id) => toggleHidden("faltas", id)}
           />
         </TabsContent>
       </Tabs>

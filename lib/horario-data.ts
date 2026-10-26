@@ -33,6 +33,7 @@ export type Exam = {
   group: "individual" | "grupal"
   kind: "examen" | "presentacion"
   weight: number
+  notes?: string
 }
 
 export type Absence = {
