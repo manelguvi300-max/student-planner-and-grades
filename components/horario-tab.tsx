@@ -655,11 +655,11 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                 return (
                   <p className="text-xs text-muted-foreground">
                     Duración: {h > 0 ? `${h}h ` : ""}{m > 0 ? `${m}min` : ""}
-                  </p>
+                  </p> 
                 )
               })()}
 
-              {/* Grupo */}
+              {/* Grup*/}
               <div className="space-y-2">
                 <Label htmlFor="group">Grupo</Label>
                 <Input
