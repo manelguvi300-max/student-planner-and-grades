@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { CalendarDays, GraduationCap, ClipboardList, LogOut, Cloud, CloudOff, Loader2, UserX } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -45,6 +45,24 @@ function SyncBadge({ status }: { status: "loading" | "saving" | "saved" }) {
   )
 }
 
+const HIDDEN_STORAGE_KEY = "planner_hidden_subjects"
+
+function loadHiddenFromStorage(): Record<"notas" | "faltas" | "examenes", string[]> {
+  if (typeof window === "undefined") return { notas: [], faltas: [], examenes: [] }
+  try {
+    const saved = localStorage.getItem(HIDDEN_STORAGE_KEY)
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      return {
+        notas: Array.isArray(parsed.notas) ? parsed.notas : [],
+        faltas: Array.isArray(parsed.faltas) ? parsed.faltas : [],
+        examenes: Array.isArray(parsed.examenes) ? parsed.examenes : [],
+      }
+    }
+  } catch {}
+  return { notas: [], faltas: [], examenes: [] }
+}
+
 export function PlannerView({ userName, userEmail }: { userName: string; userEmail: string }) {
   const router = useRouter()
   const [tab, setTab] = useState("horario")
@@ -58,12 +76,17 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
     status,
   } = usePlanner()
 
-  // Hidden subjects are per-tab and independent from each other
-  const [hiddenSubjectsByTab, setHiddenSubjectsByTab] = useState<Record<"notas" | "faltas" | "examenes", string[]>>({
-    notas: [],
-    faltas: [],
-    examenes: [],
-  })
+  // Hidden subjects are per-tab and independent from each other, persisted in localStorage
+  const [hiddenSubjectsByTab, setHiddenSubjectsByTab] = useState<Record<"notas" | "faltas" | "examenes", string[]>>(
+    () => loadHiddenFromStorage()
+  )
+
+  // Persist to localStorage whenever hidden subjects change
+  useEffect(() => {
+    try {
+      localStorage.setItem(HIDDEN_STORAGE_KEY, JSON.stringify(hiddenSubjectsByTab))
+    } catch {}
+  }, [hiddenSubjectsByTab])
 
   function toggleHidden(tabKey: "notas" | "faltas" | "examenes", subjectId: string) {
     setHiddenSubjectsByTab((prev) => {
