@@ -311,7 +311,6 @@ function SubjectGrades({
         tabIndex={0}
         aria-expanded={expanded}
         className="flex min-h-[4.5rem] cursor-pointer select-none items-center gap-3 px-4 py-3.5 transition-colors hover:bg-foreground/[0.03]"
-        style={{ backgroundImage: `linear-gradient(90deg, ${bg}40, transparent 65%)` }}
       >
         <span className="h-9 w-1.5 shrink-0 rounded-full" style={{ background: border }} />
         <div className="min-w-0 flex-1">
