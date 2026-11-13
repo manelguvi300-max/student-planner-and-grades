@@ -108,7 +108,7 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
       {/* Escritorio: barra lateral con resaltado deslizante */}
       <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col gap-2 border-r p-5 lg:flex">
         <div className="mb-6 flex items-center gap-3 px-2">
-          <div className="grad grid size-10 place-items-center rounded-2xl text-white shadow-lg shadow-primary/30">
+          <div className="grad grid size-10 place-items-center rounded-2xl shadow-lg shadow-black/20">
             <GraduationCap className="size-5" />
           </div>
           <div>
@@ -120,10 +120,10 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
           {/* los ítems miden h-11 + gap-2 = 3.25rem */}
           <span
             aria-hidden
-            className="absolute inset-x-0 top-0 h-11 rounded-2xl bg-primary/10 ring-1 ring-primary/15"
+            className="absolute inset-x-0 top-0 h-11 rounded-2xl bg-foreground/[0.07] ring-1 ring-foreground/10"
             style={{ transform: `translateY(${idx * 3.25}rem)`, transition: `transform .5s ${spring}` }}
           >
-            <span key={idx} className="absolute left-0 top-2.5 h-6 w-1 rounded-full bg-primary" style={{ animation: `grow .45s ${spring} both` }} />
+            <span key={idx} className="absolute left-0 top-2.5 h-6 w-1 rounded-full bg-foreground" style={{ animation: `grow .45s ${spring} both` }} />
           </span>
           {NAV_ITEMS.map((item, i) => (
             <button
@@ -144,7 +144,7 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
 
         <div className="mt-auto flex flex-col gap-3 rounded-2xl border bg-card/60 p-3">
           <div className="flex items-center gap-3">
-            <span className="grad grid size-9 shrink-0 place-items-center rounded-full text-sm font-semibold text-white">{initial}</span>
+            <span className="grad grid size-9 shrink-0 place-items-center rounded-full text-sm font-semibold">{initial}</span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{firstName || "Estudiante"}</p>
               <p className="truncate text-xs text-muted-foreground">{userEmail || "Sin correo"}</p>
@@ -163,7 +163,7 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
       <main className="pb-nav mx-auto w-full max-w-6xl px-4 pt-[max(1rem,env(safe-area-inset-top))] sm:px-6 lg:px-10 lg:pt-10">
         {/* Móvil / tablet: cabecera compacta */}
         <header className="mb-5 flex items-center gap-3 lg:mb-8">
-          <div className="grad grid size-10 shrink-0 place-items-center rounded-2xl text-white shadow-lg shadow-primary/30 lg:hidden">
+          <div className="grad grid size-10 shrink-0 place-items-center rounded-2xl shadow-lg shadow-black/20 lg:hidden">
             <GraduationCap className="size-5" />
           </div>
           <div className="min-w-0 flex-1">
@@ -231,7 +231,7 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
       <nav className="glass fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-md rounded-[1.75rem] p-1.5 shadow-2xl shadow-black/30 lg:hidden">
         <span
           aria-hidden
-          className="absolute inset-y-1.5 left-1.5 rounded-[1.4rem] bg-primary/12 ring-1 ring-primary/15"
+          className="absolute inset-y-1.5 left-1.5 rounded-[1.4rem] bg-foreground/10 ring-1 ring-foreground/10"
           style={{
             width: `calc((100% - 0.75rem) / ${NAV_ITEMS.length})`,
             transform: `translateX(${idx * 100}%)`,
@@ -252,7 +252,7 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
                 active ? "text-foreground" : "text-muted-foreground active:scale-95"
               )}
             >
-              <item.icon className={cn("size-[22px] transition-all duration-300", active && "-translate-y-0.5 text-primary drop-shadow-[0_0_8px_rgb(66_133_244/0.55)]")} />
+              <item.icon className={cn("size-[22px] transition-all duration-300", active && "-translate-y-0.5 text-primary")} />
               {item.label}
             </button>
           )
