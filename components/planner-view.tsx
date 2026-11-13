@@ -114,7 +114,6 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
   const idx = Math.max(0, NAV_ITEMS.findIndex((n) => n.value === tab))
   const inSettings = tab === "ajustes"
   const spring = "cubic-bezier(.34,1.4,.5,1)"
-  const initial = (userName || userEmail || "?").trim().charAt(0).toUpperCase()
   const firstName = userName ? userName.split(" ")[0] : ""
   // se calcula tras montar para evitar diferencias servidor/cliente por zona horaria
   const [today, setToday] = useState("")
@@ -162,22 +161,6 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
             </button>
           ))}
         </nav>
-
-        {/* Tarjeta de usuario: lleva a Ajustes (ahí está cerrar sesión) */}
-        <button
-          type="button"
-          onClick={() => setTab("ajustes")}
-          className="mt-auto flex flex-col gap-3 rounded-2xl border bg-card/60 p-3 text-left transition hover:border-foreground/25 active:scale-[0.99]"
-        >
-          <span className="flex items-center gap-3">
-            <span className="grad grid size-9 shrink-0 place-items-center rounded-full text-sm font-semibold">{initial}</span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium">{firstName || "Estudiante"}</span>
-              <span className="block truncate text-xs text-muted-foreground">{userEmail || "Sin correo"}</span>
-            </span>
-          </span>
-          <SyncBadge status={status} />
-        </button>
       </aside>
 
       <main className="pb-nav mx-auto w-full max-w-6xl px-4 pt-[max(1rem,env(safe-area-inset-top))] sm:px-6 lg:px-10 lg:pt-10">
