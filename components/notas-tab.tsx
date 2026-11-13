@@ -53,32 +53,32 @@ export function NotasTab({ subjects, grades, setGrades, hiddenSubjects, onToggle
   const visibleSubjects = subjects.filter((s) => !hiddenSubjects.includes(s.id))
   const hiddenSubjectsList = subjects.filter((s) => hiddenSubjects.includes(s.id))
 
-  // promedio de lo calificado por materia (puntos / peso calificado) y cuántas van bien o mal
-  const averages = visibleSubjects.flatMap((s) => {
-    const g = grades[s.id] ?? []
-    const cw = coveredWeight(g)
-    return cw > 0 ? [accumulatedPoints(g) / (cw / 100)] : []
-  })
-  const avg = averages.length ? averages.reduce((a, b) => a + b, 0) / averages.length : null
-  const passing = averages.filter((a) => a >= PASSING_GRADE).length
-  const failing = averages.length - passing
-  const noGrades = visibleSubjects.length - averages.length
+  // Promedio del ACUMULADO de las materias visibles (las ocultas no cuentan; las que aún no tienen notas tampoco).
+  // El estado "aprobando / en riesgo" sí mira el promedio de lo ya calificado de cada materia.
+  const graded = visibleSubjects.filter((s) => coveredWeight(grades[s.id] ?? []) > 0)
+  const avg = graded.length ? graded.reduce((n, s) => n + accumulatedPoints(grades[s.id]), 0) / graded.length : null
+  const passing = graded.filter((s) => {
+    const g = grades[s.id]
+    return accumulatedPoints(g) / (coveredWeight(g) / 100) >= PASSING_GRADE
+  }).length
+  const failing = graded.length - passing
+  const noGrades = visibleSubjects.length - graded.length
 
   return (
     <div className="space-y-6">
       <section className="flex animate-rise items-center gap-4 rounded-3xl border bg-card p-4 shadow-(--card-shadow) sm:gap-6 sm:p-6">
         {avg !== null && (
-          <Ring value={avg / 5} size={88} stroke={8} className={avg >= PASSING_GRADE ? "text-foreground" : "text-destructive"}>
+          <Ring value={avg / 5} size={88} stroke={8}>
             <span className="text-center leading-none">
               <CountUp value={avg} decimals={2} className="text-xl font-bold" />
-              <span className="mt-0.5 block text-[9px] uppercase tracking-widest text-muted-foreground">promedio</span>
+              <span className="mt-0.5 block text-[9px] uppercase tracking-widest text-muted-foreground">acumulado</span>
             </span>
           </Ring>
         )}
         <div className="min-w-0 flex-1">
           <h2 className="text-xl font-semibold tracking-tight">Mis notas</h2>
           <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
-            {avg === null ? "Agrega notas a tus materias para ver tu promedio." : "Promedio de lo calificado hasta ahora."}
+            {avg === null ? "Agrega notas a tus materias para ver tu promedio." : "Promedio del acumulado de tus materias visibles."}
           </p>
           {avg !== null && (
             <div className="mt-3 flex flex-wrap gap-1.5 text-[11px] font-medium">
@@ -309,8 +309,7 @@ function SubjectGrades({
         role="button"
         tabIndex={0}
         aria-expanded={expanded}
-        className="flex cursor-pointer select-none items-center gap-3 px-4 py-3.5 transition-colors hover:bg-foreground/[0.03]"
-        style={{ backgroundImage: `linear-gradient(90deg, ${bg}40, transparent 65%)` }}
+        className="flex min-h-[4.5rem] cursor-pointer select-none items-center gap-3 px-4 py-3.5 transition-colors hover:bg-foreground/[0.03]"
       >
         <span className="h-9 w-1.5 shrink-0 rounded-full" style={{ background: border }} />
         <div className="min-w-0 flex-1">

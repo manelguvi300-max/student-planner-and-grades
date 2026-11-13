@@ -218,6 +218,7 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
               exams={exams}
               absences={absences}
               subjectConfigs={subjectConfigs}
+              hiddenNotas={hiddenSubjectsByTab.notas}
               onNavigate={setTab}
             />
           </TabsContent>

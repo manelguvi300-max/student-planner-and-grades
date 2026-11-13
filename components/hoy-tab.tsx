@@ -30,6 +30,7 @@ type Props = {
   exams: Exam[]
   absences: Absence[]
   subjectConfigs: Record<string, SubjectConfig>
+  hiddenNotas: string[]
   onNavigate: (tab: string) => void
 }
 
@@ -81,7 +82,7 @@ function Section({ title, action, onAction, children, delay = 0 }: { title: stri
   )
 }
 
-export function HoyTab({ subjects, classes, grades, exams, absences, subjectConfigs, onNavigate }: Props) {
+export function HoyTab({ subjects, classes, grades, exams, absences, subjectConfigs, hiddenNotas, onNavigate }: Props) {
   const { settings } = useSettings()
   const now = useNow()
   const label = (m: number) => minutesToLabel(m, settings.timeFormat)
@@ -114,13 +115,9 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
     .sort((a, b) => a.date.localeCompare(b.date))
   const dueLabel = (n: number) => (n === 0 ? "Hoy" : n === 1 ? "Mañana" : `En ${n} días`)
 
-  // promedio de lo calificado hasta ahora
-  const avgs = subjects.flatMap((s) => {
-    const g = grades[s.id] ?? []
-    const cw = coveredWeight(g)
-    return cw > 0 ? [accumulatedPoints(g) / (cw / 100)] : []
-  })
-  const avg = avgs.length ? avgs.reduce((a, b) => a + b, 0) / avgs.length : null
+  // promedio del acumulado de las materias con notas, sin contar las ocultas en Notas
+  const graded = subjects.filter((s) => !hiddenNotas.includes(s.id) && coveredWeight(grades[s.id] ?? []) > 0)
+  const avg = graded.length ? graded.reduce((n, s) => n + accumulatedPoints(grades[s.id]), 0) / graded.length : null
 
   // alertas de faltas y notas
   type Alert = { id: string; level: "bad" | "warn"; subject: Subject; text: string; tab: string }
@@ -169,7 +166,7 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
   return (
     <div className="space-y-6">
       <section className="relative animate-rise overflow-hidden rounded-3xl border bg-card p-5 shadow-(--card-shadow) sm:p-7">
-        <div aria-hidden className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full opacity-40 blur-3xl transition-colors duration-700" style={{ background: heroSubject?.bg ?? "var(--muted)" }} />
+        {heroSubject && <span aria-hidden className="absolute inset-y-5 left-0 w-1.5 rounded-r-full sm:inset-y-7" style={{ background: heroSubject.border }} />}
         <div className="relative">
           <p className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
             <span className={cn("size-1.5 rounded-full", current ? "animate-glow bg-emerald-500" : "bg-foreground/40")} />
@@ -228,8 +225,8 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
             <p className="mt-3 text-sm text-muted-foreground">Agrega notas para ver tu promedio</p>
           ) : (
             <>
-              <p className={cn("mt-3 text-4xl font-light", avg < PASSING_GRADE && "text-destructive")}><CountUp value={avg} decimals={2} /></p>
-              <p className="mt-1 text-xs text-muted-foreground">{avg >= PASSING_GRADE ? "Vas aprobando" : "Por debajo de 3.0"}</p>
+              <p className="mt-3 text-4xl font-light"><CountUp value={avg} decimals={2} /></p>
+              <p className="mt-1 text-xs text-muted-foreground">Acumulado promedio</p>
             </>
           )}
         </Tile>

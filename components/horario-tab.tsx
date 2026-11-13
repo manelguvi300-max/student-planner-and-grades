@@ -36,6 +36,7 @@ import {
 import { MateriasDialog } from "./materias-dialog"
 import { TeacherFormFields, ProfesorMobileSheet, type TeacherField } from "./profesor-popover"
 import { ROW_PX, useSettings } from "@/lib/settings"
+import { cn } from "@/lib/utils"
 
 // Espacio reservado arriba/abajo del grid para que las etiquetas de hora
 // nunca se encimen con el encabezado de días ni se corten al final
@@ -261,157 +262,289 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
   }
 
   const DAY_SHORT = ["L", "M", "Mi", "J", "V"]
+  const SHORT = ["Lun", "Mar", "Mié", "Jue", "Vie"]
+  const spring = "cubic-bezier(.34,1.4,.5,1)"
+
+  // Subject resaltada (toca un chip para atenuar las demás) y vista móvil (lista o cuadrícula de horas)
+  const [focusId, setFocusId] = useState<string | null>(null)
+  const [mobileView, setMobileView] = useState<"lista" | "horas">("lista")
+
+  const totalHours = classes.reduce((n, c) => n + (c.endTime - c.startTime), 0) / 60
+  const durText = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ""}`)
+
+  // número de día de la semana en curso (si es fin de semana, la siguiente); solo tras montar
+  const mounted = nowMin !== null
+  const weekDates = useMemo(() => {
+    if (!mounted) return null
+    const d = new Date()
+    const js = d.getDay()
+    const monday = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((js + 6) % 7) + (js === 0 || js === 6 ? 7 : 0))
+    return DAYS.map((_, i) => new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i).getDate())
+  }, [mounted])
+
+  function stateOf(c: ClassSession): "live" | "done" | "next" {
+    if (nowMin === null || c.day !== todayIdx) return "next"
+    return c.endTime <= nowMin ? "done" : c.startTime <= nowMin ? "live" : "next"
+  }
+
+  /** Bloque de clase dentro de la cuadrícula de horas (color plano de la materia, sin degradados). */
+  function block(c: ClassSession, mobile: boolean) {
+    const subject = getSubject(subjects, c.subjectId)
+    if (!subject) return null
+    const st = stateOf(c)
+    const h = Math.max(durationPx(c.startTime, c.endTime) - 3, mobile ? 26 : 28)
+    const compact = h < (mobile ? 42 : 46)
+    return (
+      <button
+        key={c.id}
+        onClick={() => openEdit(c)}
+        aria-label={`${subject.name}, ${timeLabel(c.startTime)} a ${timeLabel(c.endTime)}`}
+        className={cn(
+          "absolute left-1 right-1 overflow-hidden rounded-lg border-l-[3px] py-1 pl-2 pr-1.5 text-left text-[11px] leading-tight text-neutral-900 transition duration-300 hover:z-20 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]",
+          !mobile && "animate-pop",
+          st === "done" && "opacity-50",
+          st === "live" && "z-10 ring-2 ring-foreground/70",
+          focusId && focusId !== subject.id && "opacity-20"
+        )}
+        style={{ top: minutesToPx(c.startTime) + 1, height: h, backgroundColor: subject.bg, borderLeftColor: subject.border }}
+      >
+        <p className="truncate font-semibold">{subject.name}</p>
+        {!compact && <p className="num mt-0.5 text-[10px] opacity-70">{timeLabel(c.startTime)}–{timeLabel(c.endTime)}</p>}
+        {!compact && !mobile && c.group && <p className="text-[10px] opacity-70">Gr: {c.group}</p>}
+        {!compact && c.room && <p className="truncate text-[10px] opacity-70">{c.room}</p>}
+      </button>
+    )
+  }
+
+  const dayList = classesForDay(selectedMobileDay)
+  const dayHours = dayList.reduce((n, c) => n + (c.endTime - c.startTime), 0) / 60
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold">Mi horario</h2>
-          <p className="text-sm text-muted-foreground hidden sm:block">Toca una clase para editarla.</p>
-          <p className="text-sm text-muted-foreground sm:hidden">Toca una clase para editarla.</p>
+    <div className="space-y-5 animate-fade-in">
+      {/* Cabecera */}
+      <header className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-xl font-semibold tracking-tight">Mi horario</h2>
+          <p className="num text-sm text-muted-foreground">
+            {classes.length === 0 ? "Toca una clase para editarla." : `${classes.length} clase${classes.length === 1 ? "" : "s"} · ${Number.isInteger(totalHours) ? totalHours : totalHours.toFixed(1)} h por semana`}
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={() => { setExpandedTeacherId(null); setManageOpen(true) }} variant="outline" size="sm" className="rounded-full shadow-sm">
-            <Settings2 className="size-4 sm:mr-1" />
-            <span className="hidden sm:inline">Materias</span>
+          <Button onClick={() => { setExpandedTeacherId(null); setManageOpen(true) }} variant="outline" size="sm" className="rounded-full">
+            <Settings2 className="mr-1 size-4" />
+            Materias
           </Button>
-          <Button onClick={openNew} size="sm" className="rounded-full shadow-sm hover:shadow" disabled={subjects.length === 0}>
-            <Plus className="size-4 mr-1" /> Clase
+          <Button onClick={openNew} size="sm" className="rounded-full max-sm:hidden" disabled={subjects.length === 0}>
+            <Plus className="mr-1 size-4" /> Clase
           </Button>
         </div>
-      </div>
+      </header>
+
+      {/* Chips de materias: toca una para resaltar sus clases */}
+      {classes.length > 0 && subjects.length > 1 && (
+        <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0" role="group" aria-label="Resaltar materia">
+          {subjects.map((s) => {
+            const on = focusId === s.id
+            return (
+              <button
+                key={s.id}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setFocusId(on ? null : s.id)}
+                className={cn(
+                  "flex h-8 shrink-0 items-center gap-2 rounded-full border px-3 text-xs font-medium transition duration-200 active:scale-95",
+                  on ? "border-foreground bg-foreground text-background" : "bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                )}
+              >
+                <span className="size-2.5 rounded-full" style={{ backgroundColor: s.bg, boxShadow: `0 0 0 1.5px ${s.border}` }} />
+                {s.name}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
       {classes.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed rounded-xl bg-card animate-scale-in">
-          <div className="bg-primary/10 p-3 rounded-full mb-4">
-            <CalendarDays className="size-6 text-primary" />
+        <div className="animate-scale-in rounded-3xl border-2 border-dashed bg-card px-6 py-14 text-center">
+          <div className="mx-auto mb-4 grid size-14 place-items-center rounded-2xl bg-foreground/10">
+            <CalendarDays className="size-6" />
           </div>
-          <h3 className="font-semibold text-lg mb-1">Tu horario está vacío</h3>
-          <p className="text-sm text-muted-foreground mb-4 max-w-[250px]">
+          <h3 className="text-lg font-semibold">Tu horario está vacío</h3>
+          <p className="mx-auto mt-1 mb-5 max-w-xs text-sm text-muted-foreground">
             {subjects.length === 0
-              ? "Primero crea algunas materias para poder agregarlas al horario."
+              ? "Primero crea tus materias; después las ubicas en la semana."
               : "Agrega tu primera clase para empezar a organizar tu semestre."}
           </p>
           {subjects.length === 0 ? (
-            <Button onClick={() => setManageOpen(true)} variant="secondary">Crear primera materia</Button>
+            <Button onClick={() => setManageOpen(true)}>Crear primera materia</Button>
           ) : (
-            <Button onClick={openNew} variant="secondary">Agregar primera clase</Button>
+            <Button onClick={openNew}>Agregar primera clase</Button>
           )}
         </div>
       )}
 
       {classes.length > 0 && (
         <>
-          {/* Vista móvil */}
-          <div className="sm:hidden space-y-4">
-            <div className="flex w-full items-center p-1 bg-muted/40 rounded-xl overflow-hidden">
+          {/* ───────── Móvil ───────── */}
+          <div className="space-y-4 sm:hidden">
+            {/* Selector de día con fecha y puntos de "hay clases" */}
+            <div className="relative grid grid-cols-5 rounded-2xl bg-muted p-1">
+              <span
+                aria-hidden
+                className="absolute inset-y-1 left-1 rounded-xl bg-background shadow-sm ring-1 ring-border/60"
+                style={{ width: "calc((100% - 0.5rem) / 5)", transform: `translateX(${selectedMobileDay * 100}%)`, transition: `transform .45s ${spring}` }}
+              />
               {DAYS.map((d, i) => (
                 <button
                   key={d}
                   type="button"
                   onClick={() => setSelectedMobileDay(i)}
                   aria-label={d}
-                  className={`flex-1 py-2.5 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-300 ease-out select-none ${
-                    selectedMobileDay === i
-                      ? "bg-background text-foreground shadow-sm ring-1 ring-border/50"
-                      : "text-muted-foreground hover:text-foreground active:bg-muted/60"
-                  }`}
+                  aria-pressed={selectedMobileDay === i}
+                  className="relative flex select-none flex-col items-center gap-0.5 rounded-xl py-2 active:scale-95"
                 >
-                  {d.slice(0, 3)}
+                  <span className={cn("text-[10px] font-semibold uppercase tracking-wider transition-colors", selectedMobileDay === i ? "text-foreground" : "text-muted-foreground")}>{SHORT[i]}</span>
+                  <span className={cn("num grid size-7 place-items-center rounded-full text-sm font-semibold transition-colors", i === todayIdx && "bg-foreground text-background")}>
+                    {weekDates?.[i] ?? "·"}
+                  </span>
+                  <span className={cn("size-1 rounded-full", classesForDay(i).length ? "bg-muted-foreground/70" : "bg-transparent")} />
                 </button>
               ))}
             </div>
 
-            {/* Grid móvil: columna de horas + columna de eventos */}
-            <div
-              className="rounded-xl border bg-card overflow-hidden shadow-sm touch-pan-y"
-              key={selectedMobileDay}
-              onTouchStart={handleTouchStart}
-              onTouchEnd={handleTouchEnd}
-            >
-              <div className="flex overflow-hidden">
-                {/* Columna de horas */}
-                <div className="w-12 shrink-0 relative border-r bg-muted/20" style={{ height: gridHeight }}>
-                  {hours.map((h) => (
-                    <div
-                      key={h}
-                      className="absolute right-0 left-0 flex items-start justify-end pr-2 text-[10px] font-medium text-muted-foreground tabular-nums"
-                      style={{ top: minutesToPx(h * 60) - 6 }}
-                    >
-                      {hourLabel(h, settings.timeFormat)}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Columna de eventos */}
-                <div className="flex-1 relative" style={{ height: gridHeight }}>
-                  {/* Líneas de hora */}
-                  {hours.map((h) => (
-                    <div
-                      key={h}
-                      className="absolute left-0 right-0 border-t border-border/40"
-                      style={{ top: minutesToPx(h * 60) }}
-                    />
-                  ))}
-
-                  {nowLine(selectedMobileDay)}
-                  {classesForDay(selectedMobileDay).map((c) => {
-                    const subject = getSubject(subjects, c.subjectId)
-                    if (!subject) return null
-                    const blockHeight = Math.max(durationPx(c.startTime, c.endTime) - 3, 26)
-                    const isCompact = blockHeight < 42
-                    return (
-                      <button
-                        key={c.id}
-                        onClick={() => openEdit(c)}
-                        className="absolute left-1 right-1 rounded-md pl-2 pr-1.5 py-1 text-left text-neutral-900 text-[11px] leading-tight shadow-sm hover:shadow-md hover:brightness-[0.97] active:scale-[0.99] transition-all overflow-hidden border-l-[3px]"
-                        style={{
-                          top: minutesToPx(c.startTime) + 1,
-                          height: blockHeight,
-                          backgroundColor: subject.bg,
-                          borderLeftColor: subject.border,
-                          boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
-                        }}
-                      >
-                        <p className="font-semibold truncate">{subject.name}</p>
-                        {!isCompact && (
-                          <p className="opacity-70 text-[10px] mt-0.5">{timeLabel(c.startTime)}–{timeLabel(c.endTime)}</p>
-                        )}
-                        {!isCompact && c.room && <p className="opacity-70 text-[10px] truncate">{c.room}</p>}
-                      </button>
-                    )
-                  })}
-                </div>
+            <div className="flex items-center justify-between gap-2">
+              <p className="num min-w-0 truncate text-sm text-muted-foreground">
+                <b className="font-semibold text-foreground">{DAYS[selectedMobileDay]}</b>
+                {` · ${dayList.length} clase${dayList.length === 1 ? "" : "s"}${dayList.length ? ` · ${Number.isInteger(dayHours) ? dayHours : dayHours.toFixed(1)} h` : ""}`}
+              </p>
+              <div className="flex shrink-0 gap-1 rounded-lg bg-muted p-0.5 text-xs font-medium" role="group" aria-label="Tipo de vista">
+                {(["lista", "horas"] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    aria-pressed={mobileView === v}
+                    onClick={() => setMobileView(v)}
+                    className={cn("rounded-md px-2.5 py-1 capitalize transition", mobileView === v ? "bg-background text-foreground shadow-sm" : "text-muted-foreground")}
+                  >
+                    {v}
+                  </button>
+                ))}
               </div>
+            </div>
+
+            <div key={selectedMobileDay} className="animate-rise touch-pan-y" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+              {mobileView === "lista" ? (
+                dayList.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed bg-card/60 px-4 py-10 text-center text-sm text-muted-foreground">
+                    Sin clases este día.
+                    {subjects.length > 0 && (
+                      <button type="button" onClick={openNew} className="mt-3 block w-full text-foreground underline underline-offset-4">Agregar una clase</button>
+                    )}
+                  </div>
+                ) : (
+                  <ol className="space-y-2">
+                    {dayList.map((c, i) => {
+                      const subject = getSubject(subjects, c.subjectId)
+                      if (!subject) return null
+                      const st = stateOf(c)
+                      const prev = dayList[i - 1]
+                      const gap = prev ? c.startTime - prev.endTime : 0
+                      const pct = st === "live" && nowMin !== null ? Math.round(((nowMin - c.startTime) / (c.endTime - c.startTime)) * 100) : 0
+                      return (
+                        <li key={c.id}>
+                          {gap >= 30 && (
+                            <div className="my-2.5 flex items-center gap-3 pl-1 text-[11px] text-muted-foreground">
+                              <span className="h-px w-5 bg-border" />
+                              <span className="num">Libre · {durText(gap)}</span>
+                              <span className="h-px flex-1 bg-border" />
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => openEdit(c)}
+                            className={cn(
+                              "flex w-full items-stretch gap-3 rounded-2xl border bg-card p-3 text-left transition duration-300 active:scale-[0.99]",
+                              st === "done" && "opacity-55",
+                              st === "live" && "border-foreground/40 shadow-(--card-shadow)",
+                              focusId && focusId !== subject.id && "opacity-25"
+                            )}
+                          >
+                            <span className="num flex w-[4.75rem] shrink-0 flex-col justify-between text-xs">
+                              <b className="font-semibold">{timeLabel(c.startTime)}</b>
+                              <span className="text-muted-foreground">{timeLabel(c.endTime)}</span>
+                            </span>
+                            <span className="w-1 shrink-0 rounded-full" style={{ background: subject.border }} />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-semibold">{subject.name}</span>
+                              <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                                {[c.room, c.group && `Gr. ${c.group}`, durText(c.endTime - c.startTime)].filter(Boolean).join(" · ")}
+                              </span>
+                              {st === "live" && (
+                                <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-foreground/10">
+                                  <span className="block h-full rounded-full" style={{ width: `${pct}%`, background: subject.border }} />
+                                </span>
+                              )}
+                            </span>
+                            {st === "live" && <span className="h-fit shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">En curso</span>}
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ol>
+                )
+              ) : (
+                <div className="overflow-hidden rounded-2xl border bg-card">
+                  <div className="flex overflow-hidden">
+                    <div className="relative w-12 shrink-0 border-r bg-muted/20" style={{ height: gridHeight }}>
+                      {hours.map((h) => (
+                        <div
+                          key={h}
+                          className="num absolute right-0 left-0 flex items-start justify-end pr-2 text-[10px] font-medium text-muted-foreground"
+                          style={{ top: minutesToPx(h * 60) - 6 }}
+                        >
+                          {hourLabel(h, settings.timeFormat)}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="relative flex-1" style={{ height: gridHeight }}>
+                      {hours.map((h) => (
+                        <div key={h} className="absolute left-0 right-0 border-t border-border/40" style={{ top: minutesToPx(h * 60) }} />
+                      ))}
+                      {nowLine(selectedMobileDay)}
+                      {dayList.map((c) => block(c, true))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Vista escritorio */}
-          <div className="hidden sm:block overflow-x-auto rounded-xl border bg-card shadow-sm animate-slide-up">
+          {/* ───────── Tablet / escritorio: semana completa ───────── */}
+          <div className="hidden animate-slide-up overflow-x-auto rounded-2xl border bg-card shadow-(--card-shadow) sm:block">
             <div className="min-w-[700px]">
-              {/* Cabecera de días */}
-              <div className="flex border-b bg-muted/30 rounded-t-xl overflow-hidden">
-                <div className="w-16 shrink-0 border-r p-3 text-xs font-semibold text-muted-foreground flex items-center">Hora</div>
+              <div className="flex border-b bg-muted/30">
+                <div className="flex w-16 shrink-0 items-center border-r p-3 text-xs font-semibold text-muted-foreground">Hora</div>
                 {DAYS.map((d, i) => (
-                  <div
+                  <button
                     key={d}
-                    className={`flex-1 p-3 text-center text-sm font-semibold border-r last:border-r-0 ${i === todayIdx ? "bg-foreground/[0.06] text-foreground" : ""}`}
+                    type="button"
+                    onClick={() => setSelectedMobileDay(i)}
+                    className={cn("flex-1 border-r px-2 py-2.5 text-center last:border-r-0", i === todayIdx && "bg-foreground/[0.05]")}
                   >
-                    {d}
-                    {i === todayIdx && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-foreground align-middle" aria-label="hoy" />}
-                  </div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{SHORT[i]}</p>
+                    <p className={cn("num mx-auto mt-1 grid size-8 place-items-center rounded-full text-base font-semibold", i === todayIdx && "bg-foreground text-background")}>
+                      {weekDates?.[i] ?? ""}
+                    </p>
+                  </button>
                 ))}
               </div>
 
-              {/* Cuerpo del grid */}
               <div className="flex overflow-hidden" style={{ height: gridHeight }}>
-                {/* Columna de horas */}
-                <div className="w-16 shrink-0 border-r relative bg-muted/10">
+                <div className="relative w-16 shrink-0 border-r bg-muted/10">
                   {hours.map((h) => (
                     <div
                       key={h}
-                      className="absolute right-0 left-0 flex items-start justify-end pr-2 text-[11px] font-medium text-muted-foreground tabular-nums"
+                      className="num absolute right-0 left-0 flex items-start justify-end pr-2 text-[11px] font-medium text-muted-foreground"
                       style={{ top: minutesToPx(h * 60) - 7 }}
                     >
                       {hourLabel(h, settings.timeFormat)}
@@ -419,46 +552,13 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                   ))}
                 </div>
 
-                {/* Columnas de días */}
                 {DAYS.map((d, dayIndex) => (
-                  <div key={d} className="flex-1 border-r last:border-r-0 relative">
-                    {/* Líneas de hora */}
+                  <div key={d} className={cn("relative flex-1 border-r last:border-r-0", dayIndex === todayIdx && "bg-foreground/[0.025]")}>
                     {hours.map((h) => (
-                      <div
-                        key={h}
-                        className="absolute left-0 right-0 border-t border-border/30"
-                        style={{ top: minutesToPx(h * 60) }}
-                      />
+                      <div key={h} className="absolute left-0 right-0 border-t border-border/30" style={{ top: minutesToPx(h * 60) }} />
                     ))}
-
                     {nowLine(dayIndex)}
-                    {classesForDay(dayIndex).map((c) => {
-                      const subject = getSubject(subjects, c.subjectId)
-                      if (!subject) return null
-                      const blockHeight = Math.max(durationPx(c.startTime, c.endTime) - 3, 28)
-                      const isCompact = blockHeight < 46
-                      return (
-                        <button
-                          key={c.id}
-                          onClick={() => openEdit(c)}
-                          className="absolute left-1 right-1 rounded-md pl-2 pr-1.5 py-1 text-left text-neutral-900 text-[11px] leading-tight shadow-sm hover:shadow-md hover:brightness-[0.97] active:scale-[0.99] transition-all overflow-hidden animate-pop border-l-[3px]"
-                          style={{
-                            top: minutesToPx(c.startTime) + 1,
-                            height: blockHeight,
-                            backgroundColor: subject.bg,
-                            borderLeftColor: subject.border,
-                            boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
-                          }}
-                        >
-                          <p className="font-semibold truncate">{subject.name}</p>
-                          {!isCompact && (
-                            <p className="opacity-70 text-[10px] mt-0.5">{timeLabel(c.startTime)}–{timeLabel(c.endTime)}</p>
-                          )}
-                          {!isCompact && c.group && <p className="opacity-70 text-[10px]">Gr: {c.group}</p>}
-                          {!isCompact && c.room && <p className="opacity-70 text-[10px] truncate">{c.room}</p>}
-                        </button>
-                      )
-                    })}
+                    {classesForDay(dayIndex).map((c) => block(c, false))}
                   </div>
                 ))}
               </div>
@@ -467,9 +567,21 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
         </>
       )}
 
+      {/* Botón flotante para agregar clase en el celular */}
+      {subjects.length > 0 && (
+        <button
+          type="button"
+          onClick={openNew}
+          aria-label="Agregar clase"
+          className="fixed right-4 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-30 grid size-14 place-items-center rounded-full bg-foreground text-background shadow-xl shadow-black/30 transition duration-200 hover:scale-105 active:scale-90 sm:hidden"
+        >
+          <Plus className="size-6" />
+        </button>
+      )}
+
       {/* Materias (info de profesores) */}
       {classes.length > 0 && subjects.length > 0 && (
-        <div className="rounded-xl border bg-card shadow-sm overflow-hidden animate-slide-up">
+        <div className="rounded-2xl border bg-card shadow-(--card-shadow) overflow-hidden animate-slide-up">
           <button
             type="button"
             onClick={toggleSubjectsSection}
