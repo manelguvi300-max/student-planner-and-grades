@@ -178,6 +178,15 @@
   }
 }
 
+/* Impresión del horario: solo se muestra #print-root (ver components/horario-print.tsx) */
+#print-root { display: none; }
+@media print {
+  @page { size: A4 landscape; margin: 9mm; }
+  html, body { background: #fff !important; min-height: 0 !important; }
+  body > *:not(#print-root) { display: none !important; }
+  #print-root { display: block; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .pb-nav { padding-bottom: calc(6.5rem + env(safe-area-inset-bottom)); }

@@ -297,7 +297,7 @@ function SubjectGrades({
   const impossible = needed > 5
 
   return (
-    <Card className="overflow-hidden p-0 animate-pop">
+    <Card className="gap-0 overflow-hidden p-0 animate-pop">
       {/* Header (clic para contraer/expandir) */}
       <div
         onClick={onToggle}

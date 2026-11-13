@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, useRef } from "react"
-import { Plus, Pencil, Trash2, CalendarDays, Settings2, GraduationCap, ChevronRight, ChevronDown } from "lucide-react"
+import { Plus, Pencil, Trash2, CalendarDays, Settings2, GraduationCap, ChevronRight, ChevronDown, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -37,6 +37,7 @@ import { MateriasDialog } from "./materias-dialog"
 import { TeacherFormFields, ProfesorMobileSheet, type TeacherField } from "./profesor-popover"
 import { ROW_PX, useSettings } from "@/lib/settings"
 import { cn } from "@/lib/utils"
+import { HorarioPrint } from "./horario-print"
 
 // Espacio reservado arriba/abajo del grid para que las etiquetas de hora
 // nunca se encimen con el encabezado de días ni se corten al final
@@ -353,11 +354,20 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
     )
   }
 
+  /** Abre el diálogo de impresión con solo el horario (ahí eliges "Guardar como PDF"). */
+  function exportPdf() {
+    const title = document.title
+    document.title = "Mi horario"
+    window.print()
+    document.title = title
+  }
+
   const dayList = classesForDay(selectedMobileDay)
   const dayHours = dayList.reduce((n, c) => n + (c.endTime - c.startTime), 0) / 60
 
   return (
     <div className="space-y-5 animate-fade-in">
+      {mounted && <HorarioPrint subjects={subjects} classes={classes} format={settings.timeFormat} />}
       {/* Cabecera */}
       <header className="flex items-end justify-between gap-3">
         <div className="min-w-0">
@@ -367,6 +377,12 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {classes.length > 0 && (
+            <Button onClick={exportPdf} variant="outline" size="sm" className="rounded-full" aria-label="Exportar horario en PDF" title="Exportar horario en PDF">
+              <Download className="size-4 sm:mr-1" />
+              <span className="hidden sm:inline">PDF</span>
+            </Button>
+          )}
           <Button onClick={() => { setExpandedTeacherId(null); setManageOpen(true) }} variant="outline" size="sm" className="rounded-full">
             <Settings2 className="mr-1 size-4" />
             Materias
