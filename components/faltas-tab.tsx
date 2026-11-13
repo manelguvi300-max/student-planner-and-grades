@@ -362,7 +362,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
 
       {/* Dialog: Configurar horas de la materia */}
       <Dialog open={configOpen} onOpenChange={setConfigOpen}>
-        <DialogContent className="sm:max-w-[380px] animate-scale-in">
+        <DialogContent className="sm:max-w-[380px]">
           <DialogHeader>
             <DialogTitle>Configurar horas de clase</DialogTitle>
           </DialogHeader>

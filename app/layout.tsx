@@ -1,13 +1,10 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Sora, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 
-const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-})
+const sora = Sora({ variable: '--font-sora', subsets: ['latin'] })
+const mono = JetBrains_Mono({ variable: '--font-jb', subsets: ['latin'], weight: ['400', '500', '700'] })
 
 export const metadata: Metadata = {
   title: 'Mi semestre — Horario, notas y exámenes',
@@ -30,15 +27,18 @@ export const metadata: Metadata = {
         type: 'image/svg+xml',
       },
     ],
-    apple: '/apple-icon.png',
   },
+  appleWebApp: { capable: true, title: 'Mi semestre', statusBarStyle: 'black-translucent' },
 }
 
 export const viewport: Viewport = {
   colorScheme: 'light dark',
+  viewportFit: 'cover',
+  width: 'device-width',
+  initialScale: 1,
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: 'white' },
-    { media: '(prefers-color-scheme: dark)', color: 'black' },
+    { media: '(prefers-color-scheme: light)', color: '#f6f8fc' },
+    { media: '(prefers-color-scheme: dark)', color: '#0e1018' },
   ],
 }
 
@@ -48,8 +48,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} bg-background`}>
-      <body className="font-sans antialiased">
+    <html lang="es" className={`${sora.variable} ${mono.variable}`}>
+      <body className="font-sans">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

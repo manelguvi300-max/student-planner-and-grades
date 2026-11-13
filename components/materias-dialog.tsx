@@ -96,7 +96,7 @@ export function MateriasDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] animate-scale-in max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[425px] max-h-[85dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Administrar Materias</DialogTitle>
         </DialogHeader>

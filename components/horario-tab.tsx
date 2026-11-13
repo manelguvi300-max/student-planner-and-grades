@@ -535,7 +535,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
 
       {/* Dialog agregar/editar */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[440px] animate-scale-in max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[440px] max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{isNew ? "Agregar clase" : "Editar clase"}</DialogTitle>
           </DialogHeader>

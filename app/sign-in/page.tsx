@@ -8,9 +8,8 @@ export default async function SignInPage() {
   if (session?.user) redirect("/")
 
   return (
-    <main className="flex min-h-svh w-full items-center justify-center bg-gradient-to-br from-[#4285F4] to-[#34A853] px-4 py-12">
+    <main>
       <SignInCard />
     </main>
   )
 }
-
