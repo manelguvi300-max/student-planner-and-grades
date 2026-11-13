@@ -41,6 +41,65 @@ export function SignInCard() {
   }
 
   return (
+    <div className="flex w-full max-w-md flex-col gap-6 sm:flex-row sm:gap-8">
+      {/* Illustración decorativa – solo visible en pantallas medianas+ */}
+      <div className="hidden sm:block flex-1 bg-gradient-to-br from-primary via-secondary to-accent rounded-2xl p-4">
+        {/* Puedes sustituir este SVG por una ilustración propia */}
+        <svg viewBox="0 0 100 100" className="h-full w-full text-white/80" aria-hidden="true">
+          <circle cx="50" cy="50" r="40" fill="currentColor" opacity="0.3" />
+          <path d="M30 45 L45 60 L70 35" stroke="currentColor" strokeWidth="5" fill="none" />
+        </svg>
+      </div>
+
+      <Card className="flex-1 animate-scale-in bg-white/95 backdrop-blur-sm shadow-lg">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl text-balance font-medium">Mi semestre</CardTitle>
+          <CardDescription className="text-pretty">
+            Inicia sesión con Google para acceder a tu horario, notas y exámenes desde cualquier dispositivo.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-6">
+          <ul className="flex flex-col gap-3 text-sm text-muted-foreground">
+            <li className="flex items-center gap-3">
+              <CalendarDays className="size-4 text-foreground" />
+              Tu horario de clases siempre a mano
+            </li>
+            <li className="flex items-center gap-3">
+              <GraduationCap className="size-4 text-foreground" />
+              Seguimiento de notas y cálculo del final
+            </li>
+            <li className="flex items-center gap-3">
+              <ClipboardList className="size-4 text-foreground" />
+              Fechas de exámenes sincronizadas
+            </li>
+          </ul>
+
+          <Button
+            onClick={handleGoogle}
+            disabled={loading}
+            className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+            size="lg"
+          >
+            <GoogleIcon />
+            {loading ? "Conectando..." : "Continuar con Google"}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+  const [loading, setLoading] = useState(false)
+
+  async function handleGoogle() {
+    setLoading(true)
+    await authClient.signIn.social({
+      provider: "google",
+      callbackURL: "/",
+    })
+  }
+
+  return (
     <Card className="w-full max-w-sm animate-scale-in">
       <CardHeader className="text-center">
         <CardTitle className="text-2xl text-balance">Mi semestre</CardTitle>

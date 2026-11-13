@@ -8,6 +8,16 @@ export default async function SignInPage() {
   if (session?.user) redirect("/")
 
   return (
+    <main className="flex min-h-svh w-full items-center justify-center bg-gradient-to-br from-primary via-secondary to-accent px-4 py-12">
+      <SignInCard />
+    </main>
+  )
+}
+
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (session?.user) redirect("/")
+
+  return (
     <main className="flex min-h-svh w-full items-center justify-center px-4 py-12">
       <SignInCard />
     </main>
