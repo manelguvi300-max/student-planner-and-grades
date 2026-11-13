@@ -35,17 +35,17 @@ export function SignInCard() {
   }
 
   return (
-    <div className="flex w-full max-w-md flex-col gap-6 sm:flex-row sm:gap-8">
+    <div className="flex w-full max-w-2xl flex-col gap-6 sm:flex-row sm:items-stretch sm:gap-8">
       {/* Illustration – only visible on medium+ screens */}
-      <div className="hidden sm:block flex-1 bg-gradient-to-br from-primary via-secondary to-accent rounded-2xl p-4">
+      <div className="hidden sm:flex flex-1 items-center justify-center rounded-2xl bg-white/15 p-6 backdrop-blur-sm">
         {/* Replace with your own SVG/illustration if you wish */}
-        <svg viewBox="0 0 100 100" className="h-full w-full text-white/80" aria-hidden="true">
+        <svg viewBox="0 0 100 100" className="w-full max-w-40 text-white" aria-hidden="true">
           <circle cx="50" cy="50" r="40" fill="currentColor" opacity="0.3" />
           <path d="M30 45 L45 60 L70 35" stroke="currentColor" strokeWidth="5" fill="none" />
         </svg>
       </div>
 
-      <Card className="flex-1 animate-scale-in bg-white/95 backdrop-blur-sm shadow-lg">
+      <Card className="flex-1 animate-in fade-in zoom-in-95 duration-300 shadow-xl">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl text-balance font-medium">Mi semestre</CardTitle>
           <CardDescription className="text-pretty">
@@ -72,7 +72,8 @@ export function SignInCard() {
           <Button
             onClick={handleGoogle}
             disabled={loading}
-            className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+            variant="outline"
+            className="w-full gap-2"
             size="lg"
           >
             <GoogleIcon />
