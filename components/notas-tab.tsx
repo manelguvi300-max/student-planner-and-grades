@@ -5,6 +5,8 @@ import { ChevronDown, Plus, Trash2, Pencil, Check, X, EyeOff, Eye } from "lucide
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
+import { Ring } from "@/components/ui/ring"
+import { CountUp } from "@/components/ui/count-up"
 import { cn } from "@/lib/utils"
 import {
   FINAL_WEIGHT,
@@ -51,11 +53,42 @@ export function NotasTab({ subjects, grades, setGrades, hiddenSubjects, onToggle
   const visibleSubjects = subjects.filter((s) => !hiddenSubjects.includes(s.id))
   const hiddenSubjectsList = subjects.filter((s) => hiddenSubjects.includes(s.id))
 
+  // promedio de lo calificado por materia (puntos / peso calificado) y cuántas van bien o mal
+  const averages = visibleSubjects.flatMap((s) => {
+    const g = grades[s.id] ?? []
+    const cw = coveredWeight(g)
+    return cw > 0 ? [accumulatedPoints(g) / (cw / 100)] : []
+  })
+  const avg = averages.length ? averages.reduce((a, b) => a + b, 0) / averages.length : null
+  const passing = averages.filter((a) => a >= PASSING_GRADE).length
+  const failing = averages.length - passing
+  const noGrades = visibleSubjects.length - averages.length
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold">Mis notas</h2>
-      </div>
+      <section className="flex animate-rise items-center gap-4 rounded-3xl border bg-card p-4 shadow-(--card-shadow) sm:gap-6 sm:p-6">
+        {avg !== null && (
+          <Ring value={avg / 5} size={88} stroke={8} className={avg >= PASSING_GRADE ? "text-foreground" : "text-destructive"}>
+            <span className="text-center leading-none">
+              <CountUp value={avg} decimals={2} className="text-xl font-bold" />
+              <span className="mt-0.5 block text-[9px] uppercase tracking-widest text-muted-foreground">promedio</span>
+            </span>
+          </Ring>
+        )}
+        <div className="min-w-0 flex-1">
+          <h2 className="text-xl font-semibold tracking-tight">Mis notas</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
+            {avg === null ? "Agrega notas a tus materias para ver tu promedio." : "Promedio de lo calificado hasta ahora."}
+          </p>
+          {avg !== null && (
+            <div className="mt-3 flex flex-wrap gap-1.5 text-[11px] font-medium">
+              <span className="rounded-full bg-foreground/10 px-2.5 py-1">{passing} aprobando</span>
+              {failing > 0 && <span className="rounded-full bg-destructive/15 px-2.5 py-1 text-destructive">{failing} en riesgo</span>}
+              {noGrades > 0 && <span className="rounded-full bg-foreground/[0.06] px-2.5 py-1 text-muted-foreground">{noGrades} sin notas</span>}
+            </div>
+          )}
+        </div>
+      </section>
 
       {subjects.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed rounded-xl bg-card animate-scale-in">
@@ -276,32 +309,29 @@ function SubjectGrades({
         role="button"
         tabIndex={0}
         aria-expanded={expanded}
-        className="flex items-center justify-between gap-2 px-4 py-3 text-neutral-900 cursor-pointer select-none"
-        style={{
-          backgroundColor: bg,
-          borderBottom: expanded ? `1px solid ${border}` : "1px solid transparent",
-        }}
+        className="flex cursor-pointer select-none items-center gap-3 px-4 py-3.5 transition-colors hover:bg-foreground/[0.03]"
+        style={{ backgroundImage: `linear-gradient(90deg, ${bg}40, transparent 65%)` }}
       >
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <ChevronDown
-            className={cn("size-4 shrink-0 transition-transform duration-300", expanded && "rotate-180")}
-          />
-          <h3 className="font-semibold leading-tight truncate">{name}</h3>
+        <span className="h-9 w-1.5 shrink-0 rounded-full" style={{ background: border }} />
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate font-semibold leading-tight">{name}</h3>
+          <p className="num text-xs text-muted-foreground">{grades.length > 0 ? `${covered}% calificado` : "Sin notas"}</p>
         </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-[11px] font-bold rounded-full bg-black/10 px-2 py-0.5">
-            {grades.length > 0 ? `${points.toFixed(1)} pts · ${covered}%` : "Sin notas"}
-          </span>
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onToggleHidden() }}
-            aria-label="Ocultar materia de esta vista"
-            className="rounded-full p-1 text-neutral-600 hover:bg-black/10 transition-colors"
-            title="Ocultar de esta vista"
-          >
-            <EyeOff className="size-3.5" />
-          </button>
-        </div>
+        {grades.length > 0 && (
+          <Ring value={covered / 100} size={42} stroke={4}>
+            <span className="num text-[10px] font-semibold">{points.toFixed(1)}</span>
+          </Ring>
+        )}
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onToggleHidden() }}
+          aria-label="Ocultar materia de esta vista"
+          className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
+          title="Ocultar de esta vista"
+        >
+          <EyeOff className="size-4" />
+        </button>
+        <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform duration-300", expanded && "rotate-180")} />
       </div>
 
       {/* Cuerpo colapsable (animación fluida con CSS grid) */}
@@ -373,11 +403,18 @@ function SubjectGrades({
                       </div>
                     ) : (
                       /* Modo visualización */
-                      <div className="flex items-center justify-between gap-2 rounded-md bg-muted/60 px-3 py-1.5 text-sm animate-fade-in">
-                        <span className="truncate">{g.name}</span>
+                      <div className="flex animate-fade-in items-center gap-3 rounded-xl bg-muted/50 px-2.5 py-2 text-sm">
+                        <span className={cn("num grid h-8 w-11 shrink-0 place-items-center rounded-lg text-sm font-semibold", g.score >= PASSING_GRADE ? "bg-foreground/10" : "bg-destructive/15 text-destructive")}>
+                          {g.score.toFixed(1)}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate">{g.name}</span>
+                          <span className="mt-1 block h-1 overflow-hidden rounded-full bg-foreground/10">
+                            <span className="block h-full rounded-full bg-foreground/50" style={{ width: `${Math.min(g.weight, 100)}%` }} />
+                          </span>
+                        </span>
                         <span className="flex items-center gap-2 whitespace-nowrap text-muted-foreground shrink-0">
-                          <span className="font-medium text-foreground">{g.score.toFixed(1)}</span>
-                          <span>{g.weight}%</span>
+                          <span className="num text-xs">{g.weight}%</span>
                           <button
                             type="button"
                             onClick={() => startEdit(g)}
@@ -451,39 +488,42 @@ function SubjectGrades({
             {error ? (
               <p className="text-xs font-medium text-destructive">{error}</p>
             ) : (
-              <p className="text-xs text-muted-foreground">
-                {remainingWeight > 0
-                  ? `Queda ${remainingWeight}% por asignar.`
-                  : "Ya asignaste el 100%"}
-              </p>
+              <div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-foreground/10">
+                  <div className="h-full rounded-full bg-foreground/60 transition-[width] duration-700" style={{ width: `${usedWeight}%` }} />
+                </div>
+                <p className="num mt-1.5 text-xs text-muted-foreground">
+                  {remainingWeight > 0
+                    ? `Queda ${remainingWeight}% por asignar.`
+                    : "Ya asignaste el 100%"}
+                </p>
+              </div>
             )}
 
             {/* Resumen */}
             <div className="grid grid-cols-2 gap-2 border-t pt-3 text-sm">
-              <div className="rounded-lg bg-muted/60 p-3">
+              <div className="rounded-xl bg-muted/50 p-3">
                 <p className="text-xs text-muted-foreground">Acumulado actual</p>
-                <p className="text-xl font-semibold">{points.toFixed(2)}</p>
-                <p className="text-[11px] text-muted-foreground">{covered}% calificado</p>
+                <p className="num mt-1 text-2xl font-semibold">{points.toFixed(2)}</p>
+                <p className="num text-[11px] text-muted-foreground">{covered}% calificado</p>
               </div>
               <div
-                className="rounded-lg p-3"
-                style={{
-                  backgroundColor: alreadyPassed
-                    ? "#DCDCDC"
+                className={cn(
+                  "rounded-xl p-3",
+                  alreadyPassed
+                    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
                     : impossible
-                      ? "#676767"
-                      : "#AEAEAE",
-                }}
-              >
-                <p className="text-xs font-semibold text-neutral-900">Necesitas en el final ({FINAL_WEIGHT}%)</p>
-                {alreadyPassed ? (
-                  <p className="text-xl font-semibold text-neutral-900">Ya ganaste la materia</p>
-                ) : impossible ? (
-                  <p className="text-xl font-semibold text-neutral-900">{needed.toFixed(2)} (💀)</p>
-                ) : (
-                  <p className="text-xl font-semibold text-neutral-900">{needed.toFixed(2)}</p>
+                      ? "bg-destructive/15 text-destructive"
+                      : "bg-foreground text-background"
                 )}
-                <p className="text-[11px] font-semibold text-neutral-900">para quedar en {PASSING_GRADE.toFixed(1)}</p>
+              >
+                <p className="text-xs font-medium opacity-80">Necesitas en el final ({FINAL_WEIGHT}%)</p>
+                {alreadyPassed ? (
+                  <p className="mt-1 text-lg font-semibold leading-tight">Ya ganaste la materia 🎉</p>
+                ) : (
+                  <p className="num mt-1 text-2xl font-semibold">{needed.toFixed(2)}{impossible && " 💀"}</p>
+                )}
+                <p className="text-[11px] opacity-80">para quedar en {PASSING_GRADE.toFixed(1)}</p>
               </div>
             </div>
           </div>

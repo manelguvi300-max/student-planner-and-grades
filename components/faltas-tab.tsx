@@ -20,6 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
+import { Ring } from "@/components/ui/ring"
+import { CountUp } from "@/components/ui/count-up"
 import { type Subject, type Absence, type SubjectConfig, absenceLimit } from "@/lib/horario-data"
 
 type Props = {
@@ -112,16 +114,39 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
     )
   }
 
+  // resumen de las materias visibles
+  const visible = subjects.filter((s) => !hiddenSubjects.includes(s.id))
+  let atRisk = 0, cancelled = 0, unconfigured = 0, totalAbsences = 0
+  for (const s of visible) {
+    const cfg = subjectConfigs[s.id]
+    const n = absences.filter((a) => a.subjectId === s.id).length
+    totalAbsences += n
+    if (!cfg) { unconfigured++; continue }
+    const left = absenceLimit(cfg.directHours) - n
+    if (left < 0) cancelled++
+    else if (left <= 1) atRisk++
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold">Faltas</h2>
-          <p className="text-sm text-muted-foreground hidden sm:block">
-            Primero tienes que crear materias en la pestaña de Horario para poder registrar faltas y adicional tienes que mirar en el pensum las horas de trabajo directo [HD] de la materia y agregarla.
-          </p>
+      <section className="animate-rise rounded-3xl border bg-card p-4 shadow-(--card-shadow) sm:p-6">
+        <h2 className="text-xl font-semibold tracking-tight">Faltas</h2>
+        <p className="mt-0.5 hidden text-sm text-muted-foreground sm:block">
+          Configura las horas de trabajo directo [HD] de cada materia (las ves en el pensum) y registra tus faltas.
+        </p>
+        <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+          {[
+            { label: "Registradas", value: totalAbsences, tone: "" },
+            { label: "En riesgo", value: atRisk + cancelled, tone: atRisk + cancelled ? "text-amber-500" : "" },
+            { label: "Sin configurar", value: unconfigured, tone: "" },
+          ].map((s) => (
+            <div key={s.label} className="rounded-2xl bg-muted/50 px-3 py-3">
+              <p className={cn("text-3xl font-light", s.tone)}><CountUp value={s.value} /></p>
+              <p className="mt-0.5 truncate text-[11px] uppercase tracking-[0.12em] text-muted-foreground">{s.label}</p>
+            </div>
+          ))}
         </div>
-      </div>
+      </section>
 
       {(() => {
         const renderCard = (subject: Subject) => {
@@ -137,7 +162,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
           return (
             <div
               key={subject.id}
-              className="rounded-xl border bg-card shadow-sm overflow-hidden"
+              className="animate-pop overflow-hidden rounded-2xl border bg-card shadow-(--card-shadow)"
             >
               {/* Header de la materia (clic para contraer/expandir) */}
               <div
@@ -151,31 +176,24 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
                 role="button"
                 tabIndex={0}
                 aria-expanded={isExpanded}
-                className="flex items-center justify-between gap-2 px-4 py-3 cursor-pointer select-none"
-                style={{
-                  backgroundColor: subject.bg,
-                  borderBottom: isExpanded ? `1px solid ${subject.border}` : "1px solid transparent",
-                }}
+                className="flex cursor-pointer select-none items-center gap-3 px-4 py-3.5 transition-colors hover:bg-foreground/[0.03]"
+                style={{ backgroundImage: `linear-gradient(90deg, ${subject.bg}40, transparent 65%)` }}
               >
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <ChevronDown
-                    className={cn(
-                      "size-4 shrink-0 text-neutral-700 transition-transform duration-300",
-                      isExpanded && "rotate-180"
-                    )}
-                  />
-                  <span className="font-semibold text-sm text-neutral-900 truncate">{subject.name}</span>
+                <span className="h-9 w-1.5 shrink-0 rounded-full" style={{ background: subject.border }} />
+                <div className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold leading-tight">{subject.name}</span>
+                  <span className="num block text-xs text-muted-foreground">{config ? `${config.directHours} h de trabajo directo` : "Sin horas configuradas"}</span>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex shrink-0 items-center gap-1.5">
                   {config && (
                     <span
                       className={cn(
-                        "text-[11px] font-bold rounded-full px-2 py-0.5",
+                        "num rounded-full px-2.5 py-0.5 text-[11px] font-bold",
                         isCancelled
-                          ? "bg-red-500 text-white"
+                          ? "bg-destructive text-white"
                           : isAtRisk
                             ? "bg-amber-500 text-white"
-                            : "bg-white/70 text-neutral-800"
+                            : "bg-foreground/10"
                       )}
                     >
                       {isCancelled ? "Cancelada" : `${count}/${limit}`}
@@ -186,19 +204,23 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
                       e.stopPropagation()
                       openConfig(subject.id)
                     }}
-                    className="shrink-0 text-[11px] font-medium text-neutral-700 bg-black/10 hover:bg-black/20 rounded-full px-2.5 py-1 transition-colors"
+                    className={cn(
+                      "shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
+                      config ? "bg-foreground/[0.06] text-muted-foreground hover:bg-foreground/10 hover:text-foreground" : "bg-foreground text-background hover:opacity-90"
+                    )}
                   >
-                    {config ? `${config.directHours}h` : "Configurar horas"}
+                    {config ? "Editar HD" : "Configurar horas"}
                   </button>
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); onToggleHidden(subject.id) }}
                     aria-label="Ocultar materia de esta vista"
-                    className="rounded-full p-1 text-neutral-600 hover:bg-black/10 transition-colors"
+                    className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
                     title="Ocultar de esta vista"
                   >
-                    <EyeOff className="size-3.5" />
+                    <EyeOff className="size-4" />
                   </button>
+                  <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform duration-300", isExpanded && "rotate-180")} />
                 </div>
               </div>
 
@@ -211,55 +233,51 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
               >
                 <div className="overflow-hidden">
                   <div className="p-4 space-y-4">
-                    {/* Indicador de estado */}
-                    {config === undefined ? (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/40 rounded-lg px-3 py-2">
+                    {/* Estado: anillo + mensaje + una marca por cada falta permitida */}
+                    {config === undefined || limit === null ? (
+                      <div className="flex items-center gap-3 rounded-xl bg-muted/50 px-3 py-3 text-sm text-muted-foreground">
                         <AlertTriangle className="size-4 shrink-0 text-amber-500" />
-                        <span>Configura las horas de clase para calcular el límite de faltas.</span>
-                      </div>
-                    ) : isCancelled ? (
-                      <div className="flex items-center gap-2 text-sm bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2">
-                        <XCircle className="size-4 shrink-0" />
-                        <span className="font-semibold">Materia cancelada — te pasaste del límite de {limit} falta{limit !== 1 ? "s" : ""}.</span>
-                      </div>
-                    ) : isAtRisk ? (
-                      <div className="flex items-center gap-2 text-sm bg-amber-50 border border-amber-200 text-amber-700 rounded-lg px-3 py-2">
-                        <AlertTriangle className="size-4 shrink-0" />
-                        <span>
-                          ¡Cuidado! Solo te queda{safeRemaining === 1 ? "" : "n"} <strong>{safeRemaining}</strong> falta{safeRemaining !== 1 ? "s" : ""}.
-                        </span>
+                        <span>Configura las horas de trabajo directo para calcular tu límite de faltas.</span>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2 text-sm bg-green-50 border border-green-200 text-green-700 rounded-lg px-3 py-2">
-                        <CheckCircle2 className="size-4 shrink-0" />
-                        <span>
-                          {safeRemaining !== null
-                            ? <>Te quedan <strong>{safeRemaining}</strong> falta{safeRemaining !== 1 ? "s" : ""} segura{safeRemaining !== 1 ? "s" : ""}.</>
-                            : "Sin faltas registradas."}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Contador */}
-                    {config && (
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Faltas registradas</span>
-                        <span className="font-semibold">
-                          {count} / {limit}
-                          <span className="text-muted-foreground font-normal ml-1 text-xs">(límite)</span>
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Barra de progreso */}
-                    {config && limit !== null && limit > 0 && (
-                      <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            isCancelled ? "bg-red-500" : isAtRisk ? "bg-amber-400" : "bg-green-500"
-                          }`}
-                          style={{ width: `${Math.min((count / (limit + 1)) * 100, 100)}%` }}
-                        />
+                      <div className="flex items-center gap-4">
+                        <Ring
+                          value={limit > 0 ? count / limit : count > 0 ? 1 : 0}
+                          size={76}
+                          stroke={7}
+                          className={isCancelled ? "text-destructive" : isAtRisk ? "text-amber-500" : "text-emerald-500"}
+                        >
+                          <span className="text-center leading-none">
+                            <CountUp value={count} className="text-2xl font-bold" />
+                            <span className="num mt-0.5 block text-[10px] text-muted-foreground">de {limit}</span>
+                          </span>
+                        </Ring>
+                        <div className="min-w-0 flex-1 space-y-2.5">
+                          <p className={cn("flex items-start gap-1.5 text-sm", isCancelled ? "font-semibold text-destructive" : isAtRisk ? "text-amber-600 dark:text-amber-400" : "text-foreground")}>
+                            {isCancelled ? <XCircle className="mt-0.5 size-4 shrink-0" /> : isAtRisk ? <AlertTriangle className="mt-0.5 size-4 shrink-0" /> : <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-500" />}
+                            <span>
+                              {isCancelled
+                                ? <>Materia cancelada: pasaste el límite de {limit} falta{limit !== 1 ? "s" : ""}.</>
+                                : isAtRisk
+                                  ? <>¡Cuidado! {safeRemaining === 0 ? "No te quedan faltas." : <>Solo te queda <strong>1</strong> falta.</>}</>
+                                  : <>Te quedan <strong>{safeRemaining}</strong> falta{safeRemaining !== 1 ? "s" : ""} segura{safeRemaining !== 1 ? "s" : ""}.</>}
+                            </span>
+                          </p>
+                          {limit > 0 && limit <= 24 && (
+                            <div className="flex flex-wrap gap-1" aria-hidden>
+                              {Array.from({ length: limit }, (_, i) => (
+                                <span
+                                  key={i}
+                                  className={cn(
+                                    "h-2 w-5 rounded-full transition-colors duration-500",
+                                    i < count ? (isCancelled ? "bg-destructive" : isAtRisk ? "bg-amber-500" : "bg-emerald-500") : "bg-foreground/10"
+                                  )}
+                                  style={{ transitionDelay: `${i * 50}ms` }}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
 
@@ -291,11 +309,11 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
                           {subjectAbsences.map((absence, index) => (
                             <li
                               key={absence.id}
-                              className="flex items-center justify-between gap-2 rounded-md border bg-muted/20 px-3 py-1.5 text-sm"
+                              className="flex animate-fade-in items-center justify-between gap-2 rounded-xl bg-muted/50 px-3 py-2 text-sm"
                             >
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground w-5 shrink-0">#{index + 1}</span>
-                                <span>{formatDate(absence.date)}</span>
+                              <div className="flex items-center gap-2.5">
+                                <span className="num grid size-6 shrink-0 place-items-center rounded-md bg-foreground/10 text-[11px] font-semibold">{index + 1}</span>
+                                <span className="num">{formatDate(absence.date)}</span>
                               </div>
                               <button
                                 onClick={() => handleDeleteAbsence(absence.id)}
