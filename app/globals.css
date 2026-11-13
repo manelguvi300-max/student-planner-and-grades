@@ -2,7 +2,7 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
-@custom-variant dark (@media (prefers-color-scheme: dark));
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 @theme inline {
   --font-heading: var(--font-sans);
@@ -96,8 +96,8 @@
   --card-shadow: 0 1px 2px rgb(0 0 0 / 0.05), 0 12px 32px -16px rgb(0 0 0 / 0.2);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
+/* El tema (sistema/claro/oscuro) lo resuelve lib/settings.tsx y lo deja en <html data-theme> */
+:root[data-theme="dark"] {
     color-scheme: dark;
     --background: oklch(0.13 0 0);
     --foreground: oklch(0.95 0 0);
@@ -130,7 +130,6 @@
     --glass: rgb(26 26 26 / 0.78);
     --shine: rgb(255 255 255 / 0.05);
     --card-shadow: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 20px 40px -22px rgb(0 0 0 / 0.8);
-  }
 }
 
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
@@ -186,4 +185,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; }
+}
+html[data-motion="reduced"] *, html[data-motion="reduced"] *::before, html[data-motion="reduced"] *::after {
+  animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important;
 }

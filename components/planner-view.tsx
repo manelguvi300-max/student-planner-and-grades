@@ -1,24 +1,28 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { CalendarDays, GraduationCap, ClipboardList, LogOut, Cloud, Loader2, UserX } from "lucide-react"
+import { CalendarDays, GraduationCap, ClipboardList, Cloud, Loader2, UserX, House, Settings } from "lucide-react"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
-import { Button } from "@/components/ui/button"
+import { HoyTab } from "@/components/hoy-tab"
 import { HorarioTab } from "@/components/horario-tab"
 import { NotasTab } from "@/components/notas-tab"
 import { ExamenesTab } from "@/components/examenes-tab"
 import { FaltasTab } from "@/components/faltas-tab"
+import { SettingsTab } from "@/components/settings-tab"
 import { usePlanner } from "@/lib/use-planner"
-import { authClient } from "@/lib/auth-client"
-import { useRouter } from "next/navigation"
+import { useSettings } from "@/lib/settings"
 import { cn } from "@/lib/utils"
 
+// "ajustes" va al final: en móvil se abre desde el engranaje del encabezado, no desde la barra inferior.
 const NAV_ITEMS = [
+  { value: "hoy", label: "Hoy", icon: House },
   { value: "horario", label: "Horario", icon: CalendarDays },
   { value: "notas", label: "Notas", icon: GraduationCap },
   { value: "examenes", label: "Exámenes", icon: ClipboardList },
   { value: "faltas", label: "Faltas", icon: UserX },
+  { value: "ajustes", label: "Ajustes", icon: Settings },
 ] as const
+const MOBILE_ITEMS = NAV_ITEMS.slice(0, 5)
 
 function SyncBadge({ status }: { status: "loading" | "saving" | "saved" }) {
   const map = {
@@ -35,9 +39,11 @@ function SyncBadge({ status }: { status: "loading" | "saving" | "saved" }) {
 }
 
 const HIDDEN_STORAGE_KEY = "planner_hidden_subjects"
+type HiddenMap = Record<"notas" | "faltas" | "examenes", string[]>
+const NO_HIDDEN: HiddenMap = { notas: [], faltas: [], examenes: [] }
 
-function loadHiddenFromStorage(): Record<"notas" | "faltas" | "examenes", string[]> {
-  if (typeof window === "undefined") return { notas: [], faltas: [], examenes: [] }
+function loadHiddenFromStorage(): HiddenMap {
+  if (typeof window === "undefined") return NO_HIDDEN
   try {
     const saved = localStorage.getItem(HIDDEN_STORAGE_KEY)
     if (saved) {
@@ -49,12 +55,12 @@ function loadHiddenFromStorage(): Record<"notas" | "faltas" | "examenes", string
       }
     }
   } catch {}
-  return { notas: [], faltas: [], examenes: [] }
+  return NO_HIDDEN
 }
 
 export function PlannerView({ userName, userEmail }: { userName: string; userEmail: string }) {
-  const router = useRouter()
-  const [tab, setTab] = useState("horario")
+  const { settings, loaded } = useSettings()
+  const [tab, setTab] = useState<string>("hoy")
   const {
     subjects, setSubjects,
     classes, setClasses,
@@ -65,19 +71,34 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
     status,
   } = usePlanner()
 
-  // Hidden subjects are per-tab and independent from each other, persisted in localStorage
-  const [hiddenSubjectsByTab, setHiddenSubjectsByTab] = useState<Record<"notas" | "faltas" | "examenes", string[]>>(
-    () => loadHiddenFromStorage()
-  )
+  // Abrir en la pestaña elegida en Ajustes (solo la primera vez que se leen los ajustes)
+  useEffect(() => {
+    if (loaded) setTab(settings.startTab)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded])
 
-  // Persist to localStorage whenever hidden subjects change
+  // Atajos de teclado en escritorio: 1–6 cambian de pestaña
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null
+      if (e.ctrlKey || e.metaKey || e.altKey || el?.closest("input, textarea, select, [contenteditable], [role=dialog]")) return
+      const item = NAV_ITEMS[Number(e.key) - 1]
+      if (item) setTab(item.value)
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [])
+
+  // Hidden subjects are per-tab and independent from each other, persisted in localStorage
+  const [hiddenSubjectsByTab, setHiddenSubjectsByTab] = useState<HiddenMap>(() => loadHiddenFromStorage())
+
   useEffect(() => {
     try {
       localStorage.setItem(HIDDEN_STORAGE_KEY, JSON.stringify(hiddenSubjectsByTab))
     } catch {}
   }, [hiddenSubjectsByTab])
 
-  function toggleHidden(tabKey: "notas" | "faltas" | "examenes", subjectId: string) {
+  function toggleHidden(tabKey: keyof HiddenMap, subjectId: string) {
     setHiddenSubjectsByTab((prev) => {
       const current = prev[tabKey]
       const next = current.includes(subjectId)
@@ -87,13 +108,10 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
     })
   }
 
-  async function handleSignOut() {
-    await authClient.signOut()
-    router.push("/sign-in")
-    router.refresh()
-  }
+  const hiddenCount = Object.values(hiddenSubjectsByTab).reduce((n, ids) => n + ids.length, 0)
 
   const idx = Math.max(0, NAV_ITEMS.findIndex((n) => n.value === tab))
+  const inSettings = tab === "ajustes"
   const spring = "cubic-bezier(.34,1.4,.5,1)"
   const initial = (userName || userEmail || "?").trim().charAt(0).toUpperCase()
   const firstName = userName ? userName.split(" ")[0] : ""
@@ -137,27 +155,27 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
               )}
             >
               <item.icon className={cn("size-5 transition-transform duration-500", i === idx ? "scale-110 text-primary" : "group-hover:translate-x-0.5")} />
-              <span className={cn("transition-transform duration-500", i === idx && "translate-x-1")}>{item.label}</span>
+              <span className={cn("flex-1 text-left transition-transform duration-500", i === idx && "translate-x-1")}>{item.label}</span>
+              <kbd className="num hidden rounded border px-1.5 text-[10px] text-muted-foreground/60 xl:block">{i + 1}</kbd>
             </button>
           ))}
         </nav>
 
-        <div className="mt-auto flex flex-col gap-3 rounded-2xl border bg-card/60 p-3">
-          <div className="flex items-center gap-3">
+        {/* Tarjeta de usuario: lleva a Ajustes (ahí está cerrar sesión) */}
+        <button
+          type="button"
+          onClick={() => setTab("ajustes")}
+          className="mt-auto flex flex-col gap-3 rounded-2xl border bg-card/60 p-3 text-left transition hover:border-foreground/25 active:scale-[0.99]"
+        >
+          <span className="flex items-center gap-3">
             <span className="grad grid size-9 shrink-0 place-items-center rounded-full text-sm font-semibold">{initial}</span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{firstName || "Estudiante"}</p>
-              <p className="truncate text-xs text-muted-foreground">{userEmail || "Sin correo"}</p>
-            </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <SyncBadge status={status} />
-            <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-1.5">
-              <LogOut className="size-4" />
-              Salir
-            </Button>
-          </div>
-        </div>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-medium">{firstName || "Estudiante"}</span>
+              <span className="block truncate text-xs text-muted-foreground">{userEmail || "Sin correo"}</span>
+            </span>
+          </span>
+          <SyncBadge status={status} />
+        </button>
       </aside>
 
       <main className="pb-nav mx-auto w-full max-w-6xl px-4 pt-[max(1rem,env(safe-area-inset-top))] sm:px-6 lg:px-10 lg:pt-10">
@@ -167,20 +185,42 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
             <GraduationCap className="size-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="animate-rise text-xl font-semibold tracking-tight text-balance sm:text-2xl lg:text-3xl">
-              {firstName ? `Hola, ${firstName}` : "Mi semestre"}
+            <h1 key={inSettings ? "s" : "h"} className="animate-rise text-xl font-semibold tracking-tight text-balance sm:text-2xl lg:text-3xl">
+              {inSettings ? "Ajustes" : firstName ? `Hola, ${firstName}` : "Mi semestre"}
             </h1>
-            <p className="h-4 truncate text-xs text-muted-foreground first-letter:uppercase sm:h-5 sm:text-sm">{today}</p>
+            <p className="h-4 truncate text-xs text-muted-foreground first-letter:uppercase sm:h-5 sm:text-sm">
+              {inSettings ? "Personaliza tu planner y administra tu cuenta" : today}
+            </p>
           </div>
           <div className="flex shrink-0 items-center gap-1 lg:hidden">
             <span className="hidden sm:block"><SyncBadge status={status} /></span>
-            <Button variant="ghost" size="icon" onClick={handleSignOut} aria-label="Cerrar sesión">
-              <LogOut className="size-4" />
-            </Button>
+            <button
+              type="button"
+              onClick={() => setTab(inSettings ? "hoy" : "ajustes")}
+              aria-label={inSettings ? "Volver" : "Ajustes"}
+              aria-pressed={inSettings}
+              className={cn(
+                "grid size-10 place-items-center rounded-xl transition duration-300 active:scale-90",
+                inSettings ? "bg-foreground text-background" : "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
+              )}
+            >
+              <Settings className={cn("size-5 transition-transform duration-500", inSettings && "rotate-90")} />
+            </button>
           </div>
         </header>
 
         <Tabs value={tab} onValueChange={setTab} className="w-full">
+          <TabsContent value="hoy" className="animate-rise">
+            <HoyTab
+              subjects={subjects}
+              classes={classes}
+              grades={grades}
+              exams={exams}
+              absences={absences}
+              subjectConfigs={subjectConfigs}
+              onNavigate={setTab}
+            />
+          </TabsContent>
           <TabsContent value="horario" className="animate-rise">
             <HorarioTab
               subjects={subjects}
@@ -220,6 +260,14 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
               onToggleHidden={(id) => toggleHidden("faltas", id)}
             />
           </TabsContent>
+          <TabsContent value="ajustes">
+            <SettingsTab
+              userName={userName}
+              userEmail={userEmail}
+              hiddenCount={hiddenCount}
+              onShowHidden={() => setHiddenSubjectsByTab(NO_HIDDEN)}
+            />
+          </TabsContent>
         </Tabs>
 
         <footer className="mt-10 text-center text-xs text-muted-foreground">
@@ -233,12 +281,13 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
           aria-hidden
           className="absolute inset-y-1.5 left-1.5 rounded-[1.4rem] bg-foreground/10 ring-1 ring-foreground/10"
           style={{
-            width: `calc((100% - 0.75rem) / ${NAV_ITEMS.length})`,
-            transform: `translateX(${idx * 100}%)`,
-            transition: `transform .5s ${spring}`,
+            width: `calc((100% - 0.75rem) / ${MOBILE_ITEMS.length})`,
+            transform: `translateX(${Math.min(idx, MOBILE_ITEMS.length - 1) * 100}%)`,
+            opacity: inSettings ? 0 : 1,
+            transition: `transform .5s ${spring}, opacity .3s`,
           }}
         />
-        {NAV_ITEMS.map((item, i) => {
+        {MOBILE_ITEMS.map((item, i) => {
           const active = i === idx
           return (
             <button

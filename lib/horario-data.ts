@@ -65,11 +65,19 @@ export function minutesToTime(minutes: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
 }
 
-/** Convierte minutos a etiqueta legible "6:00", "8:30", etc. */
-export function minutesToLabel(minutes: number): string {
+export type TimeFormat = "24h" | "12h"
+
+/** Minutos → "6:00" / "8:30" (24 h) o "6:00 AM" / "2:30 PM" (12 h). */
+export function minutesToLabel(minutes: number, format: TimeFormat = "24h"): string {
   const h = Math.floor(minutes / 60)
-  const m = minutes % 60
-  return m === 0 ? `${h}:00` : `${h}:${String(m).padStart(2, "0")}`
+  const mm = String(minutes % 60).padStart(2, "0")
+  if (format === "24h") return `${h}:${mm}`
+  return `${h % 12 || 12}:${mm} ${h < 12 ? "AM" : "PM"}`
+}
+
+/** Etiqueta del eje de horas: "6:00" (24 h) o "6 AM" (12 h). */
+export function hourLabel(hour: number, format: TimeFormat = "24h"): string {
+  return format === "24h" ? `${hour}:00` : `${hour % 12 || 12} ${hour < 12 ? "AM" : "PM"}`
 }
 
 export type ColorSwatch = {

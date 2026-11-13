@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import { getSubject, type Subject, type Exam } from "@/lib/horario-data"
+import { useSettings } from "@/lib/settings"
 
 type Props = {
   subjects: Subject[]
@@ -73,7 +74,10 @@ function CalendarView({
   }
 
   // Build calendar grid
-  const firstDay = new Date(currentYear, currentMonth, 1).getDay() // 0=Sun
+  const { settings } = useSettings()
+  const mondayFirst = settings.weekStart === "mon"
+  const dayNames = mondayFirst ? [...DAY_NAMES.slice(1), DAY_NAMES[0]] : DAY_NAMES
+  const firstDay = (new Date(currentYear, currentMonth, 1).getDay() + (mondayFirst ? 6 : 0)) % 7 // celdas vacías antes del día 1
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
   const cells: (number | null)[] = [
     ...Array(firstDay).fill(null),
@@ -120,7 +124,7 @@ function CalendarView({
 
       {/* Day-of-week headers */}
       <div className="grid grid-cols-7 border-b text-center">
-        {DAY_NAMES.map((d) => (
+        {dayNames.map((d) => (
           <div key={d} className="py-2 text-[11px] font-semibold text-muted-foreground">
             {d}
           </div>

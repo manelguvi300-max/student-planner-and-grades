@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState, useRef } from "react"
+import { useEffect, useMemo, useState, useRef } from "react"
 import { Plus, Pencil, Trash2, CalendarDays, Settings2, GraduationCap, ChevronRight, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,6 +24,7 @@ import {
   DEFAULT_START_HOUR,
   DEFAULT_END_HOUR,
   getSubject,
+  hourLabel,
   minutesToLabel,
   minutesToTime,
   timeToMinutes,
@@ -34,9 +35,8 @@ import {
 } from "@/lib/horario-data"
 import { MateriasDialog } from "./materias-dialog"
 import { TeacherFormFields, ProfesorMobileSheet, type TeacherField } from "./profesor-popover"
+import { ROW_PX, useSettings } from "@/lib/settings"
 
-// Píxeles por hora en el grid (más compacto: una clase de 2h ya no domina la vista)
-const PX_PER_HOUR = 38
 // Espacio reservado arriba/abajo del grid para que las etiquetas de hora
 // nunca se encimen con el encabezado de días ni se corten al final
 const GRID_PAD_TOP = 14
@@ -62,11 +62,24 @@ type SessionDraft = {
   days: number[]    // para creación multi-día
 }
 
-function timeLabel(minutes: number) {
-  return minutesToLabel(minutes)
+/** Minutos desde medianoche "ahora", refrescado cada 30 s (null hasta montar, para no romper la hidratación). */
+function useNowMinutes() {
+  const [now, setNow] = useState<number | null>(null)
+  useEffect(() => {
+    const tick = () => { const d = new Date(); setNow(d.getHours() * 60 + d.getMinutes()) }
+    tick()
+    const id = setInterval(tick, 30_000)
+    return () => clearInterval(id)
+  }, [])
+  return now
 }
 
 export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrades, setExams }: Props) {
+  const { settings } = useSettings()
+  const PX_PER_HOUR = ROW_PX[settings.rowHeight]
+  const timeLabel = (minutes: number) => minutesToLabel(minutes, settings.timeFormat)
+  const nowMin = useNowMinutes()
+  const todayIdx = new Date().getDay() - 1 // 0=Lunes … 4=Viernes; -1 / 5 = fin de semana
   const [open, setOpen] = useState(false)
   const [manageOpen, setManageOpen] = useState(false)
   const [draft, setDraft] = useState<SessionDraft | null>(null)
@@ -145,6 +158,17 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
 
   function durationPx(startTime: number, endTime: number) {
     return ((endTime - startTime) / 60) * PX_PER_HOUR
+  }
+
+  /** Línea roja de "ahora" solo en la columna del día de hoy. */
+  function nowLine(dayIndex: number) {
+    if (nowMin === null || dayIndex !== todayIdx || nowMin < gridStartMin || nowMin > gridEndMin) return null
+    return (
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 z-10 flex items-center" style={{ top: minutesToPx(nowMin) }}>
+        <span className="size-2 shrink-0 -translate-x-1 animate-glow rounded-full bg-destructive" />
+        <span className="h-px flex-1 bg-destructive/70" />
+      </div>
+    )
   }
 
   function openNew() {
@@ -315,7 +339,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                       className="absolute right-0 left-0 flex items-start justify-end pr-2 text-[10px] font-medium text-muted-foreground tabular-nums"
                       style={{ top: minutesToPx(h * 60) - 6 }}
                     >
-                      {h}:00
+                      {hourLabel(h, settings.timeFormat)}
                     </div>
                   ))}
                 </div>
@@ -331,6 +355,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                     />
                   ))}
 
+                  {nowLine(selectedMobileDay)}
                   {classesForDay(selectedMobileDay).map((c) => {
                     const subject = getSubject(subjects, c.subjectId)
                     if (!subject) return null
@@ -368,9 +393,13 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
               {/* Cabecera de días */}
               <div className="flex border-b bg-muted/30 rounded-t-xl overflow-hidden">
                 <div className="w-16 shrink-0 border-r p-3 text-xs font-semibold text-muted-foreground flex items-center">Hora</div>
-                {DAYS.map((d) => (
-                  <div key={d} className="flex-1 p-3 text-center text-sm font-semibold border-r last:border-r-0">
+                {DAYS.map((d, i) => (
+                  <div
+                    key={d}
+                    className={`flex-1 p-3 text-center text-sm font-semibold border-r last:border-r-0 ${i === todayIdx ? "bg-foreground/[0.06] text-foreground" : ""}`}
+                  >
                     {d}
+                    {i === todayIdx && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-foreground align-middle" aria-label="hoy" />}
                   </div>
                 ))}
               </div>
@@ -385,7 +414,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                       className="absolute right-0 left-0 flex items-start justify-end pr-2 text-[11px] font-medium text-muted-foreground tabular-nums"
                       style={{ top: minutesToPx(h * 60) - 7 }}
                     >
-                      {h}:00
+                      {hourLabel(h, settings.timeFormat)}
                     </div>
                   ))}
                 </div>
@@ -402,6 +431,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                       />
                     ))}
 
+                    {nowLine(dayIndex)}
                     {classesForDay(dayIndex).map((c) => {
                       const subject = getSubject(subjects, c.subjectId)
                       if (!subject) return null
