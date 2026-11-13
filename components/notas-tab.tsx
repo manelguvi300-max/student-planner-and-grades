@@ -66,16 +66,17 @@ export function NotasTab({ subjects, grades, setGrades, hiddenSubjects, onToggle
 
   return (
     <div className="space-y-6">
-      <section className="flex animate-rise items-center gap-4 rounded-3xl border bg-card p-4 shadow-(--card-shadow) sm:gap-6 sm:p-6">
+      <section className="relative flex animate-rise items-center gap-4 overflow-hidden rounded-3xl border bg-card p-4 shadow-(--card-shadow) sm:gap-6 sm:p-6">
+        <div aria-hidden className="pointer-events-none absolute -right-16 -top-20 size-64 rounded-full bg-foreground/10 blur-3xl" />
         {avg !== null && (
-          <Ring value={avg / 5} size={88} stroke={8}>
+          <Ring value={avg / 5} size={104} stroke={8}>
             <span className="text-center leading-none">
-              <CountUp value={avg} decimals={2} className="text-xl font-bold" />
-              <span className="mt-0.5 block text-[9px] uppercase tracking-widest text-muted-foreground">acumulado</span>
+              <CountUp value={avg} decimals={2} className="text-2xl font-bold" />
+              <span className="mt-1 block text-[8px] uppercase tracking-wider text-muted-foreground">acumulado</span>
             </span>
           </Ring>
         )}
-        <div className="min-w-0 flex-1">
+        <div className="relative min-w-0 flex-1">
           <h2 className="text-xl font-semibold tracking-tight">Mis notas</h2>
           <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
             {avg === null ? "Agrega notas a tus materias para ver tu promedio." : "Promedio del acumulado de tus materias visibles."}
@@ -310,6 +311,7 @@ function SubjectGrades({
         tabIndex={0}
         aria-expanded={expanded}
         className="flex min-h-[4.5rem] cursor-pointer select-none items-center gap-3 px-4 py-3.5 transition-colors hover:bg-foreground/[0.03]"
+        style={{ backgroundImage: `linear-gradient(90deg, ${bg}40, transparent 65%)` }}
       >
         <span className="h-9 w-1.5 shrink-0 rounded-full" style={{ background: border }} />
         <div className="min-w-0 flex-1">

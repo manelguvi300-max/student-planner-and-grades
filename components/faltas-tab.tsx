@@ -129,12 +129,13 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <section className="animate-rise rounded-3xl border bg-card p-4 shadow-(--card-shadow) sm:p-6">
-        <h2 className="text-xl font-semibold tracking-tight">Faltas</h2>
-        <p className="mt-0.5 hidden text-sm text-muted-foreground sm:block">
+      <section className="relative animate-rise overflow-hidden rounded-3xl border bg-card p-4 shadow-(--card-shadow) sm:p-6">
+        <div aria-hidden className="pointer-events-none absolute -right-16 -top-20 size-64 rounded-full bg-foreground/10 blur-3xl" />
+        <h2 className="relative text-xl font-semibold tracking-tight">Faltas</h2>
+        <p className="relative mt-0.5 hidden text-sm text-muted-foreground sm:block">
           Configura las horas de trabajo directo [HD] de cada materia (las ves en el pensum) y registra tus faltas.
         </p>
-        <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="relative mt-4 grid grid-cols-3 gap-2 sm:gap-3">
           {[
             { label: "Registradas", value: totalAbsences, tone: "" },
             { label: "En riesgo", value: atRisk + cancelled, tone: atRisk + cancelled ? "text-amber-500" : "" },
@@ -177,6 +178,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
                 tabIndex={0}
                 aria-expanded={isExpanded}
                 className="flex min-h-[4.5rem] cursor-pointer select-none items-center gap-3 px-4 py-3.5 transition-colors hover:bg-foreground/[0.03]"
+                style={{ backgroundImage: `linear-gradient(90deg, ${subject.bg}40, transparent 65%)` }}
               >
                 <span className="h-9 w-1.5 shrink-0 rounded-full" style={{ background: subject.border }} />
                 <div className="min-w-0 flex-1">

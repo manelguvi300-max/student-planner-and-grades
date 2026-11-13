@@ -189,6 +189,39 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
     setOpen(true)
   }
 
+  /** Nueva clase en un día y hora concretos (clic en un hueco de la semana). */
+  function openNewAt(day: number, startMin: number) {
+    setExpandedTeacherId(null)
+    setDraft({
+      id: crypto.randomUUID(),
+      subjectId: subjects[0]?.id ?? "",
+      day,
+      startTime: minutesToTime(startMin),
+      endTime: minutesToTime(Math.min(startMin + 120, 24 * 60 - 1)),
+      group: "",
+      rooms: {},
+      days: [day],
+    })
+    setIsNew(true)
+    setOpen(true)
+  }
+
+  /** Hora (redondeada hacia abajo) bajo el cursor dentro de una columna de día. */
+  function slotAt(e: React.MouseEvent<HTMLDivElement>) {
+    const y = e.clientY - e.currentTarget.getBoundingClientRect().top - GRID_PAD_TOP
+    const hour = Math.floor(gridStartMin / 60 + y / PX_PER_HOUR)
+    return Math.max(gridStartMin / 60, Math.min(hour, gridEndMin / 60 - 1)) * 60
+  }
+  function hoverSlot(e: React.MouseEvent<HTMLDivElement>, day: number) {
+    if (subjects.length === 0 || (e.target as HTMLElement).closest("button")) return setGhost(null)
+    const min = slotAt(e)
+    setGhost((g) => (g && g.day === day && g.min === min ? g : { day, min }))
+  }
+  function clickSlot(e: React.MouseEvent<HTMLDivElement>, day: number) {
+    if (subjects.length === 0) return
+    openNewAt(day, slotAt(e))
+  }
+
   function openEdit(c: ClassSession) {
     setExpandedTeacherId(null)
     setDraft({
@@ -268,6 +301,8 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
   // Subject resaltada (toca un chip para atenuar las demás) y vista móvil (lista o cuadrícula de horas)
   const [focusId, setFocusId] = useState<string | null>(null)
   const [mobileView, setMobileView] = useState<"lista" | "horas">("lista")
+  // fantasma "+" al pasar el cursor por un hueco de la semana (escritorio): clic = nueva clase ahí
+  const [ghost, setGhost] = useState<{ day: number; min: number } | null>(null)
 
   const totalHours = classes.reduce((n, c) => n + (c.endTime - c.startTime), 0) / 60
   const durText = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ""}`)
@@ -287,8 +322,8 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
     return c.endTime <= nowMin ? "done" : c.startTime <= nowMin ? "live" : "next"
   }
 
-  /** Bloque de clase dentro de la cuadrícula de horas (color plano de la materia, sin degradados). */
-  function block(c: ClassSession, mobile: boolean) {
+  /** Bloque de clase: color plano de la materia, barra lateral y sombra tintada (sin degradados). */
+  function block(c: ClassSession, mobile: boolean, delay = 0) {
     const subject = getSubject(subjects, c.subjectId)
     if (!subject) return null
     const st = stateOf(c)
@@ -297,21 +332,23 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
     return (
       <button
         key={c.id}
-        onClick={() => openEdit(c)}
+        onClick={(e) => { e.stopPropagation(); openEdit(c) }}
         aria-label={`${subject.name}, ${timeLabel(c.startTime)} a ${timeLabel(c.endTime)}`}
+        title={[subject.name, `${timeLabel(c.startTime)}–${timeLabel(c.endTime)}`, c.room, c.group && `Grupo ${c.group}`].filter(Boolean).join(" · ")}
         className={cn(
-          "absolute left-1 right-1 overflow-hidden rounded-lg border-l-[3px] py-1 pl-2 pr-1.5 text-left text-[11px] leading-tight text-neutral-900 transition duration-300 hover:z-20 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]",
+          "absolute left-1.5 right-1.5 cursor-pointer overflow-hidden rounded-xl py-1.5 pl-3 pr-2 text-left text-[11px] leading-tight text-neutral-900 transition duration-300 ease-out",
+          "shadow-[inset_3px_0_0_var(--c),0_10px_22px_-14px_var(--c)] hover:z-20 hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-[inset_3px_0_0_var(--c),0_18px_30px_-12px_var(--c)] active:scale-[0.98]",
           !mobile && "animate-pop",
           st === "done" && "opacity-50",
-          st === "live" && "z-10 ring-2 ring-foreground/70",
+          st === "live" && "z-10 ring-2 ring-foreground/60",
           focusId && focusId !== subject.id && "opacity-20"
         )}
-        style={{ top: minutesToPx(c.startTime) + 1, height: h, backgroundColor: subject.bg, borderLeftColor: subject.border }}
+        style={{ "--c": subject.border, top: minutesToPx(c.startTime) + 1, height: h, backgroundColor: subject.bg, animationDelay: `${delay}ms` } as React.CSSProperties}
       >
-        <p className="truncate font-semibold">{subject.name}</p>
+        {st === "live" && <span aria-hidden className="absolute top-2 right-2 size-1.5 animate-glow rounded-full bg-emerald-600" />}
+        <p className="truncate pr-2 text-xs font-semibold">{subject.name}</p>
         {!compact && <p className="num mt-0.5 text-[10px] opacity-70">{timeLabel(c.startTime)}–{timeLabel(c.endTime)}</p>}
-        {!compact && !mobile && c.group && <p className="text-[10px] opacity-70">Gr: {c.group}</p>}
-        {!compact && c.room && <p className="truncate text-[10px] opacity-70">{c.room}</p>}
+        {!compact && c.room && (mobile || h >= 70) && <p className="mt-0.5 truncate text-[10px] opacity-70">{c.room}</p>}
       </button>
     )
   }
@@ -334,7 +371,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
             <Settings2 className="mr-1 size-4" />
             Materias
           </Button>
-          <Button onClick={openNew} size="sm" className="rounded-full max-sm:hidden" disabled={subjects.length === 0}>
+          <Button onClick={openNew} size="sm" className="rounded-full" disabled={subjects.length === 0}>
             <Plus className="mr-1 size-4" /> Clase
           </Button>
         </div>
@@ -520,63 +557,77 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
           </div>
 
           {/* ───────── Tablet / escritorio: semana completa ───────── */}
-          <div className="hidden animate-slide-up overflow-x-auto rounded-2xl border bg-card shadow-(--card-shadow) sm:block">
-            <div className="min-w-[700px]">
-              <div className="flex border-b bg-muted/30">
-                <div className="flex w-16 shrink-0 items-center border-r p-3 text-xs font-semibold text-muted-foreground">Hora</div>
+          <div className="relative hidden animate-slide-up overflow-x-auto rounded-3xl border bg-card shadow-(--card-shadow) sm:block">
+            <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(ellipse_60%_100%_at_50%_0%,color-mix(in_oklab,var(--foreground)_8%,transparent),transparent)]" />
+            <div className="relative min-w-[700px]">
+              {/* Días */}
+              <div className="flex px-1 pt-2 pb-1.5">
+                <div className="w-[4.5rem] shrink-0" />
                 {DAYS.map((d, i) => (
                   <button
                     key={d}
                     type="button"
                     onClick={() => setSelectedMobileDay(i)}
-                    className={cn("flex-1 border-r px-2 py-2.5 text-center last:border-r-0", i === todayIdx && "bg-foreground/[0.05]")}
+                    className="group mx-0.5 flex flex-1 items-center justify-center gap-2 rounded-xl py-1.5 transition duration-300 hover:bg-foreground/[0.06] active:scale-[0.97]"
                   >
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">{SHORT[i]}</p>
-                    <p className={cn("num mx-auto mt-1 grid size-8 place-items-center rounded-full text-base font-semibold", i === todayIdx && "bg-foreground text-background")}>
+                    <span className={cn("text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors", i === todayIdx ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")}>{SHORT[i]}</span>
+                    <span className={cn("num grid size-7 place-items-center rounded-full text-sm font-semibold transition-transform duration-300 group-hover:scale-110", i === todayIdx && "bg-foreground text-background")}>
                       {weekDates?.[i] ?? ""}
-                    </p>
+                    </span>
                   </button>
                 ))}
               </div>
 
-              <div className="flex overflow-hidden" style={{ height: gridHeight }}>
-                <div className="relative w-16 shrink-0 border-r bg-muted/10">
+              {/* Cuadrícula */}
+              <div className="flex overflow-hidden border-t" style={{ height: gridHeight }}>
+                <div className="relative w-[4.5rem] shrink-0">
                   {hours.map((h) => (
                     <div
                       key={h}
-                      className="num absolute right-0 left-0 flex items-start justify-end pr-2 text-[11px] font-medium text-muted-foreground"
+                      className="num absolute right-0 left-0 flex items-start justify-end pr-3 text-[11px] text-muted-foreground/80"
                       style={{ top: minutesToPx(h * 60) - 7 }}
                     >
                       {hourLabel(h, settings.timeFormat)}
                     </div>
                   ))}
+                  {nowMin !== null && todayIdx >= 0 && todayIdx <= 4 && nowMin >= gridStartMin && nowMin <= gridEndMin && (
+                    <span className="num absolute right-1.5 z-10 -translate-y-1/2 rounded-md bg-destructive px-1.5 py-0.5 text-[10px] font-semibold text-white shadow" style={{ top: minutesToPx(nowMin) }}>
+                      {timeLabel(nowMin)}
+                    </span>
+                  )}
                 </div>
 
                 {DAYS.map((d, dayIndex) => (
-                  <div key={d} className={cn("relative flex-1 border-r last:border-r-0", dayIndex === todayIdx && "bg-foreground/[0.025]")}>
+                  <div
+                    key={d}
+                    className={cn("relative flex-1 border-l border-border/50", subjects.length > 0 && "cursor-cell")}
+                    onMouseMove={(e) => hoverSlot(e, dayIndex)}
+                    onMouseLeave={() => setGhost(null)}
+                    onClick={(e) => clickSlot(e, dayIndex)}
+                  >
+                    {dayIndex === todayIdx && (
+                      <div aria-hidden className="pointer-events-none absolute inset-x-1 inset-y-0 rounded-2xl bg-gradient-to-b from-foreground/[0.08] via-foreground/[0.03] to-transparent" />
+                    )}
                     {hours.map((h) => (
-                      <div key={h} className="absolute left-0 right-0 border-t border-border/30" style={{ top: minutesToPx(h * 60) }} />
+                      <div key={h} className="absolute left-0 right-0 border-t border-dashed border-border/40" style={{ top: minutesToPx(h * 60) }} />
                     ))}
                     {nowLine(dayIndex)}
-                    {classesForDay(dayIndex).map((c) => block(c, false))}
+                    {ghost?.day === dayIndex && (
+                      <div
+                        aria-hidden
+                        className="pointer-events-none absolute right-1.5 left-1.5 z-[5] grid animate-fade-in place-items-center rounded-xl border border-dashed border-foreground/30 bg-foreground/[0.04] text-xs text-muted-foreground"
+                        style={{ top: minutesToPx(ghost.min) + 1, height: PX_PER_HOUR * 2 - 3 }}
+                      >
+                        <span className="num flex items-center gap-1"><Plus className="size-3.5" />{timeLabel(ghost.min)}</span>
+                      </div>
+                    )}
+                    {classesForDay(dayIndex).map((c, i) => block(c, false, dayIndex * 70 + i * 60))}
                   </div>
                 ))}
               </div>
             </div>
           </div>
         </>
-      )}
-
-      {/* Botón flotante para agregar clase en el celular */}
-      {subjects.length > 0 && (
-        <button
-          type="button"
-          onClick={openNew}
-          aria-label="Agregar clase"
-          className="fixed right-4 bottom-[calc(5.75rem+env(safe-area-inset-bottom))] z-30 grid size-14 place-items-center rounded-full bg-foreground text-background shadow-xl shadow-black/30 transition duration-200 hover:scale-105 active:scale-90 sm:hidden"
-        >
-          <Plus className="size-6" />
-        </button>
       )}
 
       {/* Materias (info de profesores) */}

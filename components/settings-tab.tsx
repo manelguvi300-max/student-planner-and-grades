@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Clock, Eye, LogOut, Monitor, Moon, Loader2, RotateCcw, Sun, Zap, ZapOff } from "lucide-react"
+import { LogOut, Monitor, Moon, Loader2, Sun } from "lucide-react"
 import { authClient } from "@/lib/auth-client"
 import { DEFAULT_SETTINGS, useSettings, type Settings } from "@/lib/settings"
 import { minutesToLabel } from "@/lib/horario-data"
@@ -10,10 +10,10 @@ import { cn } from "@/lib/utils"
 
 type Opt<T extends string> = { value: T; label: string; icon?: typeof Sun }
 
-/** Selector segmentado: una fila de opciones, la activa se rellena. */
+/** Selector segmentado compacto: la opción activa se rellena. */
 function Seg<T extends string>({ value, onChange, options, label }: { value: T; onChange: (v: T) => void; options: Opt<T>[]; label: string }) {
   return (
-    <div role="radiogroup" aria-label={label} className="flex gap-1 rounded-xl bg-muted p-1">
+    <div role="radiogroup" aria-label={label} className="flex w-fit gap-0.5 rounded-xl bg-muted p-0.5">
       {options.map((o) => {
         const on = o.value === value
         return (
@@ -22,13 +22,14 @@ function Seg<T extends string>({ value, onChange, options, label }: { value: T; 
             type="button"
             role="radio"
             aria-checked={on}
+            aria-label={o.label}
             onClick={() => onChange(o.value)}
             className={cn(
-              "flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 text-sm font-medium transition duration-200 active:scale-[0.97]",
+              "flex h-8 items-center justify-center gap-1.5 rounded-[0.65rem] px-3 text-[13px] font-medium transition duration-200 active:scale-95",
               on ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground"
             )}
           >
-            {o.icon && <o.icon className="size-4" />}
+            {o.icon && <o.icon className="size-3.5" />}
             {o.label}
           </button>
         )
@@ -37,26 +38,23 @@ function Seg<T extends string>({ value, onChange, options, label }: { value: T; 
   )
 }
 
-function Row({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+function Row({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
   return (
-    <div className="grid gap-2.5 py-4 first:pt-0 last:pb-0 sm:grid-cols-[1fr_minmax(0,18rem)] sm:items-center sm:gap-6">
-      <div>
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3.5 sm:px-5">
+      <div className="min-w-0">
         <p className="text-sm font-medium">{title}</p>
-        {hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
+        {note && <p className="num mt-0.5 text-xs text-muted-foreground">{note}</p>}
       </div>
       {children}
     </div>
   )
 }
 
-function Group({ title, icon: Icon, delay, children }: { title: string; icon: typeof Sun; delay: number; children: React.ReactNode }) {
+function Group({ title, delay, children }: { title: string; delay: number; children: React.ReactNode }) {
   return (
-    <section className="animate-rise rounded-2xl border bg-card p-5 shadow-(--card-shadow) sm:p-6" style={{ animationDelay: `${delay}ms` }}>
-      <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold">
-        <Icon className="size-4 text-muted-foreground" />
-        {title}
-      </h2>
-      <div className="divide-y">{children}</div>
+    <section className="animate-rise" style={{ animationDelay: `${delay}ms` }}>
+      <h2 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{title}</h2>
+      <div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-(--card-shadow)">{children}</div>
     </section>
   )
 }
@@ -74,8 +72,7 @@ export function SettingsTab({ userName, userEmail, hiddenCount, onShowHidden }: 
   const [leaving, setLeaving] = useState(false)
   const initial = (userName || userEmail || "?").trim().charAt(0).toUpperCase()
   const changed = (Object.keys(DEFAULT_SETTINGS) as (keyof Settings)[]).some((k) => settings[k] !== DEFAULT_SETTINGS[k])
-  // ejemplo en vivo del formato elegido: las 14:30
-  const sample = minutesToLabel(14 * 60 + 30, settings.timeFormat)
+  const t = (m: number) => minutesToLabel(m, settings.timeFormat)
 
   async function logout() {
     setLeaving(true)
@@ -88,88 +85,86 @@ export function SettingsTab({ userName, userEmail, hiddenCount, onShowHidden }: 
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4">
-      {/* Cuenta + cerrar sesión */}
-      <section className="flex animate-rise flex-wrap items-center gap-4 rounded-2xl border bg-card p-5 shadow-(--card-shadow) sm:flex-nowrap sm:p-6">
-        <span className="grad grid size-12 shrink-0 place-items-center rounded-2xl text-lg font-semibold">{initial}</span>
-        <div className="min-w-0 flex-1 basis-40">
-          <p className="truncate font-medium">{userName || "Tu cuenta"}</p>
+    <div className="mx-auto grid max-w-4xl gap-6 lg:grid-cols-[17rem_1fr] lg:items-start">
+      {/* Cuenta */}
+      <section className="relative animate-rise overflow-hidden rounded-3xl border bg-card p-5 text-center shadow-(--card-shadow) lg:sticky lg:top-10">
+        <div aria-hidden className="pointer-events-none absolute -right-14 -top-16 size-52 rounded-full bg-foreground/10 blur-3xl" />
+        <div className="relative">
+          <span className="grad mx-auto grid size-16 place-items-center rounded-2xl text-2xl font-semibold shadow-lg shadow-black/20">{initial}</span>
+          <p className="mt-3 truncate font-semibold">{userName || "Tu cuenta"}</p>
           <p className="truncate text-xs text-muted-foreground">{userEmail || "Sin correo"}</p>
+          <button
+            type="button"
+            onClick={logout}
+            disabled={leaving}
+            className="mt-5 flex h-10 w-full items-center justify-center gap-2 rounded-xl border text-sm font-medium transition hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive active:scale-[0.97] disabled:opacity-60"
+          >
+            {leaving ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
+            {leaving ? "Saliendo…" : "Cerrar sesión"}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={logout}
-          disabled={leaving}
-          className="flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-medium max-sm:w-full transition hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive active:scale-[0.97] disabled:opacity-60"
-        >
-          {leaving ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
-          {leaving ? "Saliendo…" : "Cerrar sesión"}
-        </button>
       </section>
 
-      <Group title="Hora y calendario" icon={Clock} delay={60}>
-        <Row title="Formato de hora" hint={`Así se ve una clase a las 14:30: ${sample}`}>
-          <Seg label="Formato de hora" value={settings.timeFormat} onChange={(v) => set("timeFormat", v)} options={[{ value: "24h", label: "24 h" }, { value: "12h", label: "12 h" }]} />
-        </Row>
-        <Row title="La semana empieza en" hint="Afecta el calendario de exámenes.">
-          <Seg label="Inicio de semana" value={settings.weekStart} onChange={(v) => set("weekStart", v)} options={[{ value: "mon", label: "Lunes" }, { value: "sun", label: "Domingo" }]} />
-        </Row>
-        <Row title="Altura del horario" hint="Más amplio = clases más fáciles de leer.">
-          <Seg label="Altura del horario" value={settings.rowHeight} onChange={(v) => set("rowHeight", v)} options={[{ value: "compact", label: "Compacto" }, { value: "normal", label: "Normal" }, { value: "roomy", label: "Amplio" }]} />
-        </Row>
-        <Row title="Pantalla de inicio" hint="La pestaña que se abre al entrar.">
-          <Seg
-            label="Pantalla de inicio"
-            value={settings.startTab}
-            onChange={(v) => set("startTab", v)}
-            options={[{ value: "hoy", label: "Hoy" }, { value: "horario", label: "Horario" }, { value: "notas", label: "Notas" }]}
-          />
-        </Row>
-      </Group>
+      <div className="space-y-6">
+        <Group title="Horario" delay={60}>
+          <Row title="Formato de hora" note={`14:30 → ${t(14 * 60 + 30)}`}>
+            <Seg label="Formato de hora" value={settings.timeFormat} onChange={(v) => set("timeFormat", v)} options={[{ value: "24h", label: "24 h" }, { value: "12h", label: "12 h" }]} />
+          </Row>
+          <Row title="Altura de las filas">
+            <Seg label="Altura de las filas" value={settings.rowHeight} onChange={(v) => set("rowHeight", v)} options={[{ value: "compact", label: "Compacta" }, { value: "normal", label: "Normal" }, { value: "roomy", label: "Amplia" }]} />
+          </Row>
+          <Row title="La semana empieza en">
+            <Seg label="Inicio de semana" value={settings.weekStart} onChange={(v) => set("weekStart", v)} options={[{ value: "mon", label: "Lunes" }, { value: "sun", label: "Domingo" }]} />
+          </Row>
+        </Group>
 
-      <Group title="Apariencia" icon={Sun} delay={120}>
-        <Row title="Tema" hint="“Sistema” sigue el modo de tu dispositivo.">
-          <Seg
-            label="Tema"
-            value={settings.theme}
-            onChange={(v) => set("theme", v)}
-            options={[{ value: "system", label: "Auto", icon: Monitor }, { value: "light", label: "Claro", icon: Sun }, { value: "dark", label: "Oscuro", icon: Moon }]}
-          />
-        </Row>
-        <Row title="Animaciones" hint="Reduce el movimiento si te marea o ahorra batería.">
-          <Seg
-            label="Animaciones"
-            value={settings.motion}
-            onChange={(v) => set("motion", v)}
-            options={[{ value: "full", label: "Completas", icon: Zap }, { value: "reduced", label: "Reducidas", icon: ZapOff }]}
-          />
-        </Row>
-      </Group>
+        <Group title="Apariencia" delay={120}>
+          <Row title="Tema">
+            <Seg
+              label="Tema"
+              value={settings.theme}
+              onChange={(v) => set("theme", v)}
+              options={[{ value: "system", label: "Auto", icon: Monitor }, { value: "light", label: "Claro", icon: Sun }, { value: "dark", label: "Oscuro", icon: Moon }]}
+            />
+          </Row>
+          <Row title="Animaciones">
+            <Seg label="Animaciones" value={settings.motion} onChange={(v) => set("motion", v)} options={[{ value: "full", label: "Completas" }, { value: "reduced", label: "Reducidas" }]} />
+          </Row>
+          <Row title="Al abrir la app">
+            <Seg
+              label="Pantalla de inicio"
+              value={settings.startTab}
+              onChange={(v) => set("startTab", v)}
+              options={[{ value: "hoy", label: "Hoy" }, { value: "horario", label: "Horario" }, { value: "notas", label: "Notas" }]}
+            />
+          </Row>
+        </Group>
 
-      <Group title="Datos y materias" icon={Eye} delay={180}>
-        <Row title="Materias ocultas" hint={hiddenCount ? `${hiddenCount} oculta${hiddenCount > 1 ? "s" : ""} en Notas, Exámenes o Faltas.` : "No tienes materias ocultas."}>
-          <button
-            type="button"
-            onClick={onShowHidden}
-            disabled={!hiddenCount}
-            className="h-10 rounded-xl border px-4 text-sm font-medium transition hover:bg-accent active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40"
-          >
-            Mostrar todas
-          </button>
-        </Row>
-        <Row title="Restablecer ajustes" hint="Vuelve a los valores de fábrica. No borra tus datos.">
-          <button
-            type="button"
-            onClick={reset}
-            disabled={!changed}
-            className="flex h-10 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-medium transition hover:bg-accent active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40"
-          >
-            <RotateCcw className="size-4" /> Restablecer
-          </button>
-        </Row>
-      </Group>
+        <Group title="Más" delay={180}>
+          <Row title="Materias ocultas" note={hiddenCount ? `${hiddenCount} en Notas, Exámenes o Faltas` : "Ninguna"}>
+            <button
+              type="button"
+              onClick={onShowHidden}
+              disabled={!hiddenCount}
+              className="h-8 rounded-xl border px-3 text-[13px] font-medium transition hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-40"
+            >
+              Mostrar todas
+            </button>
+          </Row>
+          <Row title="Restablecer ajustes" note="No borra tus datos">
+            <button
+              type="button"
+              onClick={reset}
+              disabled={!changed}
+              className="h-8 rounded-xl border px-3 text-[13px] font-medium transition hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-40"
+            >
+              Restablecer
+            </button>
+          </Row>
+        </Group>
 
-      <p className="animate-fade-in pt-2 text-center text-xs text-muted-foreground">Estos ajustes se guardan en este dispositivo.</p>
+        <p className="px-1 text-center text-xs text-muted-foreground lg:text-left">Los ajustes se guardan en este dispositivo.</p>
+      </div>
     </div>
   )
 }

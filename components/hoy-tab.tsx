@@ -166,7 +166,7 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
   return (
     <div className="space-y-6">
       <section className="relative animate-rise overflow-hidden rounded-3xl border bg-card p-5 shadow-(--card-shadow) sm:p-7">
-        {heroSubject && <span aria-hidden className="absolute inset-y-5 left-0 w-1.5 rounded-r-full sm:inset-y-7" style={{ background: heroSubject.border }} />}
+        <div aria-hidden className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full opacity-40 blur-3xl transition-colors duration-700" style={{ background: heroSubject?.bg ?? "var(--muted)" }} />
         <div className="relative">
           <p className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
             <span className={cn("size-1.5 rounded-full", current ? "animate-glow bg-emerald-500" : "bg-foreground/40")} />
