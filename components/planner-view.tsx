@@ -12,6 +12,7 @@ import { SettingsTab } from "@/components/settings-tab"
 import { usePlanner } from "@/lib/use-planner"
 import { useSettings } from "@/lib/settings"
 import { cn } from "@/lib/utils"
+import { AppSwitcher } from "@/components/app-switcher"
 
 // "ajustes" va al final: en móvil se abre desde el engranaje del encabezado, no desde la barra inferior.
 const NAV_ITEMS = [
@@ -125,7 +126,7 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
     <div className="lg:flex">
       {/* Escritorio: barra lateral con resaltado deslizante */}
       <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col gap-2 border-r p-5 lg:flex">
-        <div className="mb-6 flex items-center gap-3 px-2">
+        <div className="mb-4 flex items-center gap-3 px-2">
           <div className="grad grid size-10 place-items-center rounded-2xl shadow-lg shadow-black/20">
             <GraduationCap className="size-5" />
           </div>
@@ -134,6 +135,7 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
             <p className="text-xs text-muted-foreground">Planner universitario</p>
           </div>
         </div>
+        <AppSwitcher className="mb-4" />
         <nav className="relative flex flex-col gap-2">
           {/* los ítems miden h-11 + gap-2 = 3.25rem */}
           <span
@@ -141,7 +143,7 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
             className="absolute inset-x-0 top-0 h-11 rounded-2xl bg-foreground/[0.07] ring-1 ring-foreground/10"
             style={{ transform: `translateY(${idx * 3.25}rem)`, transition: `transform .5s ${spring}` }}
           >
-            <span key={idx} className="absolute left-0 top-2.5 h-6 w-1 rounded-full bg-foreground" style={{ animation: `grow .45s ${spring} both` }} />
+            <span key={idx} className="absolute left-0 top-2.5 h-6 w-1 rounded-full bg-brand" style={{ animation: `grow .45s ${spring} both` }} />
           </span>
           {NAV_ITEMS.map((item, i) => (
             <button
@@ -154,7 +156,7 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
                 i === idx ? "text-foreground" : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground"
               )}
             >
-              <item.icon className={cn("size-5 transition-transform duration-500", i === idx ? "scale-110 text-primary" : "group-hover:translate-x-0.5")} />
+              <item.icon className={cn("size-5 transition-transform duration-500", i === idx ? "scale-110 text-brand" : "group-hover:translate-x-0.5")} />
               <span className={cn("flex-1 text-left transition-transform duration-500", i === idx && "translate-x-1")}>{item.label}</span>
               <kbd className="num hidden rounded border px-1.5 text-[10px] text-muted-foreground/60 xl:block">{i + 1}</kbd>
             </button>
@@ -194,6 +196,7 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
           </div>
           <div className="flex shrink-0 items-center gap-1 lg:hidden">
             <span className="hidden sm:block"><SyncBadge status={status} /></span>
+            <AppSwitcher className="w-28" />
             <button
               type="button"
               onClick={() => setTab(inSettings ? "hoy" : "ajustes")}
@@ -302,7 +305,7 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
                 active ? "text-foreground" : "text-muted-foreground active:scale-95"
               )}
             >
-              <item.icon className={cn("size-[22px] transition-all duration-300", active && "-translate-y-0.5 text-primary")} />
+              <item.icon className={cn("size-[22px] transition-all duration-300", active && "-translate-y-0.5 text-brand")} />
               {item.label}
             </button>
           )
