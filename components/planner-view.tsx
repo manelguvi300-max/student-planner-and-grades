@@ -27,7 +27,7 @@ const NAV_ITEMS = [
 const MOBILE_ITEMS = NAV_ITEMS.slice(0, 5)
 
 
-export function PlannerView({ userName, userEmail }: { userName: string; userEmail: string }) {
+export function PlannerView({ userName, userEmail, userImage }: { userName: string; userEmail: string; userImage: string }) {
   const { settings, loaded } = useSettings()
   const [tab, setTab] = useState<string>("hoy")
   const {
@@ -231,6 +231,7 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
             <SettingsTab
               userName={userName}
               userEmail={userEmail}
+              userImage={userImage}
               hiddenCount={hiddenCount}
               onShowHidden={() => setHiddenSubjectsByTab(NO_HIDDEN)}
             />

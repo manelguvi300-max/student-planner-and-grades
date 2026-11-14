@@ -60,11 +60,13 @@ function Group({ title, delay, children }: { title: string; delay: number; child
 type Props = {
   userName: string
   userEmail: string
+  userImage: string
   hiddenCount: number
   onShowHidden: () => void
 }
 
-export function SettingsTab({ userName, userEmail, hiddenCount, onShowHidden }: Props) {
+export function SettingsTab({ userName, userEmail, userImage, hiddenCount, onShowHidden }: Props) {
+  const [imgFailed, setImgFailed] = useState(false)
   const { settings, set, reset } = useSettings()
   const [leaving, setLeaving] = useState(false)
   const initial = (userName || userEmail || "?").trim().charAt(0).toUpperCase()
@@ -87,7 +89,12 @@ export function SettingsTab({ userName, userEmail, hiddenCount, onShowHidden }: 
       <section className="relative animate-rise overflow-hidden rounded-3xl border bg-card p-5 text-center shadow-(--card-shadow) lg:sticky lg:top-10">
         <div aria-hidden className="pointer-events-none absolute -right-14 -top-16 size-52 rounded-full bg-foreground/10 blur-3xl" />
         <div className="relative">
-          <span className="grad mx-auto grid size-16 place-items-center rounded-2xl text-2xl font-semibold shadow-lg shadow-black/20">{initial}</span>
+          {userImage && !imgFailed ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={userImage} alt="" referrerPolicy="no-referrer" onError={() => setImgFailed(true)} className="mx-auto size-16 rounded-2xl object-cover shadow-lg shadow-black/20" />
+          ) : (
+            <span className="grad mx-auto grid size-16 place-items-center rounded-2xl text-2xl font-semibold shadow-lg shadow-black/20">{initial}</span>
+          )}
           <p className="mt-3 truncate font-semibold">{userName || "Tu cuenta"}</p>
           <p className="truncate text-xs text-muted-foreground">{userEmail || "Sin correo"}</p>
           <button

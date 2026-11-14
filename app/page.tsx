@@ -7,5 +7,5 @@ export default async function Page() {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session?.user) redirect("/sign-in")
 
-  return <PlannerView userName={session.user.name ?? ""} userEmail={session.user.email ?? ""} />
+  return <PlannerView userName={session.user.name ?? ""} userEmail={session.user.email ?? ""} userImage={session.user.image ?? ""} />
 }
