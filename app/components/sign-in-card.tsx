@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Check, Loader2 } from "lucide-react"
+import { Check, GraduationCap, Loader2 } from "lucide-react"
 import { authClient } from "@/lib/auth-client"
 
 /* ───────────────────────── Horario de fondo ─────────────────────────
@@ -87,8 +87,8 @@ function Backdrop() {
         {now && (
           <div className="absolute inset-x-0 bottom-0 top-10 transition-[top] duration-1000">
             <div className="absolute inset-x-0 flex items-center" style={{ top: `${now.top}%` }}>
-              <span className="num rounded-full bg-foreground px-1.5 py-0.5 text-[9px] sm:text-[10px] font-medium text-background">{now.label}</span>
-              <span className="h-px flex-1 bg-foreground/60" />
+              <span className="num rounded-full bg-brand px-1.5 py-0.5 text-[9px] font-medium text-background sm:text-[10px]">{now.label}</span>
+              <span className="h-px flex-1 bg-brand/60" />
             </div>
           </div>
         )}
@@ -132,7 +132,7 @@ export function SignInCard() {
   }
 
   return (
-    <div className="relative flex min-h-dvh w-full items-center justify-center overflow-hidden px-4 py-10">
+    <div className="relative flex min-h-dvh w-full items-center justify-center overflow-hidden px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-[max(2.5rem,env(safe-area-inset-top))]">
       <Backdrop />
 
       {/* El panel de acceso: una celda más del horario */}
@@ -142,13 +142,16 @@ export function SignInCard() {
           <div className="flex items-center justify-between border-b border-foreground/10 bg-foreground/[0.04] px-5 py-3">
             <span className="num text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Lun – Vie</span>
             <span className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              <span className="size-1.5 animate-glow rounded-full bg-foreground" />
+              <span className="size-1.5 animate-glow rounded-full bg-brand" />
               Acceso
             </span>
           </div>
 
-          <div className="border-l-[3px] border-foreground px-5 pb-6 pt-5">
-            <h1 className="text-3xl font-semibold tracking-tight text-balance">Mi semestre</h1>
+          <div className="border-l-[3px] border-brand px-5 pb-6 pt-5">
+            <div className="flex items-center gap-3">
+              <span className="grad grid size-10 shrink-0 place-items-center rounded-xl shadow-lg shadow-black/20"><GraduationCap className="size-5" /></span>
+              <h1 className="text-3xl font-semibold tracking-tight text-balance">Mi semestre</h1>
+            </div>
             <p className="mt-2 text-sm text-pretty text-muted-foreground">
               Todo tu semestre en una sola cuadrícula. Entra para ver cómo va tu semana.
             </p>
@@ -169,7 +172,7 @@ export function SignInCard() {
             <button
               onClick={handleGoogle}
               disabled={loading}
-              className="group relative mt-6 flex h-12 w-full items-center justify-center gap-3 overflow-hidden rounded-xl bg-foreground font-semibold text-background transition duration-200 hover:opacity-90 active:scale-[0.98] disabled:cursor-wait"
+              className="group relative mt-6 flex h-12 w-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand items-center justify-center gap-3 overflow-hidden rounded-xl bg-foreground font-semibold text-background transition duration-200 hover:opacity-90 active:scale-[0.98] disabled:cursor-wait"
             >
               {loading && (
                 <span aria-hidden className="absolute inset-y-0 left-0 w-full origin-left bg-background/15 [animation:fill_2.4s_cubic-bezier(.3,.7,.2,1)_forwards]" />

@@ -1,9 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { LogOut, Monitor, Moon, Loader2, Sun } from "lucide-react"
-import { authClient } from "@/lib/auth-client"
 import { DEFAULT_SETTINGS, useSettings, type Settings } from "@/lib/settings"
 import { minutesToLabel } from "@/lib/horario-data"
 import { cn } from "@/lib/utils"
@@ -67,7 +65,6 @@ type Props = {
 }
 
 export function SettingsTab({ userName, userEmail, hiddenCount, onShowHidden }: Props) {
-  const router = useRouter()
   const { settings, set, reset } = useSettings()
   const [leaving, setLeaving] = useState(false)
   const initial = (userName || userEmail || "?").trim().charAt(0).toUpperCase()
@@ -77,10 +74,10 @@ export function SettingsTab({ userName, userEmail, hiddenCount, onShowHidden }: 
   async function logout() {
     setLeaving(true)
     try {
-      await authClient.signOut()
+      await fetch("/api/logout", { method: "POST", cache: "no-store" })
     } finally {
-      router.push("/sign-in")
-      router.refresh()
+      // recarga completa: descarta la caché del router y cualquier estado en memoria
+      window.location.replace("/sign-in")
     }
   }
 

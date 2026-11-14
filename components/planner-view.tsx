@@ -78,6 +78,23 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded])
 
+  // Sesión siempre verificada: al volver a la pestaña se consulta al servidor y, si ya no hay sesión
+  // (cerrada aquí o en otro dispositivo), se va al login. «Atrás» tras cerrar sesión no muestra la página cacheada.
+  useEffect(() => {
+    const check = async () => {
+      if (document.visibilityState !== "visible") return
+      try {
+        const r = await fetch("/api/auth/get-session", { cache: "no-store" })
+        const d = r.ok ? await r.json() : null
+        if (!d?.session) window.location.replace("/sign-in")
+      } catch {} // sin red: se vuelve a comprobar en la próxima visita
+    }
+    const onShow = (e: PageTransitionEvent) => { if (e.persisted) window.location.reload() }
+    document.addEventListener("visibilitychange", check)
+    window.addEventListener("pageshow", onShow)
+    return () => { document.removeEventListener("visibilitychange", check); window.removeEventListener("pageshow", onShow) }
+  }, [])
+
   // Atajos de teclado en escritorio: 1–6 cambian de pestaña
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
