@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { CalendarDays, GraduationCap, ClipboardList, Cloud, Loader2, UserX, House, Settings } from "lucide-react"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { HoyTab } from "@/components/hoy-tab"
+import { NO_HIDDEN, type HiddenMap } from "@/lib/horario-data"
 import { HorarioTab } from "@/components/horario-tab"
 import { NotasTab } from "@/components/notas-tab"
 import { ExamenesTab } from "@/components/examenes-tab"
@@ -39,26 +40,6 @@ function SyncBadge({ status }: { status: "loading" | "saving" | "saved" }) {
   )
 }
 
-const HIDDEN_STORAGE_KEY = "planner_hidden_subjects"
-type HiddenMap = Record<"notas" | "faltas" | "examenes", string[]>
-const NO_HIDDEN: HiddenMap = { notas: [], faltas: [], examenes: [] }
-
-function loadHiddenFromStorage(): HiddenMap {
-  if (typeof window === "undefined") return NO_HIDDEN
-  try {
-    const saved = localStorage.getItem(HIDDEN_STORAGE_KEY)
-    if (saved) {
-      const parsed = JSON.parse(saved)
-      return {
-        notas: Array.isArray(parsed.notas) ? parsed.notas : [],
-        faltas: Array.isArray(parsed.faltas) ? parsed.faltas : [],
-        examenes: Array.isArray(parsed.examenes) ? parsed.examenes : [],
-      }
-    }
-  } catch {}
-  return NO_HIDDEN
-}
-
 export function PlannerView({ userName, userEmail }: { userName: string; userEmail: string }) {
   const { settings, loaded } = useSettings()
   const [tab, setTab] = useState<string>("hoy")
@@ -69,6 +50,7 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
     exams, setExams,
     absences, setAbsences,
     subjectConfigs, setSubjectConfigs,
+    hidden: hiddenSubjectsByTab, setHidden: setHiddenSubjectsByTab,
     status,
   } = usePlanner()
 
@@ -107,15 +89,7 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
     return () => window.removeEventListener("keydown", onKey)
   }, [])
 
-  // Hidden subjects are per-tab and independent from each other, persisted in localStorage
-  const [hiddenSubjectsByTab, setHiddenSubjectsByTab] = useState<HiddenMap>(() => loadHiddenFromStorage())
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(HIDDEN_STORAGE_KEY, JSON.stringify(hiddenSubjectsByTab))
-    } catch {}
-  }, [hiddenSubjectsByTab])
-
+  // Materias ocultas por pestaña: viven en el planner (base de datos), así se ven igual en todos los dispositivos
   function toggleHidden(tabKey: keyof HiddenMap, subjectId: string) {
     setHiddenSubjectsByTab((prev) => {
       const current = prev[tabKey]

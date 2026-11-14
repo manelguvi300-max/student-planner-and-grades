@@ -5,8 +5,8 @@ import { db } from "@/lib/db"
 import { plannerData } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
 import { headers } from "next/headers"
-import type { ClassSession, Exam, Grade, Absence, SubjectConfig } from "@/lib/horario-data"
-import { DEFAULT_CLASSES } from "@/lib/horario-data"
+import type { ClassSession, Exam, Grade, Absence, SubjectConfig, HiddenMap } from "@/lib/horario-data"
+import { DEFAULT_CLASSES, NO_HIDDEN, normalizeHidden } from "@/lib/horario-data"
 
 export type PlannerState = {
   subjects: import("@/lib/horario-data").Subject[]
@@ -15,6 +15,7 @@ export type PlannerState = {
   exams: Exam[]
   absences: Absence[]
   subjectConfigs: Record<string, SubjectConfig>
+  hidden?: HiddenMap
 }
 
 async function getUserId() {
@@ -36,8 +37,10 @@ export async function getPlannerData(): Promise<PlannerState> {
       exams: [],
       absences: [],
       subjectConfigs: {},
+      hidden: NO_HIDDEN,
     }
-    await db.insert(plannerData).values({ userId, ...initial })
+    const { hidden, ...rest } = initial
+    await db.insert(plannerData).values({ userId, ...rest, hiddenSubjects: hidden })
     return initial
   }
 
@@ -49,6 +52,7 @@ export async function getPlannerData(): Promise<PlannerState> {
     exams: (row.exams as Exam[]) ?? [],
     absences: (row.absences as Absence[]) ?? [],
     subjectConfigs: (row.subjectConfigs as Record<string, SubjectConfig>) ?? {},
+    hidden: normalizeHidden(row.hiddenSubjects),
   }
 }
 
@@ -65,6 +69,7 @@ export async function savePlannerData(state: PlannerState): Promise<void> {
       exams: state.exams,
       absences: state.absences,
       subjectConfigs: state.subjectConfigs,
+      hiddenSubjects: normalizeHidden(state.hidden),
       updatedAt: new Date(),
     })
     .onConflictDoUpdate({
@@ -76,6 +81,8 @@ export async function savePlannerData(state: PlannerState): Promise<void> {
         exams: state.exams,
         absences: state.absences,
         subjectConfigs: state.subjectConfigs,
+        // sin `hidden` (p. ej. migración desde localStorage antiguo) no se tocan las ocultas guardadas
+        ...(state.hidden ? { hiddenSubjects: normalizeHidden(state.hidden) } : {}),
         updatedAt: new Date(),
       },
     })

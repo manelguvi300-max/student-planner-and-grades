@@ -178,3 +178,12 @@ export function neededOnFinal(grades: Grade[]) {
 export function absenceLimit(directHours: number): number {
   return Math.floor((directHours * 0.2) / 2)
 }
+
+// Materias ocultas por pestaña (Notas, Exámenes, Faltas): se guardan con el planner y se sincronizan.
+export type HiddenMap = Record<"notas" | "faltas" | "examenes", string[]>
+export const NO_HIDDEN: HiddenMap = { notas: [], faltas: [], examenes: [] }
+export function normalizeHidden(raw: unknown): HiddenMap {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Partial<Record<keyof HiddenMap, unknown>>
+  const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [])
+  return { notas: list(r.notas), faltas: list(r.faltas), examenes: list(r.examenes) }
+}

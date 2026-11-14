@@ -59,5 +59,6 @@ export const plannerData = pgTable("planner_data", {
   // NUEVAS COLUMNAS:
   absences: jsonb("absences").notNull().default([]),
   subjectConfigs: jsonb("subjectConfigs").notNull().default({}),
+  hiddenSubjects: jsonb("hiddenSubjects").notNull().default({}),
   updatedAt: timestamp("updatedAt").notNull().defaultNow(),
 })

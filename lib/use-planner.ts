@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { getPlannerData, migrateFromLocal, savePlannerData, type PlannerState } from "@/app/actions/planner"
-import { DEFAULT_CLASSES, type ClassSession, type Exam, type Grade, type Absence, type SubjectConfig } from "@/lib/horario-data"
+import { DEFAULT_CLASSES, NO_HIDDEN, normalizeHidden, type ClassSession, type Exam, type Grade, type Absence, type SubjectConfig, type HiddenMap } from "@/lib/horario-data"
 import type { Subject } from "@/lib/horario-data"
 
 const LOCAL_KEYS = {
@@ -12,6 +12,9 @@ const LOCAL_KEYS = {
 } as const
 
 const MIGRATED_FLAG = "horario.migrated"
+// Antes las materias ocultas vivían solo en este dispositivo; se suben una vez y se borran de aquí.
+const OLD_HIDDEN_KEY = "planner_hidden_subjects"
+const hiddenCount = (h: HiddenMap) => h.notas.length + h.faltas.length + h.examenes.length
 
 function readLocalState(): PlannerState | null {
   try {
@@ -43,6 +46,7 @@ export function usePlanner() {
   const [exams, setExams] = useState<Exam[]>([])
   const [absences, setAbsences] = useState<Absence[]>([])
   const [subjectConfigs, setSubjectConfigs] = useState<Record<string, SubjectConfig>>({})
+  const [hidden, setHidden] = useState<HiddenMap>(NO_HIDDEN)
   const [status, setStatus] = useState<PlannerStatus>("loading")
 
   const ready = useRef(false)
@@ -70,6 +74,16 @@ export function usePlanner() {
         setExams(data.exams)
         setAbsences(data.absences ?? [])
         setSubjectConfigs(data.subjectConfigs ?? {})
+        let h = normalizeHidden(data.hidden)
+        try {
+          const old = window.localStorage.getItem(OLD_HIDDEN_KEY)
+          if (old) {
+            const local = normalizeHidden(JSON.parse(old))
+            if (!hiddenCount(h) && hiddenCount(local)) h = local // la cuenta aún no tenía ocultas: se adoptan las de este dispositivo
+            window.localStorage.removeItem(OLD_HIDDEN_KEY)
+          }
+        } catch {}
+        setHidden(h)
         setStatus("saved")
         ready.current = true
       } catch {
@@ -88,7 +102,7 @@ export function usePlanner() {
     if (saveTimer.current) clearTimeout(saveTimer.current)
 
     saveTimer.current = setTimeout(() => {
-      savePlannerData({ subjects, classes, grades, exams, absences, subjectConfigs })
+      savePlannerData({ subjects, classes, grades, exams, absences, subjectConfigs, hidden })
         .then(() => setStatus("saved"))
         .catch(() => setStatus("saved"))
     }, 700)
@@ -96,7 +110,7 @@ export function usePlanner() {
     return () => {
       if (saveTimer.current) clearTimeout(saveTimer.current)
     }
-  }, [subjects, classes, grades, exams, absences, subjectConfigs])
+  }, [subjects, classes, grades, exams, absences, subjectConfigs, hidden])
 
   return {
     subjects, setSubjects,
@@ -105,6 +119,7 @@ export function usePlanner() {
     exams, setExams,
     absences, setAbsences,
     subjectConfigs, setSubjectConfigs,
+    hidden, setHidden,
     status,
   }
 }
