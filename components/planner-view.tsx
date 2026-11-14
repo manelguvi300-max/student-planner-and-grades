@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { CalendarDays, GraduationCap, ClipboardList, Cloud, Loader2, UserX, House, Settings } from "lucide-react"
+import { CalendarDays, GraduationCap, ClipboardList, UserX, House, Settings } from "lucide-react"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { HoyTab } from "@/components/hoy-tab"
 import { NO_HIDDEN, type HiddenMap } from "@/lib/horario-data"
@@ -26,19 +26,6 @@ const NAV_ITEMS = [
 ] as const
 const MOBILE_ITEMS = NAV_ITEMS.slice(0, 5)
 
-function SyncBadge({ status }: { status: "loading" | "saving" | "saved" }) {
-  const map = {
-    loading: { Icon: Loader2, text: "Cargando...", cls: "animate-spin" },
-    saving: { Icon: Cloud, text: "Guardando...", cls: "animate-pulse text-primary" },
-    saved: { Icon: Cloud, text: "Sincronizado", cls: "text-emerald-500" },
-  }[status]
-  return (
-    <span className="flex items-center gap-1.5 text-xs text-muted-foreground" role="status">
-      <map.Icon className={cn("size-3.5", map.cls)} />
-      {map.text}
-    </span>
-  )
-}
 
 export function PlannerView({ userName, userEmail }: { userName: string; userEmail: string }) {
   const { settings, loaded } = useSettings()
@@ -51,7 +38,6 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
     absences, setAbsences,
     subjectConfigs, setSubjectConfigs,
     hidden: hiddenSubjectsByTab, setHidden: setHiddenSubjectsByTab,
-    status,
   } = usePlanner()
 
   // Abrir en la pestaña elegida en Ajustes (solo la primera vez que se leen los ajustes)
@@ -155,35 +141,38 @@ export function PlannerView({ userName, userEmail }: { userName: string; userEma
       </aside>
 
       <main className="pb-nav mx-auto w-full max-w-6xl px-4 pt-[max(1rem,env(safe-area-inset-top))] sm:px-6 lg:px-10 lg:pt-10">
-        {/* Móvil / tablet: cabecera compacta */}
-        <header className="mb-5 flex items-center gap-3 lg:mb-8">
-          <div className="grad grid size-10 shrink-0 place-items-center rounded-2xl shadow-lg shadow-black/20 lg:hidden">
-            <GraduationCap className="size-5" />
+        {/* Header móvil común a las 3 apps: marca a la izquierda, selector de apps fijo en el borde derecho (120×42) */}
+        <div className="mb-5 flex h-[42px] items-center gap-3 lg:hidden">
+          <div className="grad grid size-9 shrink-0 place-items-center rounded-xl shadow-lg shadow-black/20">
+            <GraduationCap className="size-[18px]" />
           </div>
-          <div className="min-w-0 flex-1">
-            <h1 key={inSettings ? "s" : "h"} className="animate-rise text-xl font-semibold tracking-tight text-balance sm:text-2xl lg:text-3xl">
-              {inSettings ? "Ajustes" : firstName ? `Hola, ${firstName}` : "Mi semestre"}
-            </h1>
-            <p className="h-4 truncate text-xs text-muted-foreground first-letter:uppercase sm:h-5 sm:text-sm">
-              {inSettings ? "Personaliza tu planner y administra tu cuenta" : today}
-            </p>
+          <div className="min-w-0 flex-1 leading-tight">
+            <p className="truncate text-[15px] font-semibold">Mi semestre</p>
+            <p className="truncate text-xs text-muted-foreground">Planner universitario</p>
           </div>
-          <div className="flex shrink-0 items-center gap-1 lg:hidden">
-            <span className="hidden sm:block"><SyncBadge status={status} /></span>
-            <AppSwitcher className="w-28" />
-            <button
-              type="button"
-              onClick={() => setTab(inSettings ? "hoy" : "ajustes")}
-              aria-label={inSettings ? "Volver" : "Ajustes"}
-              aria-pressed={inSettings}
-              className={cn(
-                "grid size-10 place-items-center rounded-xl transition duration-300 active:scale-90",
-                inSettings ? "bg-foreground text-background" : "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
-              )}
-            >
-              <Settings className={cn("size-5 transition-transform duration-500", inSettings && "rotate-90")} />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setTab(inSettings ? "hoy" : "ajustes")}
+            aria-label={inSettings ? "Volver" : "Ajustes"}
+            aria-pressed={inSettings}
+            className={cn(
+              "grid size-10 shrink-0 place-items-center rounded-xl transition duration-300 active:scale-90",
+              inSettings ? "bg-foreground text-background" : "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
+            )}
+          >
+            <Settings className={cn("size-5 transition-transform duration-500", inSettings && "rotate-90")} />
+          </button>
+          <AppSwitcher className="w-[7.5rem] shrink-0" />
+        </div>
+
+        {/* Título de la vista (saludo / Ajustes) */}
+        <header className="mb-5 lg:mb-8">
+          <h1 key={inSettings ? "s" : "h"} className="animate-rise text-xl font-semibold tracking-tight text-balance sm:text-2xl lg:text-3xl">
+            {inSettings ? "Ajustes" : firstName ? `Hola, ${firstName}` : "Mi semestre"}
+          </h1>
+          <p className="h-4 truncate text-xs text-muted-foreground first-letter:uppercase sm:h-5 sm:text-sm">
+            {inSettings ? "Personaliza tu planner y administra tu cuenta" : today}
+          </p>
         </header>
 
         <Tabs value={tab} onValueChange={setTab} className="w-full">
