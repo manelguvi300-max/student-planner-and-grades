@@ -1,16 +1,15 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Check, GraduationCap, Loader2 } from "lucide-react"
+import { GraduationCap, Loader2 } from "lucide-react"
 import { authClient } from "@/lib/auth-client"
+import { cn } from "@/lib/utils"
 
-/* ───────────────────────── Horario de fondo ─────────────────────────
-   La pantalla de acceso ES un horario semanal: columnas de lunes a viernes,
-   horas a la izquierda, clases que van entrando y una línea de "ahora"
-   que marca la hora real. El panel de acceso es una celda más del horario. */
+/* Mismo formato que los accesos de Mi Espacio y Mis finanzas: vitrina temática a la izquierda (PC)
+   y formulario a la derecha. El tema aquí es un horario semanal con su línea de "ahora". */
 
-const START_H = 6
-const END_H = 20
+const START_H = 7
+const END_H = 19
 const SPAN = (END_H - START_H) * 60
 const DAYS = ["Lun", "Mar", "Mié", "Jue", "Vie"]
 
@@ -27,11 +26,21 @@ const CLASSES: [number, number, number, string, string][] = [
   [4, 8, 10, "Estadística", "B-105"],
   [4, 12, 14, "Inglés", "A-12"],
 ]
+const pct = (h: number) => (((h - START_H) * 60) / SPAN) * 100
+const hh = (h: number) => `${String(h).padStart(2, "0")}:00`
 
-const pct = (h: number) => ((h - START_H) * 60 / SPAN) * 100
+const ERRORS: Record<string, string> = {
+  INVALID_EMAIL_OR_PASSWORD: "Correo o contraseña incorrectos.",
+  USER_ALREADY_EXISTS: "Ya existe una cuenta con ese correo. Prueba a entrar.",
+  USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: "Ya existe una cuenta con ese correo. Prueba a entrar.",
+  PASSWORD_TOO_SHORT: "La contraseña debe tener al menos 8 caracteres.",
+  INVALID_EMAIL: "Ese correo no parece válido.",
+}
+const message = (e: { code?: string; message?: string } | null) =>
+  (e?.code && ERRORS[e.code]) || e?.message || "Algo salió mal. Inténtalo de nuevo."
 
-function Backdrop() {
-  // línea de "ahora": hora real si cae en el horario, si no, una posición fija
+/** Línea de "ahora": hora real si cae dentro del horario; si no, una posición de ejemplo. */
+function useNow() {
   const [now, setNow] = useState<{ top: number; label: string } | null>(null)
   useEffect(() => {
     const tick = () => {
@@ -39,9 +48,8 @@ function Backdrop() {
       const mins = d.getHours() * 60 + d.getMinutes() - START_H * 60
       const inRange = mins >= 0 && mins <= SPAN
       const ref = inRange ? d : new Date(2000, 0, 1, 10, 30)
-      const m = inRange ? mins : 4.5 * 60
       setNow({
-        top: (m / SPAN) * 100,
+        top: ((inRange ? mins : 3.5 * 60) / SPAN) * 100,
         label: `${String(ref.getHours()).padStart(2, "0")}:${String(ref.getMinutes()).padStart(2, "0")}`,
       })
     }
@@ -49,11 +57,19 @@ function Backdrop() {
     const id = setInterval(tick, 30_000)
     return () => clearInterval(id)
   }, [])
+  return now
+}
 
+/** Horario semanal de ejemplo, dentro de una tarjeta (vitrina de PC). */
+function Week() {
+  const now = useNow()
   return (
-    <div aria-hidden className="pointer-events-none absolute inset-0 select-none">
-      <div className="absolute inset-x-0 bottom-0 top-0 grid grid-cols-[3rem_repeat(5,1fr)] pt-10 sm:grid-cols-[3.5rem_repeat(5,1fr)]">
-        {/* eje de horas */}
+    <div className="overflow-hidden rounded-2xl border bg-card shadow-(--card-shadow)">
+      <div className="grid grid-cols-[3rem_repeat(5,1fr)] border-b bg-foreground/[0.03] text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+        <span />
+        {DAYS.map((d) => <span key={d} className="border-l px-2 py-2.5">{d}</span>)}
+      </div>
+      <div className="relative grid h-[22rem] grid-cols-[3rem_repeat(5,1fr)] xl:h-[26rem]">
         <div className="relative">
           {Array.from({ length: END_H - START_H + 1 }, (_, i) => (
             <span key={i} className="num absolute right-2 -translate-y-1/2 text-[10px] text-muted-foreground/60" style={{ top: `${(i / (END_H - START_H)) * 100}%` }}>
@@ -61,40 +77,71 @@ function Backdrop() {
             </span>
           ))}
         </div>
-        {/* columnas de días */}
         {DAYS.map((d, di) => (
           <div key={d} className="relative border-l border-foreground/[0.07]">
-            <span className="absolute -top-7 left-2 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground/60">{d}</span>
             {CLASSES.filter((c) => c[0] === di).map(([, a, b, name, room], i) => (
               <div
                 key={name + a}
-                className="absolute inset-x-1 overflow-hidden rounded-md border-l-2 border-foreground/30 bg-foreground/[0.055] px-2 py-1.5 [animation:rise_.7s_cubic-bezier(.2,.8,.2,1)_both]"
+                className="absolute inset-x-1 overflow-hidden rounded-md border-l-2 border-brand/70 bg-brand/[0.08] px-2 py-1.5 [animation:rise_.7s_cubic-bezier(.2,.8,.2,1)_both]"
                 style={{ top: `${pct(a)}%`, height: `${pct(b) - pct(a)}%`, animationDelay: `${250 + (di * 2 + i) * 110}ms` }}
               >
-                <p className="truncate text-[11px] font-medium text-foreground/55">{name}</p>
-                <p className="num hidden text-[10px] text-foreground/35 sm:block">{room}</p>
+                <p className="truncate text-[11px] font-medium text-foreground/80">{name}</p>
+                <p className="num truncate text-[10px] text-muted-foreground">{room}</p>
               </div>
             ))}
           </div>
         ))}
-        {/* rejilla horizontal */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 top-10">
+        <div className="pointer-events-none absolute inset-0">
           {Array.from({ length: END_H - START_H + 1 }, (_, i) => (
             <div key={i} className="absolute inset-x-0 border-t border-foreground/[0.05]" style={{ top: `${(i / (END_H - START_H)) * 100}%` }} />
           ))}
         </div>
-        {/* línea de ahora */}
         {now && (
-          <div className="absolute inset-x-0 bottom-0 top-10 transition-[top] duration-1000">
-            <div className="absolute inset-x-0 flex items-center" style={{ top: `${now.top}%` }}>
-              <span className="num rounded-full bg-brand px-1.5 py-0.5 text-[9px] font-medium text-background sm:text-[10px]">{now.label}</span>
-              <span className="h-px flex-1 bg-brand/60" />
-            </div>
+          <div className="pointer-events-none absolute inset-x-0 flex items-center transition-[top] duration-1000" style={{ top: `${now.top}%` }}>
+            <span className="num rounded-full bg-brand px-1.5 py-0.5 text-[10px] font-medium text-background">{now.label}</span>
+            <span className="h-px flex-1 bg-brand/60" />
           </div>
         )}
       </div>
-      {/* viñeta: deja respirar el panel central */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_55%_at_50%_50%,var(--background)_35%,transparent_100%)]" />
+    </div>
+  )
+}
+
+/** Móvil y tablet: las clases de hoy, compactas, sobre el formulario. */
+const DAY_NAMES = ["lunes", "martes", "miércoles", "jueves", "viernes"]
+
+function Today() {
+  // día real de la semana (fin de semana → lunes); se calcula tras montar para no chocar con el render del servidor
+  const [day, setDay] = useState<number | null>(null)
+  useEffect(() => {
+    const d = new Date().getDay() - 1
+    setDay(d >= 0 && d <= 4 ? d : 0)
+  }, [])
+  if (day === null) return <div className="mb-7 h-[9.5rem] lg:hidden" />
+  const today = CLASSES.filter((c) => c[0] === day)
+  const isToday = new Date().getDay() - 1 === day
+  return (
+    <ul aria-hidden className="mb-7 space-y-2 lg:hidden">
+      <li className="px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{isToday ? "Hoy" : "El"} · {DAY_NAMES[day]}</li>
+      {today.map(([, a, b, name, room], i) => (
+        <li key={name} className="flex animate-rise items-center gap-3 rounded-xl border border-l-2 border-l-brand/70 bg-card px-3.5 py-2.5 text-sm shadow-(--card-shadow)" style={{ animationDelay: `${100 + i * 90}ms` }}>
+          <span className="num w-24 shrink-0 text-xs text-muted-foreground">{hh(a)} – {hh(b)}</span>
+          <span className="truncate font-medium">{name}</span>
+          <span className="num ml-auto shrink-0 text-xs text-muted-foreground">{room}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function Brand() {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="grad grid size-10 shrink-0 place-items-center rounded-2xl shadow-lg shadow-black/20"><GraduationCap className="size-5" /></span>
+      <div>
+        <p className="font-semibold leading-tight">Mi semestre</p>
+        <p className="text-xs text-muted-foreground">Planner universitario</p>
+      </div>
     </div>
   )
 }
@@ -110,89 +157,148 @@ function GoogleIcon() {
   )
 }
 
-const ITEMS = ["Horario", "Notas", "Exámenes", "Faltas"]
+const field =
+  "h-12 w-full rounded-xl border bg-card px-3.5 text-base outline-none transition placeholder:text-muted-foreground/70 focus:border-brand/60 focus:ring-4 focus:ring-brand/15"
 
 export function SignInCard() {
-  const [loading, setLoading] = useState(false)
+  const [mode, setMode] = useState<"in" | "up">("in")
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [show, setShow] = useState(false)
+  const [busy, setBusy] = useState<"" | "email" | "google">("")
   const [error, setError] = useState("")
 
-  async function handleGoogle() {
+  async function google() {
     setError("")
-    setLoading(true)
+    setBusy("google")
     try {
       const { error } = await authClient.signIn.social({ provider: "google", callbackURL: "/" })
-      if (error) {
-        setError(error.message || "No pudimos conectar con Google. Inténtalo de nuevo.")
-        setLoading(false)
-      }
+      if (error) { setError(message(error)); setBusy("") }
     } catch {
       setError("No pudimos conectar con Google. Inténtalo de nuevo.")
-      setLoading(false)
+      setBusy("")
     }
   }
 
-  return (
-    <div className="relative flex min-h-dvh w-full items-center justify-center overflow-hidden px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-[max(2.5rem,env(safe-area-inset-top))]">
-      <Backdrop />
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setError("")
+    setBusy("email")
+    try {
+      const { error } = mode === "in"
+        ? await authClient.signIn.email({ email, password })
+        : await authClient.signUp.email({ email, password, name: name.trim() || email.split("@")[0] })
+      if (error) setError(message(error))
+      else window.location.replace("/") // recarga completa: el servidor ve la cookie nueva
+    } catch (err) {
+      setError(message(err as Error))
+    }
+    setBusy("")
+  }
 
-      {/* El panel de acceso: una celda más del horario */}
-      <section className="relative w-full max-w-sm animate-scale-in [animation-delay:150ms]">
-        <div className="overflow-hidden rounded-2xl border border-foreground/15 bg-card/90 shadow-2xl shadow-black/40 backdrop-blur-xl">
-          {/* cabecera tipo etiqueta de clase */}
-          <div className="flex items-center justify-between border-b border-foreground/10 bg-foreground/[0.04] px-5 py-3">
-            <span className="num text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Lun – Vie</span>
-            <span className="flex items-center gap-1.5 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              <span className="size-1.5 animate-glow rounded-full bg-brand" />
-              Acceso
-            </span>
+  return (
+    <div className="grid min-h-dvh lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      {/* Vitrina (PC) */}
+      <section aria-hidden className="hidden flex-col justify-between gap-10 border-r p-10 lg:flex xl:p-14">
+        <Brand />
+        <div className="max-w-xl">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">Esta semana</p>
+          <h2 className="mt-2 text-4xl font-semibold leading-[1.1] tracking-tight xl:text-5xl">
+            Todo tu semestre,<br /><span className="text-muted-foreground">en una sola cuadrícula.</span>
+          </h2>
+          <div className="mt-8"><Week /></div>
+        </div>
+        <p className="text-xs text-muted-foreground">Horario · Notas · Exámenes · Faltas</p>
+      </section>
+
+      {/* Acceso */}
+      <section className="flex items-center justify-center px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-[max(2.5rem,env(safe-area-inset-top))] sm:px-8">
+        <div className="w-full max-w-sm animate-rise">
+          <div className="mb-8 lg:hidden"><Brand /></div>
+          <Today />
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{mode === "in" ? "Hola de nuevo" : "Arma tu semestre"}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {mode === "in" ? "Entra para ver cómo va tu semana." : "Crea tu cuenta: horario, notas y faltas sincronizados en todos tus dispositivos."}
+          </p>
+
+          <button
+            type="button"
+            onClick={google}
+            disabled={!!busy}
+            className="mt-7 flex h-12 w-full items-center justify-center gap-3 rounded-xl bg-foreground font-semibold text-background transition hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:scale-[0.98] disabled:opacity-60"
+          >
+            {busy === "google" ? <Loader2 className="size-5 animate-spin" /> : <span className="grid size-7 place-items-center rounded-full bg-background"><GoogleIcon /></span>}
+            Continuar con Google
+          </button>
+
+          <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="h-px flex-1 bg-border" />o con tu correo<span className="h-px flex-1 bg-border" />
           </div>
 
-          <div className="border-l-[3px] border-brand px-5 pb-6 pt-5">
-            <div className="flex items-center gap-3">
-              <span className="grad grid size-10 shrink-0 place-items-center rounded-xl shadow-lg shadow-black/20"><GraduationCap className="size-5" /></span>
-              <h1 className="text-3xl font-semibold tracking-tight text-balance">Mi semestre</h1>
-            </div>
-            <p className="mt-2 text-sm text-pretty text-muted-foreground">
-              Todo tu semestre en una sola cuadrícula. Entra para ver cómo va tu semana.
-            </p>
+          <div role="tablist" aria-label="Modo de acceso" className="mb-4 flex gap-0.5 rounded-xl bg-muted p-0.5">
+            {([["in", "Entrar"], ["up", "Crear cuenta"]] as const).map(([v, l]) => (
+              <button
+                key={v}
+                type="button"
+                role="tab"
+                aria-selected={mode === v}
+                onClick={() => { setMode(v); setError("") }}
+                className={cn(
+                  "h-10 flex-1 rounded-[0.65rem] text-sm font-medium transition duration-200 active:scale-95",
+                  mode === v ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
 
-            <ul className="mt-5 flex flex-wrap gap-2">
-              {ITEMS.map((t, i) => (
-                <li
-                  key={t}
-                  className="animate-rise rounded-md border border-foreground/10 bg-foreground/[0.05] px-2.5 py-1 text-xs text-foreground/80"
-                  style={{ animationDelay: `${500 + i * 90}ms` }}
-                >
-                  {t}
-                </li>
-              ))}
-            </ul>
-
-            {/* El botón es un "marcar asistencia": se llena mientras conecta */}
-            <button
-              onClick={handleGoogle}
-              disabled={loading}
-              className="group relative mt-6 flex h-12 w-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand items-center justify-center gap-3 overflow-hidden rounded-xl bg-foreground font-semibold text-background transition duration-200 hover:opacity-90 active:scale-[0.98] disabled:cursor-wait"
-            >
-              {loading && (
-                <span aria-hidden className="absolute inset-y-0 left-0 w-full origin-left bg-background/15 [animation:fill_2.4s_cubic-bezier(.3,.7,.2,1)_forwards]" />
-              )}
-              <span className="relative flex items-center gap-3">
-                {loading ? <Loader2 className="size-5 animate-spin" /> : <span className="grid size-7 place-items-center rounded-full bg-background"><GoogleIcon /></span>}
-                {loading ? "Marcando asistencia..." : "Continuar con Google"}
-              </span>
-            </button>
-
-            <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-[11px] text-muted-foreground">
-              <Check className="size-3" /> Se sincroniza en todos tus dispositivos
-            </p>
+          <form onSubmit={submit} className="space-y-3">
+            {mode === "up" && (
+              <label className="block animate-fade-in">
+                <span className="sr-only">Nombre</span>
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Tu nombre" autoComplete="name" className={field} />
+              </label>
+            )}
+            <label className="block">
+              <span className="sr-only">Correo</span>
+              <input type="email" inputMode="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@universidad.edu" autoComplete="email" className={field} />
+            </label>
+            <label className="relative block">
+              <span className="sr-only">Contraseña</span>
+              <input
+                type={show ? "text" : "password"}
+                required
+                minLength={8}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Contraseña (mín. 8)"
+                autoComplete={mode === "in" ? "current-password" : "new-password"}
+                className={cn(field, "pr-20")}
+              />
+              <button
+                type="button"
+                onClick={() => setShow((s) => !s)}
+                aria-pressed={show}
+                className="absolute right-1.5 top-1/2 h-9 -translate-y-1/2 rounded-lg px-3 text-xs text-muted-foreground transition hover:text-foreground"
+              >
+                {show ? "Ocultar" : "Ver"}
+              </button>
+            </label>
 
             {error && (
-              <p role="alert" className="mt-4 animate-scale-in rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {error}
-              </p>
+              <p role="alert" className="animate-scale-in rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
             )}
-          </div>
+
+            <button
+              disabled={!!busy}
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border font-medium transition hover:bg-accent active:scale-[0.98] disabled:opacity-60"
+            >
+              {busy === "email" && <Loader2 className="size-4 animate-spin" />}
+              {mode === "in" ? "Entrar" : "Crear cuenta"}
+            </button>
+          </form>
         </div>
       </section>
     </div>

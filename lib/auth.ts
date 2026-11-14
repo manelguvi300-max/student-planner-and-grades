@@ -10,6 +10,8 @@ export const auth = betterAuth({
       : process.env.VERCEL_URL
         ? `https://${process.env.VERCEL_URL}`
         : process.env.V0_RUNTIME_URL),
+  // Correo y contraseña, igual que en Mi Espacio y Mis finanzas (la tabla account ya tiene la columna password)
+  emailAndPassword: { enabled: true, minPasswordLength: 8 },
   socialProviders: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID as string,
