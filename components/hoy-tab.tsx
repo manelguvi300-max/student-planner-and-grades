@@ -9,7 +9,8 @@ import {
   DAYS,
   FINAL_WEIGHT,
   PASSING_GRADE,
-  resolveAbsence,
+  absenceStatus,
+  fmtHours,
   GLOBAL_CONFIG_KEY,
   accumulatedPoints,
   coveredWeight,
@@ -125,13 +126,14 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
   const alerts: Alert[] = []
   let atRisk = 0
   for (const s of subjects) {
-    const limit = resolveAbsence(subjectConfigs[s.id], subjectConfigs[GLOBAL_CONFIG_KEY]).limit
-    if (limit !== null) {
-      const count = absences.filter((a) => a.subjectId === s.id).length
-      const left = limit - count
-      if (left < 0) alerts.push({ id: `f${s.id}`, level: "bad", subject: s, text: "Superaste el límite de faltas", tab: "faltas" })
-      else if (left <= 1) { alerts.push({ id: `f${s.id}`, level: "warn", subject: s, text: left === 0 ? "No te quedan faltas disponibles" : "Te queda 1 falta disponible", tab: "faltas" }) }
-      if (left <= 1) atRisk++
+    const st = absenceStatus(subjectConfigs[s.id], subjectConfigs[GLOBAL_CONFIG_KEY], absences.filter((a) => a.subjectId === s.id))
+    if (st.remaining !== null) {
+      if (st.cancelled) alerts.push({ id: `f${s.id}`, level: "bad", subject: s, text: "Superaste el límite de faltas", tab: "faltas" })
+      else if (st.atRisk) {
+        const text = st.unit === "hours" ? `Te quedan ${fmtHours(st.remaining)} h de faltas` : st.remaining === 0 ? "No te quedan faltas disponibles" : "Te queda 1 falta disponible"
+        alerts.push({ id: `f${s.id}`, level: "warn", subject: s, text, tab: "faltas" })
+      }
+      if (st.cancelled || st.atRisk) atRisk++
     }
     const g = grades[s.id] ?? []
     if (coveredWeight(g) > 0) {

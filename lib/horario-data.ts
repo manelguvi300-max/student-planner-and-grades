@@ -1,12 +1,47 @@
+/** Un profesor de una materia (una materia puede tener varios: teoría, laboratorio, monitor…). */
+export type Teacher = {
+  id: string
+  name: string
+  role?: string    // "Teoría", "Laboratorio", "Monitor"…
+  email?: string
+  phone?: string
+  office?: string  // oficina / salón
+  hours?: string   // horario de asesorías
+}
+
 export type Subject = {
   id: string
   name: string
   bg: string
   border: string
+  teachers?: Teacher[]
+  // Formato anterior (un solo profesor): se sigue leyendo con getTeachers().
   teacherName?: string
   teacherEmail?: string
   teacherPhone?: string
   officeHours?: string
+}
+
+/** Roles sugeridos al agregar un profesor. */
+export const TEACHER_ROLES = ["Teoría", "Laboratorio", "Monitor"]
+
+/** Profesores de una materia, incluyendo el profesor del formato anterior si aún no se migró. */
+export function getTeachers(s: Subject): Teacher[] {
+  if (s.teachers) return s.teachers
+  if (s.teacherName || s.teacherEmail || s.teacherPhone || s.officeHours) {
+    return [{ id: `legacy-${s.id}`, name: s.teacherName ?? "", email: s.teacherEmail, phone: s.teacherPhone, hours: s.officeHours }]
+  }
+  return []
+}
+
+/** Guarda la lista de profesores y borra los campos del formato anterior. */
+export function withTeachers(s: Subject, teachers: Teacher[]): Subject {
+  return { ...s, teachers, teacherName: undefined, teacherEmail: undefined, teacherPhone: undefined, officeHours: undefined }
+}
+
+/** Iniciales para el avatar de un profesor: "María Pérez" → "MP". */
+export function initials(name: string) {
+  return name.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("") || "?"
 }
 
 export type ClassSession = {
@@ -17,6 +52,7 @@ export type ClassSession = {
   endTime: number   // minutos desde medianoche, ej: 480 = 8:00
   group: string
   room: string
+  teacherId?: string // profesor que da esta clase (de los de la materia)
 }
 
 export type Grade = {
@@ -43,10 +79,13 @@ export type Absence = {
   id: string
   subjectId: string
   date: string
+  hours?: number  // horas que faltó ese día (solo cuando la regla cuenta en horas)
 }
 
 /** Cómo se fija el máximo de faltas de una materia. */
 export type AbsenceMode = "calc" | "manual" | "none"
+/** En qué se cuentan: clases completas (cada falta = 1 clase) u horas (cada falta registra cuántas horas faltó). */
+export type AbsenceUnit = "classes" | "hours"
 
 /**
  * Config de faltas. Se guarda en subjectConfigs por id de materia, y la regla GLOBAL
@@ -57,10 +96,12 @@ export const GLOBAL_CONFIG_KEY = "__global"
 export type SubjectConfig = {
   custom?: boolean       // true = la materia tiene regla propia (mode/percent/maxAbsences); si no, usa la global
   mode?: AbsenceMode     // regla: "calc" | "manual" | "none"
-  percent?: number       // regla "calc": % de faltas permitido sobre las HD (20 por defecto)
-  maxAbsences?: number   // regla "manual": máximo escrito a mano
+  percent?: number       // regla "calc": % de las HD que se puede faltar (20 por defecto)
+  maxAbsences?: number   // regla "manual": máximo escrito a mano (en clases u horas, según unit)
+  unit?: AbsenceUnit     // regla: "classes" (por defecto) u "hours"
   directHours?: number   // datos de la materia: HD, horas de trabajo directo
-  weeklyHours?: number   // datos de la materia: intensidad semanal en horas (si no, la de la regla; 2 por defecto)
+  blockHours?: number    // horas por clase (bloque) con que se divide para contar clases enteras; 2 por defecto
+  weeklyHours?: number   // nombre anterior de blockHours (se sigue leyendo)
 }
 
 export const DAYS = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"]
@@ -193,12 +234,19 @@ export function neededOnFinal(grades: Grade[]) {
 }
 
 export const DEFAULT_PERCENT = 20
-export const DEFAULT_WEEKLY_HOURS = 2
+export const DEFAULT_BLOCK_HOURS = 2
 
-/** Máximo de faltas = ⌊ % × HD ÷ intensidad semanal ⌋ */
-export function calcAbsenceLimit(directHours: number, weeklyHours: number, percent: number): number {
-  return Math.floor((directHours * percent) / 100 / weeklyHours + 1e-9)
+/**
+ * Faltas permitidas: el % de las HD, en horas. Contadas en clases se divide entre las horas por clase
+ * (⌊ % × HD ÷ bloque ⌋); contadas en horas se deja tal cual.
+ */
+export function calcAbsenceLimit(directHours: number, blockHours: number, percent: number, unit: AbsenceUnit = "classes"): number {
+  const hours = (directHours * percent) / 100
+  return unit === "hours" ? Math.round(hours * 100) / 100 : Math.floor(hours / blockHours + 1e-9)
 }
+
+/** 9.6 → "9.6", 2 → "2" */
+export const fmtHours = (n: number) => String(Math.round(n * 100) / 100)
 
 /** ¿Tiene la materia su propia regla? (los datos con `mode` y sin `custom` vienen de cuando cada materia se configuraba sola). */
 export const hasOwnRule = (cfg?: SubjectConfig) => cfg?.custom ?? cfg?.mode !== undefined
@@ -211,12 +259,25 @@ export function resolveAbsence(cfg: SubjectConfig | undefined, global: SubjectCo
   const custom = hasOwnRule(cfg)
   const rule = custom ? cfg! : (global ?? {})
   const mode: AbsenceMode = rule.mode ?? "calc"
-  if (mode === "none") return { mode, custom, limit: null, needsHours: false }
-  if (mode === "manual") return { mode, custom, limit: rule.maxAbsences ?? null, needsHours: false }
+  const unit: AbsenceUnit = mode === "none" ? "classes" : (rule.unit ?? "classes")
+  const block = cfg?.blockHours || cfg?.weeklyHours || rule.blockHours || rule.weeklyHours || DEFAULT_BLOCK_HOURS
+  const base = { mode, custom, unit, block }
+  if (mode === "none") return { ...base, limit: null, needsHours: false }
+  if (mode === "manual") return { ...base, limit: rule.maxAbsences ?? null, needsHours: false }
   const hd = cfg?.directHours
-  if (!hd || hd <= 0) return { mode, custom, limit: null, needsHours: true }
-  const weekly = cfg?.weeklyHours || rule.weeklyHours || DEFAULT_WEEKLY_HOURS
-  return { mode, custom, limit: calcAbsenceLimit(hd, weekly, rule.percent || DEFAULT_PERCENT), needsHours: false }
+  if (!hd || hd <= 0) return { ...base, limit: null, needsHours: true }
+  return { ...base, limit: calcAbsenceLimit(hd, block, rule.percent || DEFAULT_PERCENT, unit), needsHours: false }
+}
+
+/** Regla + lo que lleva gastado de faltas (clases u horas) y si está en riesgo o cancelada. */
+export function absenceStatus(cfg: SubjectConfig | undefined, global: SubjectConfig | undefined, list: Absence[]) {
+  const r = resolveAbsence(cfg, global)
+  const used = r.unit === "hours" ? list.reduce((n, a) => n + (a.hours ?? r.block), 0) : list.length
+  const remaining = r.limit === null ? null : Math.round((r.limit - used) * 100) / 100
+  const cancelled = remaining !== null && remaining < 0
+  // en riesgo: queda menos de una clase (1 clase, o las horas de un bloque)
+  const atRisk = remaining !== null && !cancelled && remaining <= (r.unit === "hours" ? r.block : 1)
+  return { ...r, used, remaining, cancelled, atRisk }
 }
 
 // Materias ocultas por pestaña (Notas, Exámenes, Faltas): se guardan con el planner y se sincronizan.

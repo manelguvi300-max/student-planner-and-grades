@@ -17,8 +17,8 @@ import { cn } from "@/lib/utils"
 import { Ring } from "@/components/ui/ring"
 import { CountUp } from "@/components/ui/count-up"
 import {
-  type Subject, type Absence, type SubjectConfig, type AbsenceMode,
-  GLOBAL_CONFIG_KEY, hasOwnRule, resolveAbsence, calcAbsenceLimit, DEFAULT_PERCENT, DEFAULT_WEEKLY_HOURS,
+  type Subject, type Absence, type SubjectConfig, type AbsenceMode, type AbsenceUnit,
+  GLOBAL_CONFIG_KEY, hasOwnRule, absenceStatus, calcAbsenceLimit, fmtHours, DEFAULT_PERCENT, DEFAULT_BLOCK_HOURS,
 } from "@/lib/horario-data"
 
 type Props = {
@@ -32,7 +32,7 @@ type Props = {
 }
 
 const MODES: { value: AbsenceMode; title: string; desc: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { value: "calc", title: "Con cálculo", desc: "El máximo sale de las horas de trabajo directo (HD)", icon: Calculator },
+  { value: "calc", title: "Con cálculo", desc: "Un % de las horas de trabajo directo (HD)", icon: Calculator },
   { value: "manual", title: "Máximo manual", desc: "Tú escribes cuántas faltas puedes tener", icon: PenLine },
   { value: "none", title: "Solo contar", desc: "Sin máximo: solo llevas el conteo", icon: Hash },
 ]
@@ -42,9 +42,13 @@ const num = (v: string) => (v.trim() === "" ? NaN : Number(v.replace(",", ".")))
 /** Texto corto de una regla (la global o la propia de una materia). */
 function describeRule(rule: SubjectConfig | undefined) {
   const mode = rule?.mode ?? "calc"
-  if (mode === "manual") return rule?.maxAbsences !== undefined ? `Máximo ${rule.maxAbsences} faltas` : "Máximo manual"
+  const hours = rule?.unit === "hours"
   if (mode === "none") return "Solo conteo, sin máximo"
-  return `${rule?.percent ?? DEFAULT_PERCENT}% × HD ÷ intensidad semanal (${rule?.weeklyHours ?? DEFAULT_WEEKLY_HOURS} h)`
+  if (mode === "manual") return rule?.maxAbsences !== undefined ? `Máximo ${rule.maxAbsences} ${hours ? "h" : "faltas"}` : "Máximo manual"
+  const pct = rule?.percent ?? DEFAULT_PERCENT
+  return hours
+    ? `${pct}% de las HD, contado en horas`
+    : `${pct}% de las HD, en clases de ${rule?.blockHours ?? rule?.weeklyHours ?? DEFAULT_BLOCK_HOURS} h`
 }
 
 /** Campo numérico que se confirma al salir (evita problemas al escribir decimales). */
@@ -81,13 +85,15 @@ function NumField({ label, value, placeholder, onCommit }: {
 
 export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, setSubjectConfigs, hiddenSubjects, onToggleHidden }: Props) {
   const [draftDate, setDraftDate] = useState<string>(() => new Date().toISOString().split("T")[0])
+  const [draftAbsHours, setDraftAbsHours] = useState("") // horas que faltó (reglas en horas); vacío = un bloque
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
   // Diálogo de regla: "global" (para todas) o el id de una materia (regla propia)
   const [dialog, setDialog] = useState<{ open: boolean; scope: string }>({ open: false, scope: "global" })
   const [draftMode, setDraftMode] = useState<AbsenceMode>("calc")
+  const [draftUnit, setDraftUnit] = useState<AbsenceUnit>("classes")
   const [draftHours, setDraftHours] = useState("")
-  const [draftWeekly, setDraftWeekly] = useState(String(DEFAULT_WEEKLY_HOURS))
+  const [draftBlock, setDraftBlock] = useState(String(DEFAULT_BLOCK_HOURS))
   const [draftPercent, setDraftPercent] = useState(String(DEFAULT_PERCENT))
   const [draftMax, setDraftMax] = useState("")
 
@@ -111,9 +117,11 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
 
   const toggleExpanded = (id: string) => setExpanded((prev) => ({ ...prev, [id]: !(prev[id] ?? false) }))
 
-  function handleAddAbsence(subjectId: string) {
+  function handleAddAbsence(subjectId: string, unit: AbsenceUnit, block: number) {
     if (!draftDate) return
-    setAbsences((prev) => [...prev, { id: crypto.randomUUID(), subjectId, date: draftDate }])
+    const h = num(draftAbsHours)
+    const hours = unit === "hours" ? (h > 0 ? h : block) : undefined
+    setAbsences((prev) => [...prev, { id: crypto.randomUUID(), subjectId, date: draftDate, ...(hours ? { hours } : {}) }])
   }
   const handleDeleteAbsence = (id: string) => setAbsences((prev) => prev.filter((a) => a.id !== id))
 
@@ -131,36 +139,40 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
     const rule = scope === "global" || hasOwnRule(own) ? own : globalCfg // una materia sin regla propia parte copiando la global
     setDialog({ open: true, scope })
     setDraftMode(rule?.mode ?? "calc")
+    setDraftUnit(rule?.unit ?? "classes")
     setDraftPercent(String(rule?.percent ?? DEFAULT_PERCENT))
     setDraftMax(rule?.maxAbsences !== undefined ? String(rule.maxAbsences) : "")
-    setDraftWeekly(String(scope === "global" ? (rule?.weeklyHours ?? DEFAULT_WEEKLY_HOURS) : (subjectConfigs[scope]?.weeklyHours ?? globalCfg?.weeklyHours ?? DEFAULT_WEEKLY_HOURS)))
-    setDraftHours(scope !== "global" && subjectConfigs[scope]?.directHours ? String(subjectConfigs[scope].directHours) : "")
+    const subj = scope === "global" ? undefined : subjectConfigs[scope]
+    setDraftBlock(String(subj?.blockHours ?? subj?.weeklyHours ?? rule?.blockHours ?? rule?.weeklyHours ?? DEFAULT_BLOCK_HOURS))
+    setDraftHours(subj?.directHours ? String(subj.directHours) : "")
   }
 
-  const hours = num(draftHours), weekly = num(draftWeekly), percent = num(draftPercent), max = num(draftMax)
+  const hours = num(draftHours), block = num(draftBlock), percent = num(draftPercent), max = num(draftMax)
   const percentOk = percent > 0 && percent <= 100
-  const calcOk = weekly > 0 && percentOk && (isGlobalScope || hours > 0)
-  const maxOk = Number.isInteger(max) && max >= 0
+  const calcOk = block > 0 && percentOk && (isGlobalScope || hours > 0)
+  const maxOk = Number.isFinite(max) && max >= 0 && (draftUnit === "hours" || Number.isInteger(max))
   const canSave = draftMode === "none" || (draftMode === "calc" ? calcOk : maxOk)
+  const inHours = draftUnit === "hours"
 
   function saveRule() {
     if (!canSave) return
     const rule: SubjectConfig =
-      draftMode === "calc" ? { mode: "calc", percent, weeklyHours: weekly }
-      : draftMode === "manual" ? { mode: "manual", maxAbsences: max }
+      draftMode === "calc" ? { mode: "calc", unit: draftUnit, percent, blockHours: block }
+      : draftMode === "manual" ? { mode: "manual", unit: draftUnit, maxAbsences: max, ...(block > 0 ? { blockHours: block } : {}) }
       : { mode: "none" }
     if (isGlobalScope) {
       setSubjectConfigs((prev) => ({ ...prev, [GLOBAL_CONFIG_KEY]: rule }))
     } else {
       patchConfig(dialog.scope, {
-        custom: true, mode: rule.mode, percent: rule.percent, maxAbsences: rule.maxAbsences,
-        ...(draftMode === "calc" ? { directHours: hours, weeklyHours: weekly } : {}),
+        custom: true, mode: rule.mode, unit: rule.unit, percent: rule.percent, maxAbsences: rule.maxAbsences,
+        ...(draftMode === "calc" ? { directHours: hours } : {}),
+        ...(draftMode !== "none" && block > 0 ? { blockHours: block, weeklyHours: undefined } : {}),
       })
     }
     setDialog((d) => ({ ...d, open: false }))
   }
 
-  const useGlobalRule = (id: string) => patchConfig(id, { custom: undefined, mode: undefined, percent: undefined, maxAbsences: undefined })
+  const useGlobalRule = (id: string) => patchConfig(id, { custom: undefined, mode: undefined, unit: undefined, percent: undefined, maxAbsences: undefined })
 
   const getAbsencesForSubject = (subjectId: string) =>
     absences.filter((a) => a.subjectId === subjectId).sort((a, b) => a.date.localeCompare(b.date))
@@ -183,37 +195,31 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
 
   // resumen de las materias visibles
   const visible = subjects.filter((s) => !hiddenSubjects.includes(s.id))
-  let atRisk = 0, cancelled = 0, needsHours = 0, totalAbsences = 0
+  let atRisk = 0, needsHD = 0, totalAbsences = 0
   for (const s of visible) {
-    const n = absences.filter((a) => a.subjectId === s.id).length
-    totalAbsences += n
-    const r = resolveAbsence(subjectConfigs[s.id], globalCfg)
-    if (r.needsHours) { needsHours++; continue }
-    if (r.limit === null) continue
-    const left = r.limit - n
-    if (left < 0) cancelled++
-    else if (left <= 1) atRisk++
+    const list = absences.filter((a) => a.subjectId === s.id)
+    totalAbsences += list.length
+    const st = absenceStatus(subjectConfigs[s.id], globalCfg, list)
+    if (st.needsHours) needsHD++
+    else if (st.cancelled || st.atRisk) atRisk++
   }
-  const globalPreview = isGlobalScope && calcOk ? calcAbsenceLimit(48, weekly, percent) : null
 
   const renderCard = (subject: Subject) => {
     const config = subjectConfigs[subject.id]
-    const res = resolveAbsence(config, globalCfg)
-    const limit = res.limit
     const subjectAbsences = getAbsencesForSubject(subject.id)
     const count = subjectAbsences.length
-    const safeRemaining = limit !== null ? limit - count : null
-    const isCancelled = limit !== null && count > limit
-    const isAtRisk = limit !== null && !isCancelled && safeRemaining !== null && safeRemaining <= 1
+    const st = absenceStatus(config, globalCfg, subjectAbsences)
+    const { limit, remaining, used, unit, block, cancelled: isCancelled, atRisk: isAtRisk } = st
+    const hoursUnit = unit === "hours"
     const isExpanded = expanded[subject.id] ?? false
-    const ownRule = res.custom ? config : undefined
-    const weeklyDefault = (res.custom ? config?.weeklyHours : globalCfg?.weeklyHours) ?? DEFAULT_WEEKLY_HOURS
+    const ownRule = st.custom ? config : undefined
+    const unitLabel = hoursUnit ? "h" : ""
 
     // subtítulo del encabezado
     const sub =
-      res.needsHours ? "Falta ingresar las horas HD"
-      : res.mode === "calc" ? `${config?.directHours} h HD · ${config?.weeklyHours ?? weeklyDefault} h/sem`
-      : res.mode === "manual" ? "Máximo manual"
+      st.needsHours ? "Falta ingresar las horas HD"
+      : st.mode === "calc" ? `${config?.directHours} h HD · ${hoursUnit ? "en horas" : `clases de ${block} h`}`
+      : st.mode === "manual" ? (hoursUnit ? "Máximo manual en horas" : "Máximo manual")
       : "Solo conteo"
 
     return (
@@ -237,11 +243,11 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
             <span className="block truncate font-semibold leading-tight">{subject.name}</span>
             <span className="num flex items-center gap-1.5 text-xs text-muted-foreground">
               <span className="truncate">{sub}</span>
-              {res.custom && <span className="shrink-0 rounded-full bg-foreground/10 px-1.5 py-px text-[10px] font-medium not-italic">Regla propia</span>}
+              {st.custom && <span className="shrink-0 rounded-full bg-foreground/10 px-1.5 py-px text-[10px] font-medium not-italic">Regla propia</span>}
             </span>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            {res.needsHours ? (
+            {st.needsHours ? (
               <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">Falta HD</span>
             ) : (
               <span
@@ -250,7 +256,11 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
                   isCancelled ? "bg-destructive text-white" : isAtRisk ? "bg-amber-500 text-white" : "bg-foreground/10"
                 )}
               >
-                {isCancelled ? "Cancelada" : limit !== null ? `${count}/${limit}` : `${count} ${count === 1 ? "falta" : "faltas"}`}
+                {isCancelled
+                  ? "Cancelada"
+                  : limit !== null
+                    ? `${fmtHours(used)}/${fmtHours(limit)}${hoursUnit ? " h" : ""}`
+                    : hoursUnit ? `${fmtHours(used)} h` : `${count} ${count === 1 ? "falta" : "faltas"}`}
               </span>
             )}
             <button
@@ -271,20 +281,20 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
           <div className="overflow-hidden">
             <div className="space-y-4 p-4">
               {/* Datos de la materia para la regla de cálculo (si usa la global) */}
-              {res.mode === "calc" && !res.custom && (
+              {st.mode === "calc" && !st.custom && (
                 <div className="grid grid-cols-2 gap-3">
                   <NumField label="Horas de trabajo directo (HD)" placeholder="Ej: 48" value={config?.directHours} onCommit={(v) => patchConfig(subject.id, { directHours: v })} />
-                  <NumField label="Intensidad semanal (h)" placeholder={String(weeklyDefault)} value={config?.weeklyHours} onCommit={(v) => patchConfig(subject.id, { weeklyHours: v })} />
+                  <NumField label="Horas por clase" placeholder={String(block)} value={config?.blockHours ?? config?.weeklyHours} onCommit={(v) => patchConfig(subject.id, { blockHours: v, weeklyHours: undefined })} />
                 </div>
               )}
 
               {/* Estado: anillo + mensaje + una marca por cada falta permitida */}
-              {res.needsHours ? (
+              {st.needsHours ? (
                 <div className="flex items-center gap-3 rounded-xl bg-muted/50 px-3 py-3 text-sm text-muted-foreground">
                   <AlertTriangle className="size-4 shrink-0 text-amber-500" />
                   <span>Ingresa las horas HD de esta materia para calcular su límite de faltas.</span>
                 </div>
-              ) : limit === null ? (
+              ) : limit === null || remaining === null ? (
                 <div className="flex items-center gap-4 rounded-xl bg-muted/50 px-4 py-3">
                   <CountUp value={count} className="num text-4xl font-light" />
                   <p className="text-sm text-muted-foreground">{count === 1 ? "falta registrada" : "faltas registradas"}<span className="block text-xs">Sin máximo: solo conteo.</span></p>
@@ -292,28 +302,36 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
               ) : (
                 <div className="flex items-center gap-4">
                   <Ring
-                    value={limit > 0 ? count / limit : count > 0 ? 1 : 0}
+                    value={limit > 0 ? Math.min(used / limit, 1) : used > 0 ? 1 : 0}
                     size={76}
                     stroke={7}
                     className={isCancelled ? "text-destructive" : isAtRisk ? "text-amber-500" : "text-emerald-500"}
                   >
                     <span className="text-center leading-none">
-                      <CountUp value={count} className="text-2xl font-bold" />
-                      <span className="num mt-0.5 block text-[10px] text-muted-foreground">de {limit}</span>
+                      <span className="num text-2xl font-bold">{fmtHours(used)}</span>
+                      <span className="num mt-0.5 block text-[10px] text-muted-foreground">de {fmtHours(limit)}{hoursUnit ? " h" : ""}</span>
                     </span>
                   </Ring>
                   <div className="min-w-0 flex-1 space-y-2.5">
                     <p className={cn("flex items-start gap-1.5 text-sm", isCancelled ? "font-semibold text-destructive" : isAtRisk ? "text-amber-600 dark:text-amber-400" : "text-foreground")}>
                       {isCancelled ? <XCircle className="mt-0.5 size-4 shrink-0" /> : isAtRisk ? <AlertTriangle className="mt-0.5 size-4 shrink-0" /> : <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-500" />}
                       <span>
-                        {isCancelled
-                          ? <>Materia cancelada: pasaste el límite de {limit} falta{limit !== 1 ? "s" : ""}.</>
-                          : isAtRisk
-                            ? <>¡Cuidado! {safeRemaining === 0 ? "No te quedan faltas." : <>Solo te queda <strong>1</strong> falta.</>}</>
-                            : <>Te quedan <strong>{safeRemaining}</strong> falta{safeRemaining !== 1 ? "s" : ""} segura{safeRemaining !== 1 ? "s" : ""}.</>}
+                        {hoursUnit ? (
+                          isCancelled
+                            ? <>Materia cancelada: pasaste el límite de {fmtHours(limit)} h.</>
+                            : isAtRisk
+                              ? <>¡Cuidado! {remaining === 0 ? "No te quedan horas." : <>Solo te quedan <strong>{fmtHours(remaining)} h</strong>.</>}</>
+                              : <>Te quedan <strong>{fmtHours(remaining)} h</strong> seguras.</>
+                        ) : (
+                          isCancelled
+                            ? <>Materia cancelada: pasaste el límite de {limit} falta{limit !== 1 ? "s" : ""}.</>
+                            : isAtRisk
+                              ? <>¡Cuidado! {remaining === 0 ? "No te quedan faltas." : <>Solo te queda <strong>1</strong> falta.</>}</>
+                              : <>Te quedan <strong>{remaining}</strong> falta{remaining !== 1 ? "s" : ""} segura{remaining !== 1 ? "s" : ""}.</>
+                        )}
                       </span>
                     </p>
-                    {limit > 0 && limit <= 24 && (
+                    {!hoursUnit && limit > 0 && limit <= 24 && (
                       <div className="flex flex-wrap gap-1" aria-hidden>
                         {Array.from({ length: limit }, (_, i) => (
                           <span
@@ -337,11 +355,23 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
                   <p className="text-xs font-medium text-muted-foreground">Historial</p>
                   <div className="flex items-center gap-2">
                     <Input type="date" value={draftDate} onChange={(e) => setDraftDate(e.target.value)} className="h-7 px-2 text-[11px] w-[115px]" />
-                    <Button size="icon" variant="secondary" className="h-7 w-7 rounded-md shrink-0" onClick={() => handleAddAbsence(subject.id)} title="Agregar falta">
+                    {hoursUnit && (
+                      <Input
+                        inputMode="decimal"
+                        value={draftAbsHours}
+                        onChange={(e) => setDraftAbsHours(e.target.value)}
+                        placeholder={`${fmtHours(block)} h`}
+                        aria-label="Horas que faltó ese día"
+                        title="Horas que faltó ese día"
+                        className="h-7 w-14 px-2 text-center text-[11px]"
+                      />
+                    )}
+                    <Button size="icon" variant="secondary" className="h-7 w-7 rounded-md shrink-0" onClick={() => handleAddAbsence(subject.id, unit, block)} title="Agregar falta">
                       <Plus className="size-3.5" />
                     </Button>
                   </div>
                 </div>
+                {hoursUnit && <p className="text-[11px] text-muted-foreground">Indica cuántas horas faltaste ese día (si la dejas vacía, {fmtHours(block)} h).</p>}
 
                 {subjectAbsences.length > 0 ? (
                   <ul className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
@@ -350,6 +380,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
                         <div className="flex items-center gap-2.5">
                           <span className="num grid size-6 shrink-0 place-items-center rounded-md bg-foreground/10 text-[11px] font-semibold">{index + 1}</span>
                           <span className="num">{formatDate(absence.date)}</span>
+                          {hoursUnit && <span className="num rounded-full bg-foreground/10 px-2 py-0.5 text-[11px] font-medium">{fmtHours(absence.hours ?? block)} h</span>}
                         </div>
                         <button
                           onClick={() => handleDeleteAbsence(absence.id)}
@@ -369,10 +400,10 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
               {/* Regla: la global, o una propia solo para esta materia */}
               <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t pt-3 text-xs">
                 <span className="min-w-0 text-muted-foreground">
-                  {res.custom ? <>Regla propia: {describeRule(ownRule)}</> : "Usa la regla global"}
+                  {st.custom ? <>Regla propia: {describeRule(ownRule)}</> : "Usa la regla global"}
                 </span>
                 <span className="flex shrink-0 items-center gap-3 font-medium">
-                  {res.custom ? (
+                  {st.custom ? (
                     <>
                       <button type="button" onClick={() => openRule(subject.id)} className="text-foreground underline-offset-4 hover:underline">Editar</button>
                       <button type="button" onClick={() => useGlobalRule(subject.id)} className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Usar la global</button>
@@ -394,6 +425,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
   const shown = subjects.filter((s) => !hiddenSubjects.includes(s.id))
   const hiddenList = subjects.filter((s) => hiddenSubjects.includes(s.id))
   const scopeName = isGlobalScope ? "" : subjects.find((s) => s.id === dialog.scope)?.name
+  const pctLabel = percentOk ? percent : DEFAULT_PERCENT
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -401,7 +433,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
         <div aria-hidden className="pointer-events-none absolute -right-16 -top-20 size-64 rounded-full bg-foreground/10 blur-3xl" />
         <h2 className="relative text-xl font-semibold tracking-tight">Faltas</h2>
         <p className="relative mt-0.5 hidden text-sm text-muted-foreground sm:block">
-          Define una regla para todas las materias; en cada una solo anotas sus horas HD. Si alguna cuenta distinto, dale una regla propia dentro de ella.
+          Las faltas permitidas son un % de inasistencia sobre las horas de trabajo directo (HD). Define la regla una vez; en cada materia solo anotas sus HD.
         </p>
 
         {/* Regla global */}
@@ -419,8 +451,8 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
         <div className="relative mt-3 grid grid-cols-3 gap-2 sm:gap-3">
           {[
             { label: "Registradas", value: totalAbsences, tone: "" },
-            { label: "En riesgo", value: atRisk + cancelled, tone: atRisk + cancelled ? "text-amber-500" : "" },
-            { label: "Falta HD", value: needsHours, tone: "" },
+            { label: "En riesgo", value: atRisk, tone: atRisk ? "text-amber-500" : "" },
+            { label: "Falta HD", value: needsHD, tone: "" },
           ].map((s) => (
             <div key={s.label} className="rounded-2xl bg-muted/50 px-3 py-3">
               <p className={cn("text-3xl font-light", s.tone)}><CountUp value={s.value} /></p>
@@ -491,6 +523,26 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
               ))}
             </div>
 
+            {/* Contar en clases enteras o en horas */}
+            {draftMode !== "none" && (
+              <div className="space-y-1.5">
+                <Label>Contar las faltas en</Label>
+                <div role="radiogroup" aria-label="Unidad de las faltas" className="grid grid-cols-2 gap-1 rounded-xl border bg-muted/30 p-1">
+                  {([["classes", "Clases enteras"], ["hours", "Horas"]] as const).map(([v, label]) => (
+                    <button key={v} type="button" role="radio" aria-checked={draftUnit === v} onClick={() => setDraftUnit(v)}
+                      className={cn("h-8 rounded-lg text-xs font-medium transition", draftUnit === v ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {inHours
+                    ? "Cada falta guarda cuántas horas faltaste ese día, y el límite se mide en horas."
+                    : `Cada falta es una clase completa de ${block > 0 ? fmtHours(block) : DEFAULT_BLOCK_HOURS} h.`}
+                </p>
+              </div>
+            )}
+
             {draftMode === "calc" && (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 items-end gap-3">
@@ -501,40 +553,55 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
                     </div>
                   )}
                   <div className="space-y-1.5">
-                    <Label htmlFor="weekly-hours">{isGlobalScope ? "Intensidad semanal por defecto (h)" : "Intensidad semanal (h)"}</Label>
-                    <Input id="weekly-hours" inputMode="decimal" placeholder="Ej: 2" value={draftWeekly} onChange={(e) => setDraftWeekly(e.target.value)} />
+                    <Label htmlFor="percent">% de inasistencia permitido</Label>
+                    <Input id="percent" inputMode="decimal" value={draftPercent} onChange={(e) => setDraftPercent(e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="percent">% de faltas permitido</Label>
-                    <Input id="percent" inputMode="decimal" value={draftPercent} onChange={(e) => setDraftPercent(e.target.value)} />
+                    <Label htmlFor="block-hours">{inHours ? "Horas por clase (por defecto)" : "Horas por clase"}</Label>
+                    <Input id="block-hours" inputMode="decimal" placeholder="Ej: 2" value={draftBlock} onChange={(e) => setDraftBlock(e.target.value)} />
                   </div>
                 </div>
                 <div className="space-y-1 rounded-lg border bg-muted/30 px-4 py-3 text-sm">
-                  <p className="text-xs text-muted-foreground">Fórmula: ⌊ % × HD ÷ intensidad semanal ⌋</p>
+                  <p className="text-xs text-muted-foreground">
+                    {inHours ? "Faltas permitidas = % × HD (en horas)" : "Faltas permitidas = ⌊ % × HD ÷ horas por clase ⌋"}
+                  </p>
                   {calcOk ? (
                     isGlobalScope ? (
-                      <p className="text-xs text-muted-foreground">Ejemplo: con 48 h de HD → <strong className="text-foreground">{globalPreview} faltas</strong> máximo. En cada materia solo anotas su HD.</p>
+                      <p className="text-xs text-muted-foreground">Ejemplo: con 48 h de HD → <strong className="text-foreground">{fmtHours(calcAbsenceLimit(48, block, percent, draftUnit))}{inHours ? " h" : " faltas"}</strong> como máximo. En cada materia solo anotas su HD.</p>
+                    ) : inHours ? (
+                      <>
+                        <p className="num">{pctLabel}% × {hours} h</p>
+                        <p className="font-bold text-primary">Máximo: {fmtHours(calcAbsenceLimit(hours, block, percent, "hours"))} h de inasistencia</p>
+                      </>
                     ) : (
                       <>
-                        <p className="num">{percent}% × {hours} h ÷ {weekly} h = {((hours * percent) / 100 / weekly).toFixed(1)}</p>
-                        <p className="font-bold text-primary">Máximo: {calcAbsenceLimit(hours, weekly, percent)} faltas</p>
-                        <p className="text-xs text-muted-foreground">Con {calcAbsenceLimit(hours, weekly, percent) + 1} faltas la materia queda cancelada. Se redondea hacia abajo.</p>
+                        <p className="num">{pctLabel}% × {hours} h = {fmtHours((hours * percent) / 100)} h → ÷ {fmtHours(block)} h por clase = {((hours * percent) / 100 / block).toFixed(1)}</p>
+                        <p className="font-bold text-primary">Máximo: {calcAbsenceLimit(hours, block, percent)} faltas</p>
+                        <p className="text-xs text-muted-foreground">Con {calcAbsenceLimit(hours, block, percent) + 1} faltas la materia queda cancelada. Se redondea hacia abajo.</p>
                       </>
                     )
                   ) : (
-                    <p className="text-xs text-muted-foreground">Completa {isGlobalScope ? "la intensidad semanal y un porcentaje entre 1 y 100." : "las horas, la intensidad semanal y un porcentaje entre 1 y 100."}</p>
+                    <p className="text-xs text-muted-foreground">Completa {isGlobalScope ? "las horas por clase y un porcentaje entre 1 y 100." : "las horas HD, las horas por clase y un porcentaje entre 1 y 100."}</p>
                   )}
                 </div>
               </div>
             )}
 
             {draftMode === "manual" && (
-              <div className="space-y-1.5">
-                <Label htmlFor="max-absences">{isGlobalScope ? "Máximo de faltas por materia" : "Máximo de faltas permitidas"}</Label>
-                <Input id="max-absences" inputMode="numeric" placeholder="Ej: 4" value={draftMax} onChange={(e) => setDraftMax(e.target.value)} />
-                <p className="text-xs text-muted-foreground">
-                  {maxOk ? `Con ${max + 1} faltas la materia queda cancelada.` : "Escribe un número entero (0 o más)."}
-                </p>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="max-absences">{inHours ? "Máximo de horas de inasistencia" : isGlobalScope ? "Máximo de faltas por materia" : "Máximo de faltas permitidas"}</Label>
+                  <Input id="max-absences" inputMode="decimal" placeholder={inHours ? "Ej: 9.6" : "Ej: 4"} value={draftMax} onChange={(e) => setDraftMax(e.target.value)} />
+                  <p className="text-xs text-muted-foreground">
+                    {maxOk ? (inHours ? "Pasar de ese tiempo cancela la materia." : `Con ${max + 1} faltas la materia queda cancelada.`) : inHours ? "Escribe un número de horas (0 o más)." : "Escribe un número entero (0 o más)."}
+                  </p>
+                </div>
+                {inHours && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="block-hours-m">Horas por clase (por defecto)</Label>
+                    <Input id="block-hours-m" inputMode="decimal" placeholder="Ej: 2" value={draftBlock} onChange={(e) => setDraftBlock(e.target.value)} />
+                  </div>
+                )}
               </div>
             )}
 
