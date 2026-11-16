@@ -5,6 +5,7 @@ import { LogOut, Monitor, Moon, Loader2, Sun } from "lucide-react"
 import { DEFAULT_SETTINGS, useSettings, type Settings } from "@/lib/settings"
 import { minutesToLabel } from "@/lib/horario-data"
 import { cn } from "@/lib/utils"
+import { OtherApps } from "@/components/other-apps"
 
 type Opt<T extends string> = { value: T; label: string; icon?: typeof Sun }
 
@@ -109,6 +110,7 @@ export function SettingsTab({ userName, userEmail, userImage, hiddenCount, onSho
           <p className="mt-3 text-xs text-muted-foreground">
             <a href="/terminos.html" target="_blank" rel="noreferrer" className="underline">Términos</a> · <a href="/privacidad.html" target="_blank" rel="noreferrer" className="underline">Privacidad</a>
           </p>
+          <OtherApps />
         </div>
       </section>
 

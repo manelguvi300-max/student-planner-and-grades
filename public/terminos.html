@@ -3,37 +3,94 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0a0a0b">
 <title>Términos y condiciones — Mi semestre</title>
 <style>
-  :root { color-scheme: light dark; }
-  body { max-width: 720px; margin: 0 auto; padding: 24px 16px 64px; font: 16px/1.65 system-ui, sans-serif; }
-  h1 { font-size: 1.7rem; } h2 { font-size: 1.15rem; margin-top: 2rem; }
-  li { margin: .25rem 0; } .muted { opacity: .7; font-size: .9rem; }
+  :root { color-scheme: dark light; --bg:#0a0a0b; --panel:#121213; --line:#232326; --text:#ececf1; --text2:#c4c4cc; --muted:#8b8b96; --glow:.10; }
+  @media (prefers-color-scheme: light) { :root { --bg:#f3f3f5; --panel:#fbfbfc; --line:#e0e0e4; --text:#16161a; --text2:#3a3a42; --muted:#6b6b76; --glow:.16; } }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text); font: 16px/1.7 'Sora', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; min-height: 100dvh;
+    background-image: radial-gradient(48rem 30rem at 100% -10%, color-mix(in srgb, var(--a) calc(var(--glow) * 100%), transparent), transparent 65%); background-repeat: no-repeat; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 28px 18px 72px; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .back { color: var(--muted); text-decoration: none; font-size: .85rem; }
+  .back:hover { color: var(--text); }
+  .tabs { display: inline-flex; padding: 4px; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; }
+  .tabs a { padding: 7px 16px; border-radius: 999px; font-size: .82rem; font-weight: 500; color: var(--muted); text-decoration: none; transition: color .2s, background .2s; }
+  .tabs a:hover { color: var(--text); }
+  .tabs a[aria-current] { background: linear-gradient(135deg, var(--g1), var(--g2)); color: var(--ink); }
+  header.hero { margin: 44px 0 26px; }
+  .badge { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; font-weight: 700; font-size: 1.4rem; color: var(--ink);
+    background: linear-gradient(135deg, var(--g1), var(--g2)); box-shadow: 0 14px 30px -14px var(--a); }
+  .kicker { margin-top: 20px; font-size: .75rem; letter-spacing: .14em; text-transform: uppercase; color: var(--a); font-weight: 600; }
+  h1 { margin-top: 6px; font-size: clamp(1.7rem, 5vw, 2.3rem); line-height: 1.15; letter-spacing: -.02em; font-weight: 700; }
+  .meta { margin-top: 12px; display: inline-block; font-size: .78rem; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px; }
+  .intro { color: var(--text2); margin: 22px 0 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .chips span { font-size: .8rem; padding: 6px 13px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--a) 35%, var(--line)); background: color-mix(in srgb, var(--a) 9%, transparent); }
+  .chips span::before { content: '✓'; color: var(--a); margin-right: 7px; font-weight: 700; }
+  main { counter-reset: s; display: grid; gap: 14px; margin-top: 30px; }
+  section { counter-increment: s; background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 22px 24px; box-shadow: 0 1px 0 rgb(255 255 255 / .03) inset, 0 20px 40px -28px rgb(0 0 0 / .6); }
+  h2 { font-size: 1.02rem; font-weight: 600; display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+  h2::before { content: counter(s, decimal-leading-zero); font: 500 .78rem ui-monospace, 'JetBrains Mono', Consolas, monospace; color: var(--a); }
+  section p, section li { color: var(--text2); font-size: .94rem; }
+  section p + p, section ul + p, section p + ul { margin-top: 10px; }
+  ul { list-style: none; display: grid; gap: 8px; }
+  li { position: relative; padding-left: 20px; }
+  li::before { content: ''; position: absolute; left: 3px; top: .72em; width: 6px; height: 6px; border-radius: 50%; background: var(--a); }
+  b { color: var(--text); font-weight: 600; }
+  a { color: var(--a); text-underline-offset: 3px; }
+  footer { margin-top: 34px; text-align: center; font-size: .82rem; color: var(--muted); }
+  footer a { color: var(--text2); }
+  @media (max-width: 480px) { section { padding: 18px; border-radius: 16px; } header.hero { margin-top: 32px; } }
+  @media print { body { background: #fff; color: #000; } section { box-shadow: none; } .tabs, .back { display: none; } }
 </style>
 </head>
-<body>
-<h1>Términos y condiciones — Mi semestre</h1>
-<p class="muted">Última actualización: 16 de noviembre de 2026</p>
-<p>Al crear una cuenta o usar <b>Mi semestre</b> ("la App"), ofrecida por <b>Manuel Gutiérrez</b>, aceptas estos términos. Si no estás de acuerdo, no uses la App.</p>
-<h2>1. Qué es la App</h2>
+<body style="--a:oklch(.75 .12 275);--g1:oklch(.86 .07 275);--g2:oklch(.66 .15 275);--ink:oklch(.18 .05 275)">
+<div class="wrap">
+  <div class="top"><a class="back" href="/">← Volver a Mi semestre</a><nav class="tabs" aria-label="Documentos legales"><a href="privacidad.html">Privacidad</a><a href="terminos.html" aria-current="page">Términos</a></nav></div>
+  <header class="hero">
+    <div class="badge" aria-hidden="true">M</div>
+    <p class="kicker">Mi semestre</p>
+    <h1>Términos y condiciones</h1>
+    <span class="meta">Última actualización: 16 de noviembre de 2026</span>
+    <div class="intro"><p>Al crear una cuenta o usar <b>Mi semestre</b> ("la App"), ofrecida por <b>Manuel Gutiérrez</b>, aceptas estos términos. Si no estás de acuerdo, no uses la App.</p>
+</div>
+    
+  </header>
+  <main>
+<section><h2>Qué es la App</h2>
 <p>Una herramienta personal de horario, notas, exámenes y faltas académicas. Es gratuita y se ofrece tal cual.</p>
-<h2>2. Tu cuenta</h2>
+</section>
+<section><h2>Tu cuenta</h2>
 <ul><li>Debes dar un correo válido y mantener tu contraseña en secreto.</li><li>Eres responsable de lo que ocurra con tu cuenta.</li><li>Debes tener al menos 13 años (o la edad mínima legal en tu país).</li></ul>
-<h2>3. Uso aceptable</h2>
+</section>
+<section><h2>Uso aceptable</h2>
 <p>No uses la App para actividades ilegales, para acceder a datos de otras personas, para sobrecargar o atacar el servicio, ni para ingeniería inversa con fines maliciosos.</p>
-<h2>4. Tus datos</h2>
+</section>
+<section><h2>Tus datos</h2>
 <p>Los datos que introduces son tuyos. Nos das permiso para almacenarlos y procesarlos solo para ofrecerte el servicio, según la <a href="privacidad.html">Política de privacidad</a>. Te recomendamos exportar copias de seguridad desde Ajustes.</p>
-<h2>5. Aviso importante</h2>
+</section>
+<section><h2>Aviso importante</h2>
 <p><b>Académico:</b> las notas y faltas calculadas son una estimación; la información oficial es la de tu institución.</p>
-<h2>6. Disponibilidad y cambios</h2>
+</section>
+<section><h2>Disponibilidad y cambios</h2>
 <p>Pueden existir interrupciones, errores o cambios en las funciones. Podemos modificar o retirar la App, avisando cuando sea razonable.</p>
-<h2>7. Propiedad intelectual</h2>
+</section>
+<section><h2>Propiedad intelectual</h2>
 <p>El código, diseño, nombre y logotipos de la App pertenecen a <b>Manuel Gutiérrez</b>. Se te concede una licencia personal, no exclusiva e intransferible para usarla. Tus datos siguen siendo tuyos.</p>
-<h2>8. Limitación de responsabilidad</h2>
+</section>
+<section><h2>Limitación de responsabilidad</h2>
 <p>En la medida que permita la ley, la App se ofrece "tal cual", sin garantías, y no respondemos por pérdida de datos, decisiones académicas tomadas a partir de la información mostrada ni daños indirectos. Nada de esto limita derechos que la ley no permita limitar.</p>
-<h2>9. Terminación</h2>
+</section>
+<section><h2>Terminación</h2>
 <p>Puedes dejar de usar la App y pedir la eliminación de tu cuenta en cualquier momento. Podemos suspender cuentas que incumplan estos términos.</p>
-<h2>10. Ley aplicable y contacto</h2>
-<p>Estos términos se rigen por las leyes de <b>Colombia</b>, sin perjuicio de tus derechos como consumidor. Contacto: <b>manuelguvi500@gmail.com</b>.</p>
+</section>
+<section><h2>Ley aplicable y contacto</h2>
+<p>Estos términos se rigen por las leyes de <b>Colombia</b>, sin perjuicio de tus derechos como consumidor. Contacto: <b>manuelguvi500@gmail.com</b>.</p></section>
+  </main>
+  <footer>© 2026 Manuel Gutiérrez · <a href="mailto:manuelguvi500@gmail.com">manuelguvi500@gmail.com</a> · Colombia</footer>
+</div>
 </body>
 </html>

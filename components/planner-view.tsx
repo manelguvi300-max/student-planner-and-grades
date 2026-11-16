@@ -13,7 +13,6 @@ import { SettingsTab } from "@/components/settings-tab"
 import { usePlanner } from "@/lib/use-planner"
 import { useSettings } from "@/lib/settings"
 import { cn } from "@/lib/utils"
-import { AppSwitcher } from "@/components/app-switcher"
 
 // "ajustes" va al final: en móvil se abre desde el engranaje del encabezado, no desde la barra inferior.
 const NAV_ITEMS = [
@@ -111,7 +110,6 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
             <p className="text-xs text-muted-foreground">Planner universitario</p>
           </div>
         </div>
-        <AppSwitcher className="mb-4" />
         <nav className="relative flex flex-col gap-2">
           {/* los ítems miden h-11 + gap-2 = 3.25rem */}
           <span
@@ -162,7 +160,6 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
           >
             <Settings className={cn("size-5 transition-transform duration-500", inSettings && "rotate-90")} />
           </button>
-          <AppSwitcher className="w-[7.5rem] shrink-0" />
         </div>
 
         {/* Título de la vista (saludo / Ajustes) */}
