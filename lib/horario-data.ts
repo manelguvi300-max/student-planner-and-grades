@@ -48,12 +48,19 @@ export type Absence = {
 /** Cómo se fija el máximo de faltas de una materia. */
 export type AbsenceMode = "calc" | "manual" | "none"
 
+/**
+ * Config de faltas. Se guarda en subjectConfigs por id de materia, y la regla GLOBAL
+ * (la que usan todas las materias sin regla propia) bajo GLOBAL_CONFIG_KEY.
+ */
+export const GLOBAL_CONFIG_KEY = "__global"
+
 export type SubjectConfig = {
-  mode?: AbsenceMode     // sin mode = "calc" (datos anteriores)
-  directHours?: number   // HD: horas de trabajo directo (mode "calc")
-  weeklyHours?: number   // intensidad semanal en horas (mode "calc"); por defecto 2
-  percent?: number       // % de faltas permitido sobre las HD (mode "calc"); por defecto 20
-  maxAbsences?: number   // máximo escrito a mano (mode "manual")
+  custom?: boolean       // true = la materia tiene regla propia (mode/percent/maxAbsences); si no, usa la global
+  mode?: AbsenceMode     // regla: "calc" | "manual" | "none"
+  percent?: number       // regla "calc": % de faltas permitido sobre las HD (20 por defecto)
+  maxAbsences?: number   // regla "manual": máximo escrito a mano
+  directHours?: number   // datos de la materia: HD, horas de trabajo directo
+  weeklyHours?: number   // datos de la materia: intensidad semanal en horas (si no, la de la regla; 2 por defecto)
 }
 
 export const DAYS = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"]
@@ -193,15 +200,23 @@ export function calcAbsenceLimit(directHours: number, weeklyHours: number, perce
   return Math.floor((directHours * percent) / 100 / weeklyHours + 1e-9)
 }
 
-/** Máximo de faltas de una materia, o null si no tiene máximo (solo conteo o sin configurar). */
-export function absenceLimitFor(cfg?: SubjectConfig): number | null {
-  if (!cfg) return null
-  const mode = cfg.mode ?? "calc"
-  if (mode === "manual") return cfg.maxAbsences ?? null
-  if (mode === "calc" && cfg.directHours && cfg.directHours > 0) {
-    return calcAbsenceLimit(cfg.directHours, cfg.weeklyHours || DEFAULT_WEEKLY_HOURS, cfg.percent || DEFAULT_PERCENT)
-  }
-  return null
+/** ¿Tiene la materia su propia regla? (los datos con `mode` y sin `custom` vienen de cuando cada materia se configuraba sola). */
+export const hasOwnRule = (cfg?: SubjectConfig) => cfg?.custom ?? cfg?.mode !== undefined
+
+/**
+ * Regla efectiva de una materia: la suya si tiene regla propia, si no la global.
+ * limit = null cuando no hay máximo (solo conteo) o falta algún dato (needsHours).
+ */
+export function resolveAbsence(cfg: SubjectConfig | undefined, global: SubjectConfig | undefined) {
+  const custom = hasOwnRule(cfg)
+  const rule = custom ? cfg! : (global ?? {})
+  const mode: AbsenceMode = rule.mode ?? "calc"
+  if (mode === "none") return { mode, custom, limit: null, needsHours: false }
+  if (mode === "manual") return { mode, custom, limit: rule.maxAbsences ?? null, needsHours: false }
+  const hd = cfg?.directHours
+  if (!hd || hd <= 0) return { mode, custom, limit: null, needsHours: true }
+  const weekly = cfg?.weeklyHours || rule.weeklyHours || DEFAULT_WEEKLY_HOURS
+  return { mode, custom, limit: calcAbsenceLimit(hd, weekly, rule.percent || DEFAULT_PERCENT), needsHours: false }
 }
 
 // Materias ocultas por pestaña (Notas, Exámenes, Faltas): se guardan con el planner y se sincronizan.

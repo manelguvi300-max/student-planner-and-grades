@@ -9,7 +9,8 @@ import {
   DAYS,
   FINAL_WEIGHT,
   PASSING_GRADE,
-  absenceLimitFor,
+  resolveAbsence,
+  GLOBAL_CONFIG_KEY,
   accumulatedPoints,
   coveredWeight,
   getSubject,
@@ -124,7 +125,7 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
   const alerts: Alert[] = []
   let atRisk = 0
   for (const s of subjects) {
-    const limit = absenceLimitFor(subjectConfigs[s.id])
+    const limit = resolveAbsence(subjectConfigs[s.id], subjectConfigs[GLOBAL_CONFIG_KEY]).limit
     if (limit !== null) {
       const count = absences.filter((a) => a.subjectId === s.id).length
       const left = limit - count
