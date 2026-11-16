@@ -106,6 +106,9 @@ export function SettingsTab({ userName, userEmail, userImage, hiddenCount, onSho
             {leaving ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
             {leaving ? "Saliendo…" : "Cerrar sesión"}
           </button>
+          <p className="mt-3 text-xs text-muted-foreground">
+            <a href="/terminos.html" target="_blank" rel="noreferrer" className="underline">Términos</a> · <a href="/privacidad.html" target="_blank" rel="noreferrer" className="underline">Privacidad</a>
+          </p>
         </div>
       </section>
 
