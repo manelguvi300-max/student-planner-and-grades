@@ -9,7 +9,7 @@ import {
   DAYS,
   FINAL_WEIGHT,
   PASSING_GRADE,
-  absenceLimit,
+  absenceLimitFor,
   accumulatedPoints,
   coveredWeight,
   getSubject,
@@ -111,7 +111,7 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
   const today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
   const daysUntil = (s: string) => Math.round((dateOf(s).getTime() - today0) / 86_400_000)
   const upcoming = exams
-    .filter((e) => daysUntil(e.date) >= 0 && getSubject(subjects, e.subjectId))
+    .filter((e) => !e.done && daysUntil(e.date) >= 0 && getSubject(subjects, e.subjectId))
     .sort((a, b) => a.date.localeCompare(b.date))
   const dueLabel = (n: number) => (n === 0 ? "Hoy" : n === 1 ? "Mañana" : `En ${n} días`)
 
@@ -124,10 +124,10 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
   const alerts: Alert[] = []
   let atRisk = 0
   for (const s of subjects) {
-    const cfg = subjectConfigs[s.id]
-    if (cfg) {
+    const limit = absenceLimitFor(subjectConfigs[s.id])
+    if (limit !== null) {
       const count = absences.filter((a) => a.subjectId === s.id).length
-      const left = absenceLimit(cfg.directHours) - count
+      const left = limit - count
       if (left < 0) alerts.push({ id: `f${s.id}`, level: "bad", subject: s, text: "Superaste el límite de faltas", tab: "faltas" })
       else if (left <= 1) { alerts.push({ id: `f${s.id}`, level: "warn", subject: s, text: left === 0 ? "No te quedan faltas disponibles" : "Te queda 1 falta disponible", tab: "faltas" }) }
       if (left <= 1) atRisk++
@@ -317,8 +317,8 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
                           </span>
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium">{s.name}</span>
-                          <span className="block text-xs text-muted-foreground">{e.kind === "examen" ? "Examen" : "Presentación"} · {e.weight}%</span>
+                          <span className="block truncate text-sm font-medium">{e.title || s.name}</span>
+                          <span className="block truncate text-xs text-muted-foreground">{e.title ? `${s.name} · ` : ""}{e.kind === "examen" ? "Examen" : "Presentación"}{e.weight > 0 ? ` · ${e.weight}%` : ""}</span>
                         </span>
                         <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium", n <= 3 ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" : "bg-foreground/[0.07] text-muted-foreground")}>{dueLabel(n)}</span>
                       </button>

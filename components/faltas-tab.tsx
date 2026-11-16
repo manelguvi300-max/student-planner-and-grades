@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Plus, Trash2, AlertTriangle, CheckCircle2, XCircle, UserX, ChevronDown, EyeOff, Eye } from "lucide-react"
+import { Plus, Trash2, AlertTriangle, CheckCircle2, XCircle, UserX, ChevronDown, EyeOff, Eye, Calculator, PenLine, Hash } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,7 +22,26 @@ import {
 import { cn } from "@/lib/utils"
 import { Ring } from "@/components/ui/ring"
 import { CountUp } from "@/components/ui/count-up"
-import { type Subject, type Absence, type SubjectConfig, absenceLimit } from "@/lib/horario-data"
+import {
+  type Subject, type Absence, type SubjectConfig, type AbsenceMode,
+  absenceLimitFor, calcAbsenceLimit, DEFAULT_PERCENT, DEFAULT_WEEKLY_HOURS,
+} from "@/lib/horario-data"
+
+const MODES: { value: AbsenceMode; title: string; desc: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { value: "calc", title: "Con cálculo", desc: "El máximo sale de las horas de trabajo directo (HD)", icon: Calculator },
+  { value: "manual", title: "Máximo manual", desc: "Tú escribes cuántas faltas puedes tener", icon: PenLine },
+  { value: "none", title: "Solo contar", desc: "Sin máximo: solo llevas el conteo", icon: Hash },
+]
+
+const num = (v: string) => (v.trim() === "" ? NaN : Number(v.replace(",", ".")))
+
+function describe(cfg: SubjectConfig | undefined) {
+  if (!cfg) return "Sin configurar"
+  const mode = cfg.mode ?? "calc"
+  if (mode === "manual") return "Máximo manual"
+  if (mode === "none") return "Solo conteo"
+  return `${cfg.directHours ?? "?"} h HD · ${cfg.weeklyHours ?? DEFAULT_WEEKLY_HOURS} h/sem · ${cfg.percent ?? DEFAULT_PERCENT}%`
+}
 
 type Props = {
   subjects: Subject[]
@@ -38,7 +57,11 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
   const [configOpen, setConfigOpen] = useState(false)
   const [draftDate, setDraftDate] = useState<string>(() => new Date().toISOString().split("T")[0])
   const [configSubjectId, setConfigSubjectId] = useState<string>("")
-  const [draftHours, setDraftHours] = useState<string>("")
+  const [draftMode, setDraftMode] = useState<AbsenceMode>("calc")
+  const [draftHours, setDraftHours] = useState("")
+  const [draftWeekly, setDraftWeekly] = useState(String(DEFAULT_WEEKLY_HOURS))
+  const [draftPercent, setDraftPercent] = useState(String(DEFAULT_PERCENT))
+  const [draftMax, setDraftMax] = useState("")
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
@@ -76,18 +99,30 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
   }
 
   function openConfig(subjectId: string) {
+    const cfg = subjectConfigs[subjectId]
+    // para una materia nueva, reutiliza el % y la intensidad de otra ya configurada con cálculo
+    const ref = Object.values(subjectConfigs).find((c) => (c.mode ?? "calc") === "calc")
     setConfigSubjectId(subjectId)
-    setDraftHours(String(subjectConfigs[subjectId]?.directHours ?? ""))
+    setDraftMode(cfg?.mode ?? "calc")
+    setDraftHours(cfg?.directHours ? String(cfg.directHours) : "")
+    setDraftWeekly(String(cfg?.weeklyHours ?? ref?.weeklyHours ?? DEFAULT_WEEKLY_HOURS))
+    setDraftPercent(String(cfg?.percent ?? ref?.percent ?? DEFAULT_PERCENT))
+    setDraftMax(cfg?.maxAbsences !== undefined ? String(cfg.maxAbsences) : "")
     setConfigOpen(true)
   }
 
+  const hours = num(draftHours), weekly = num(draftWeekly), percent = num(draftPercent), max = num(draftMax)
+  const calcOk = hours > 0 && weekly > 0 && percent > 0 && percent <= 100
+  const maxOk = Number.isInteger(max) && max >= 0
+  const canSave = draftMode === "none" || (draftMode === "calc" ? calcOk : maxOk)
+
   function handleSaveConfig() {
-    const hours = parseFloat(draftHours)
-    if (isNaN(hours) || hours <= 0) return
-    setSubjectConfigs((prev) => ({
-      ...prev,
-      [configSubjectId]: { directHours: hours },
-    }))
+    if (!canSave) return
+    const cfg: SubjectConfig =
+      draftMode === "calc" ? { mode: "calc", directHours: hours, weeklyHours: weekly, percent }
+      : draftMode === "manual" ? { mode: "manual", maxAbsences: max }
+      : { mode: "none" }
+    setSubjectConfigs((prev) => ({ ...prev, [configSubjectId]: cfg }))
     setConfigOpen(false)
   }
 
@@ -122,7 +157,9 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
     const n = absences.filter((a) => a.subjectId === s.id).length
     totalAbsences += n
     if (!cfg) { unconfigured++; continue }
-    const left = absenceLimit(cfg.directHours) - n
+    const lim = absenceLimitFor(cfg)
+    if (lim === null) continue
+    const left = lim - n
     if (left < 0) cancelled++
     else if (left <= 1) atRisk++
   }
@@ -133,7 +170,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
         <div aria-hidden className="pointer-events-none absolute -right-16 -top-20 size-64 rounded-full bg-foreground/10 blur-3xl" />
         <h2 className="relative text-xl font-semibold tracking-tight">Faltas</h2>
         <p className="relative mt-0.5 hidden text-sm text-muted-foreground sm:block">
-          Configura las horas de trabajo directo [HD] de cada materia (las ves en el pensum) y registra tus faltas.
+          Elige cómo se controlan las faltas de cada materia: con un cálculo (HD), con un máximo manual o solo llevando el conteo.
         </p>
         <div className="relative mt-4 grid grid-cols-3 gap-2 sm:gap-3">
           {[
@@ -154,7 +191,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
           const config = subjectConfigs[subject.id]
           const subjectAbsences = getAbsencesForSubject(subject.id)
           const count = subjectAbsences.length
-          const limit = config ? absenceLimit(config.directHours) : null
+          const limit = absenceLimitFor(config)
           const safeRemaining = limit !== null ? limit - count : null
           const isCancelled = limit !== null && count > limit
           const isAtRisk = limit !== null && !isCancelled && safeRemaining !== null && safeRemaining <= 1
@@ -182,7 +219,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
                 <span className="h-9 w-1.5 shrink-0 rounded-full" style={{ background: subject.border }} />
                 <div className="min-w-0 flex-1">
                   <span className="block truncate font-semibold leading-tight">{subject.name}</span>
-                  <span className="num block text-xs text-muted-foreground">{config ? `${config.directHours} h de trabajo directo` : "Sin horas configuradas"}</span>
+                  <span className="num block text-xs text-muted-foreground">{describe(config)}</span>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
                   {config && (
@@ -196,7 +233,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
                             : "bg-foreground/10"
                       )}
                     >
-                      {isCancelled ? "Cancelada" : `${count}/${limit}`}
+                      {isCancelled ? "Cancelada" : limit !== null ? `${count}/${limit}` : `${count} ${count === 1 ? "falta" : "faltas"}`}
                     </span>
                   )}
                   <button
@@ -209,7 +246,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
                       config ? "bg-foreground/[0.06] text-muted-foreground hover:bg-foreground/10 hover:text-foreground" : "bg-foreground text-background hover:opacity-90"
                     )}
                   >
-                    {config ? "Editar HD" : "Configurar horas"}
+                    {config ? "Editar" : "Configurar"}
                   </button>
                   <button
                     type="button"
@@ -234,10 +271,15 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
                 <div className="overflow-hidden">
                   <div className="p-4 space-y-4">
                     {/* Estado: anillo + mensaje + una marca por cada falta permitida */}
-                    {config === undefined || limit === null ? (
+                    {config === undefined ? (
                       <div className="flex items-center gap-3 rounded-xl bg-muted/50 px-3 py-3 text-sm text-muted-foreground">
                         <AlertTriangle className="size-4 shrink-0 text-amber-500" />
-                        <span>Configura las horas de trabajo directo para calcular tu límite de faltas.</span>
+                        <span>Configura cómo se controlan las faltas de esta materia (cálculo, máximo manual o solo conteo).</span>
+                      </div>
+                    ) : limit === null ? (
+                      <div className="flex items-center gap-4 rounded-xl bg-muted/50 px-4 py-3">
+                        <CountUp value={count} className="num text-4xl font-light" />
+                        <p className="text-sm text-muted-foreground">{count === 1 ? "falta registrada" : "faltas registradas"}<span className="block text-xs">Sin máximo: solo conteo.</span></p>
                       </div>
                     ) : (
                       <div className="flex items-center gap-4">
@@ -378,53 +420,90 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
         )
       })()}
 
-      {/* Dialog: Configurar horas de la materia */}
+      {/* Dialog: configurar cómo se controlan las faltas de la materia */}
       <Dialog open={configOpen} onOpenChange={setConfigOpen}>
-        <DialogContent className="sm:max-w-[380px]">
+        <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-[420px]">
           <DialogHeader>
-            <DialogTitle>Configurar horas de clase</DialogTitle>
+            <DialogTitle>Configurar faltas</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             {configSubjectId && (
               <p className="text-sm text-muted-foreground">
-                Materia: <span className="font-semibold text-foreground">{subjects.find(s => s.id === configSubjectId)?.name}</span>
+                Materia: <span className="font-semibold text-foreground">{subjects.find((s) => s.id === configSubjectId)?.name}</span>
               </p>
             )}
-            <div className="space-y-2">
-              <Label htmlFor="direct-hours">Horas de trabajo directo del semestre</Label>
-              <Input
-                id="direct-hours"
-                type="number"
-                min="1"
-                placeholder="Ej: 48"
-                value={draftHours}
-                onChange={(e) => setDraftHours(e.target.value)}
-              />
+
+            <div role="radiogroup" aria-label="Tipo de control de faltas" className="grid gap-2">
+              {MODES.map((m) => (
+                <button
+                  key={m.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={draftMode === m.value}
+                  onClick={() => setDraftMode(m.value)}
+                  className={cn(
+                    "flex items-start gap-3 rounded-xl border p-3 text-left transition",
+                    draftMode === m.value ? "border-foreground/40 bg-foreground/[0.06]" : "hover:bg-foreground/[0.03]"
+                  )}
+                >
+                  <m.icon className={cn("mt-0.5 size-4 shrink-0", draftMode === m.value ? "text-foreground" : "text-muted-foreground")} />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">{m.title}</span>
+                    <span className="block text-xs text-muted-foreground">{m.desc}</span>
+                  </span>
+                </button>
+              ))}
             </div>
-            {draftHours && !isNaN(parseFloat(draftHours)) && parseFloat(draftHours) > 0 && (
-              <div className="rounded-lg border bg-muted/30 px-4 py-3 space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">20% de {draftHours}h</span>
-                  <span className="font-medium">{(parseFloat(draftHours) * 0.2).toFixed(1)}h</span>
+
+            {draftMode === "calc" && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 items-end gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="direct-hours">Trabajo directo, HD (h)</Label>
+                    <Input id="direct-hours" type="number" min="1" inputMode="decimal" placeholder="Ej: 48" value={draftHours} onChange={(e) => setDraftHours(e.target.value)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="weekly-hours">Intensidad semanal (h)</Label>
+                    <Input id="weekly-hours" type="number" min="0.5" step="0.5" inputMode="decimal" placeholder="Ej: 2" value={draftWeekly} onChange={(e) => setDraftWeekly(e.target.value)} />
+                  </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Límite de faltas</span>
-                  <span className="font-bold text-primary">{absenceLimit(parseFloat(draftHours))} faltas</span>
+                <div className="space-y-1.5">
+                  <Label htmlFor="percent">% de faltas permitido</Label>
+                  <Input id="percent" type="number" min="1" max="100" inputMode="decimal" value={draftPercent} onChange={(e) => setDraftPercent(e.target.value)} />
                 </div>
-                <p className="text-xs text-muted-foreground pt-1">
-                  Con {absenceLimit(parseFloat(draftHours)) + 1} faltas la materia queda cancelada.
+                <div className="space-y-1 rounded-lg border bg-muted/30 px-4 py-3 text-sm">
+                  <p className="text-xs text-muted-foreground">Fórmula: ⌊ % × HD ÷ intensidad semanal ⌋</p>
+                  {calcOk ? (
+                    <>
+                      <p className="num">{percent}% × {hours} h ÷ {weekly} h = {((hours * percent) / 100 / weekly).toFixed(1)}</p>
+                      <p className="font-bold text-primary">Máximo: {calcAbsenceLimit(hours, weekly, percent)} faltas</p>
+                      <p className="text-xs text-muted-foreground">Con {calcAbsenceLimit(hours, weekly, percent) + 1} faltas la materia queda cancelada. Se redondea hacia abajo.</p>
+                    </>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Completa las horas, la intensidad semanal y un porcentaje entre 1 y 100.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {draftMode === "manual" && (
+              <div className="space-y-1.5">
+                <Label htmlFor="max-absences">Máximo de faltas permitidas</Label>
+                <Input id="max-absences" type="number" min="0" step="1" inputMode="numeric" placeholder="Ej: 4" value={draftMax} onChange={(e) => setDraftMax(e.target.value)} />
+                <p className="text-xs text-muted-foreground">
+                  {maxOk ? `Con ${max + 1} faltas la materia queda cancelada.` : "Escribe un número entero (0 o más)."}
                 </p>
               </div>
             )}
+
+            {draftMode === "none" && (
+              <p className="rounded-lg border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                Solo registrarás tus faltas, sin máximo ni alertas. Puedes cambiarlo cuando quieras.
+              </p>
+            )}
           </div>
           <DialogFooter>
-            <Button
-              onClick={handleSaveConfig}
-              className="w-full rounded-full"
-              disabled={!draftHours || isNaN(parseFloat(draftHours)) || parseFloat(draftHours) <= 0}
-            >
-              Guardar
-            </Button>
+            <Button onClick={handleSaveConfig} className="w-full rounded-full" disabled={!canSave}>Guardar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

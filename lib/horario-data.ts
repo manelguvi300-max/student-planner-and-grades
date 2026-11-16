@@ -34,6 +34,9 @@ export type Exam = {
   kind: "examen" | "presentacion"
   weight: number
   notes?: string
+  title?: string  // ej: "Parcial 1"
+  time?: string   // "HH:MM"
+  done?: boolean  // ya lo presenté / ya lo entregué
 }
 
 export type Absence = {
@@ -42,8 +45,15 @@ export type Absence = {
   date: string
 }
 
+/** Cómo se fija el máximo de faltas de una materia. */
+export type AbsenceMode = "calc" | "manual" | "none"
+
 export type SubjectConfig = {
-  directHours: number
+  mode?: AbsenceMode     // sin mode = "calc" (datos anteriores)
+  directHours?: number   // HD: horas de trabajo directo (mode "calc")
+  weeklyHours?: number   // intensidad semanal en horas (mode "calc"); por defecto 2
+  percent?: number       // % de faltas permitido sobre las HD (mode "calc"); por defecto 20
+  maxAbsences?: number   // máximo escrito a mano (mode "manual")
 }
 
 export const DAYS = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"]
@@ -175,8 +185,23 @@ export function neededOnFinal(grades: Grade[]) {
   return (PASSING_GRADE - points) / (FINAL_WEIGHT / 100)
 }
 
-export function absenceLimit(directHours: number): number {
-  return Math.floor((directHours * 0.2) / 2)
+export const DEFAULT_PERCENT = 20
+export const DEFAULT_WEEKLY_HOURS = 2
+
+/** Máximo de faltas = ⌊ % × HD ÷ intensidad semanal ⌋ */
+export function calcAbsenceLimit(directHours: number, weeklyHours: number, percent: number): number {
+  return Math.floor((directHours * percent) / 100 / weeklyHours + 1e-9)
+}
+
+/** Máximo de faltas de una materia, o null si no tiene máximo (solo conteo o sin configurar). */
+export function absenceLimitFor(cfg?: SubjectConfig): number | null {
+  if (!cfg) return null
+  const mode = cfg.mode ?? "calc"
+  if (mode === "manual") return cfg.maxAbsences ?? null
+  if (mode === "calc" && cfg.directHours && cfg.directHours > 0) {
+    return calcAbsenceLimit(cfg.directHours, cfg.weeklyHours || DEFAULT_WEEKLY_HOURS, cfg.percent || DEFAULT_PERCENT)
+  }
+  return null
 }
 
 // Materias ocultas por pestaña (Notas, Exámenes, Faltas): se guardan con el planner y se sincronizan.
