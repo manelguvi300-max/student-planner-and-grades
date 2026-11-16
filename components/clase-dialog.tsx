@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Plus, Trash2, TriangleAlert, Home, UserRound, Clock } from "lucide-react"
+import { Plus, Trash2, TriangleAlert, Home, UserRound, Clock, Search, Check, ChevronsUpDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -64,6 +64,8 @@ function ClaseForm({ state, onClose, subjects, setSubjects, classes, setClasses,
   const [newName, setNewName] = useState("")
   const [newColor, setNewColor] = useState<ColorSwatch>(() => pickDefaultColor(subjects))
   const [confirmDel, setConfirmDel] = useState(false)
+  const [picking, setPicking] = useState(false)
+  const [query, setQuery] = useState("")
 
   const subject = getSubject(subjects, subjectId)
   const teachers = subject ? getTeachers(subject) : []
@@ -79,6 +81,10 @@ function ClaseForm({ state, onClose, subjects, setSubjects, classes, setClasses,
       .filter((c) => c.id !== editing?.id && days.includes(c.day) && c.startTime < end && c.endTime > start)
       .map((c) => ({ c, name: getSubject(subjects, c.subjectId)?.name ?? "Otra clase" }))
   }, [classes, days, start, end, timeOk, editing?.id, subjects])
+
+  const norm = (t: string) => t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase()
+  const matches = subjects.filter((s) => norm(s.name).includes(norm(query.trim())))
+  function choose(id: string) { pickSubject(id); setPicking(false); setQuery("") }
 
   function pickSubject(id: string) {
     setSubjectId(id)
@@ -101,6 +107,7 @@ function ClaseForm({ state, onClose, subjects, setSubjects, classes, setClasses,
     setTeacherId(undefined)
     setCreating(false)
     setNewName("")
+    setQuery("")
   }
 
   function save() {
@@ -146,24 +153,45 @@ function ClaseForm({ state, onClose, subjects, setSubjects, classes, setClasses,
       {/* Materia */}
       {section("Materia", null, (
         <div className="space-y-2.5">
-          <div className="flex flex-wrap gap-2">
-            {subjects.map((s) => {
-              const on = s.id === subjectId
-              return (
-                <button key={s.id} type="button" onClick={() => pickSubject(s.id)} aria-pressed={on}
-                  className={cn("flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition active:scale-95", on ? "text-neutral-900 shadow-sm" : "text-muted-foreground hover:text-foreground")}
-                  style={on ? { backgroundColor: s.bg, borderColor: s.border } : undefined}>
-                  {!on && <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.bg, boxShadow: `0 0 0 1.5px ${s.border}` }} />}
-                  <span className="truncate">{s.name}</span>
-                </button>
-              )
-            })}
-            {!creating && (
-              <button type="button" onClick={() => setCreating(true)} className="flex items-center gap-1 rounded-full border border-dashed px-3 py-1.5 text-sm text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
-                <Plus className="size-3.5" />Nueva materia
+          {subject && (
+            <button type="button" onClick={() => setPicking((v) => !v)} aria-expanded={picking}
+              className="flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition hover:border-foreground/30 active:scale-[0.99]">
+              <span className="size-3.5 shrink-0 rounded-full" style={{ backgroundColor: subject.bg, boxShadow: `0 0 0 1.5px ${subject.border}` }} />
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">{subject.name}</span>
+              <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
+            </button>
+          )}
+          {(picking || !subject) && !creating && (
+            <div className="animate-rise overflow-hidden rounded-xl border bg-card">
+              <div className="flex items-center gap-2 border-b px-3">
+                <Search className="size-4 shrink-0 text-muted-foreground" />
+                <input autoFocus={!!subject} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar materia…" aria-label="Buscar materia"
+                  className="h-10 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (matches[0]) choose(matches[0].id) } }} />
+              </div>
+              <ul className="max-h-48 overflow-y-auto p-1" role="listbox" aria-label="Materias">
+                {matches.map((s) => {
+                  const n = classes.filter((c) => c.subjectId === s.id).length
+                  return (
+                    <li key={s.id}>
+                      <button type="button" role="option" aria-selected={s.id === subjectId} onClick={() => choose(s.id)}
+                        className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-sm transition hover:bg-foreground/[0.06]">
+                        <span className="size-3 shrink-0 rounded-full" style={{ backgroundColor: s.bg, boxShadow: `0 0 0 1.5px ${s.border}` }} />
+                        <span className="min-w-0 flex-1 truncate">{s.name}</span>
+                        <span className="num shrink-0 text-xs text-muted-foreground">{n ? `${n} clase${n === 1 ? "" : "s"}` : ""}</span>
+                        {s.id === subjectId && <Check className="size-4 shrink-0 text-emerald-500" />}
+                      </button>
+                    </li>
+                  )
+                })}
+                {matches.length === 0 && <li className="px-3 py-3 text-center text-sm text-muted-foreground">Ninguna materia coincide con «{query.trim()}».</li>}
+              </ul>
+              <button type="button" onClick={() => { setNewName(query.trim()); setCreating(true); setPicking(false) }}
+                className="flex w-full items-center gap-2 border-t px-3 py-2.5 text-left text-sm font-medium text-muted-foreground transition hover:bg-foreground/[0.06] hover:text-foreground">
+                <Plus className="size-4" />{query.trim() && matches.length === 0 ? <>Crear «{query.trim()}»</> : "Nueva materia"}
               </button>
-            )}
-          </div>
+            </div>
+          )}
           {creating && (
             <div className="animate-rise space-y-3 rounded-2xl border bg-muted/30 p-3">
               <Input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nombre de la nueva materia" maxLength={60}

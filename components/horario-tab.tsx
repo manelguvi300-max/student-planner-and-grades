@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useState, useRef } from "react"
-import { Plus, CalendarDays, GraduationCap, Download } from "lucide-react"
+import { useCallback, useEffect, useMemo, useState, useRef } from "react"
+import { Plus, CalendarDays, GraduationCap, Download, UserRoundCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DAYS,
@@ -19,7 +19,8 @@ import {
   type SubjectConfig,
 } from "@/lib/horario-data"
 import { ClaseDialog, type ClassDialogState } from "./clase-dialog"
-import { MateriasTab } from "./materias-tab"
+import { MateriasTab, type MateriasRequest } from "./materias-tab"
+import { AsesoriasView } from "./asesorias-view"
 import { ROW_PX, useSettings } from "@/lib/settings"
 import { cn } from "@/lib/utils"
 import { HorarioPrint } from "./horario-print"
@@ -59,8 +60,9 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
   const nowMin = useNowMinutes()
   const todayIdx = new Date().getDay() - 1 // 0=Lunes … 4=Viernes; -1 / 5 = fin de semana
   const [dialog, setDialog] = useState<ClassDialogState | null>(null)
-  const [view, setView] = useState<"semana" | "materias">("semana")
-  const [newSubjectToken, setNewSubjectToken] = useState(0)
+  const [view, setView] = useState<"semana" | "materias" | "asesorias">("semana")
+  const [request, setRequest] = useState<MateriasRequest | null>(null)
+  const clearRequest = useCallback(() => setRequest(null), [])
   const [selectedMobileDay, setSelectedMobileDay] = useState(() => {
     // 0=Domingo, 1=Lunes ... 6=Sábado (estándar de JS Date)
     const jsDay = new Date().getDay()
@@ -177,10 +179,17 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
   const spring = "cubic-bezier(.34,1.4,.5,1)"
 
   // Subject resaltada (toca un chip para atenuar las demás) y vista móvil (lista o cuadrícula de horas)
-  const [focusId, setFocusId] = useState<string | null>(null)
   const [mobileView, setMobileView] = useState<"lista" | "horas">("lista")
   // fantasma "+" al pasar el cursor por un hueco de la semana (escritorio): clic = nueva clase ahí
   const [ghost, setGhost] = useState<{ day: number; min: number } | null>(null)
+
+  // "Asesorías" solo aparece cuando algún profesor tiene horario de asesoría
+  const hasOfficeHours = subjects.some((s) => getTeachers(s).some((t) => t.slots?.length))
+  const tabs = [
+    ["semana", "Semana", CalendarDays],
+    ["materias", "Materias", GraduationCap],
+    ...(hasOfficeHours ? [["asesorias", "Asesorías", UserRoundCheck] as const] : []),
+  ] as const
 
   const totalHours = classes.reduce((n, c) => n + (c.endTime - c.startTime), 0) / 60
   const durText = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ""}`)
@@ -225,7 +234,6 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
           !mobile && "animate-pop",
           st === "done" && "opacity-50",
           st === "live" && "z-10 ring-2 ring-foreground/60",
-          focusId && focusId !== subject.id && "opacity-20"
         )}
         style={{ "--c": subject.border, top: minutesToPx(c.startTime) + 1, height: h, backgroundColor: subject.bg, animationDelay: `${delay}ms` } as React.CSSProperties}
       >
@@ -254,10 +262,12 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
       {/* Cabecera */}
       <header className="flex items-end justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-xl font-semibold tracking-tight">{view === "semana" ? "Mi horario" : "Mis materias"}</h2>
+          <h2 className="text-xl font-semibold tracking-tight">{view === "semana" ? "Mi horario" : view === "materias" ? "Mis materias" : "Asesorías"}</h2>
           <p className="num text-sm text-muted-foreground">
             {view === "materias"
               ? `${subjects.length} materia${subjects.length === 1 ? "" : "s"}`
+              : view === "asesorias"
+              ? "Los horarios de atención de tus profesores."
               : classes.length === 0 ? "Toca una clase para editarla." : `${classes.length} clase${classes.length === 1 ? "" : "s"} · ${Number.isInteger(totalHours) ? totalHours : totalHours.toFixed(1)} h por semana`}
           </p>
         </div>
@@ -277,17 +287,25 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
       </header>
 
       {/* Semana | Materias */}
-      <div className="relative grid grid-cols-2 rounded-2xl bg-muted p-1 text-sm font-medium sm:inline-grid sm:w-72" role="tablist" aria-label="Sección del horario">
-        <span aria-hidden className="absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/2)] rounded-xl bg-background shadow-sm ring-1 ring-border/60" style={{ transform: `translateX(${view === "semana" ? 0 : 100}%)`, transition: `transform .4s ${spring}` }} />
-        {([["semana", "Semana", CalendarDays], ["materias", "Materias", GraduationCap]] as const).map(([v, label, Icon]) => (
-          <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => setView(v)}
+      <div className={cn("relative grid rounded-2xl bg-muted p-1 text-sm font-medium sm:inline-grid", tabs.length === 3 ? "grid-cols-3 sm:w-96" : "grid-cols-2 sm:w-72")} role="tablist" aria-label="Sección del horario">
+        <span aria-hidden className="absolute inset-y-1 left-1 rounded-xl bg-background shadow-sm ring-1 ring-border/60" style={{ width: `calc((100% - 0.5rem) / ${tabs.length})`, transform: `translateX(${Math.max(0, tabs.findIndex((t) => t[0] === view)) * 100}%)`, transition: `transform .4s ${spring}` }} />
+        {tabs.map(([v, label, Icon]) => (
+          <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => { setRequest(null); setView(v) }}
             className={cn("relative flex items-center justify-center gap-1.5 rounded-xl py-2 transition-colors active:scale-95", view === v ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
             <Icon className="size-4" />{label}
           </button>
         ))}
       </div>
 
-      {view === "materias" ? (
+      {view === "asesorias" ? (
+        <AsesoriasView
+          subjects={subjects}
+          nowMin={nowMin}
+          todayIdx={todayIdx}
+          timeLabel={timeLabel}
+          onOpen={(subjectId, teacherId) => { setRequest({ kind: "open", subjectId, teacherId }); setView("materias") }}
+        />
+      ) : view === "materias" ? (
         <MateriasTab
           subjects={subjects}
           setSubjects={setSubjects}
@@ -300,34 +318,11 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
           timeLabel={timeLabel}
           onAddClass={(subjectId) => openNew(subjectId)}
           onEditClass={openEdit}
-          newSubjectToken={newSubjectToken}
+          request={request}
+          onRequestHandled={clearRequest}
         />
       ) : (
         <>
-      {/* Chips de materias: toca una para resaltar sus clases */}
-      {classes.length > 0 && subjects.length > 1 && (
-        <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0" role="group" aria-label="Resaltar materia">
-          {subjects.map((s) => {
-            const on = focusId === s.id
-            return (
-              <button
-                key={s.id}
-                type="button"
-                aria-pressed={on}
-                onClick={() => setFocusId(on ? null : s.id)}
-                className={cn(
-                  "flex h-8 shrink-0 items-center gap-2 rounded-full border px-3 text-xs font-medium transition duration-200 active:scale-95",
-                  on ? "border-foreground bg-foreground text-background" : "bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground"
-                )}
-              >
-                <span className="size-2.5 rounded-full" style={{ backgroundColor: s.bg, boxShadow: `0 0 0 1.5px ${s.border}` }} />
-                {s.name}
-              </button>
-            )
-          })}
-        </div>
-      )}
-
       {classes.length === 0 && (
         <div className="animate-scale-in rounded-3xl border-2 border-dashed bg-card px-6 py-14 text-center">
           <div className="mx-auto mb-4 grid size-14 place-items-center rounded-2xl bg-foreground/10">
@@ -340,7 +335,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
               : "Agrega tu primera clase para empezar a organizar tu semestre."}
           </p>
           {subjects.length === 0 ? (
-            <Button onClick={() => { setView("materias"); setNewSubjectToken((n) => n + 1) }}>Crear primera materia</Button>
+            <Button onClick={() => { setRequest({ kind: "new" }); setView("materias") }}>Crear primera materia</Button>
           ) : (
             <Button onClick={() => openNew()}>Agregar primera clase</Button>
           )}
@@ -430,7 +425,6 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                               "flex w-full items-stretch gap-3 rounded-2xl border bg-card p-3 text-left transition duration-300 active:scale-[0.99]",
                               st === "done" && "opacity-55",
                               st === "live" && "border-foreground/40 shadow-(--card-shadow)",
-                              focusId && focusId !== subject.id && "opacity-25"
                             )}
                           >
                             <span className="num flex w-[4.75rem] shrink-0 flex-col justify-between text-xs">

@@ -12,8 +12,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { cn } from "@/lib/utils"
 import {
   COLORS_PALETTE, DAYS, TEACHER_ROLES,
-  borderFromBg, getTeachers, initials, loadCustomColors, removeCustomColor, saveCustomColor, withTeachers,
-  type Absence, type ClassSession, type ColorSwatch, type Exam, type Grade, type Subject, type SubjectConfig, type Teacher,
+  borderFromBg, getTeachers, initials, loadCustomColors, removeCustomColor, saveCustomColor, withTeachers, minutesToTime, timeToMinutes,
+  type Absence, type ClassSession, type ColorSwatch, type Exam, type Grade, type OfficeSlot, type Subject, type SubjectConfig, type Teacher,
 } from "@/lib/horario-data"
 
 const DAY_SHORT = ["L", "M", "Mi", "J", "V"]
@@ -160,11 +160,96 @@ function SubjectForm({ subject, subjects, onSave, onCancel }: {
   )
 }
 
+/* ───────────── Horarios de asesoría ───────────── */
+
+const slotSort = (a: OfficeSlot, b: OfficeSlot) => a.day - b.day || a.start - b.start
+export const slotText = (sl: OfficeSlot, timeLabel: (m: number) => string) => `${SHORT[sl.day]} ${timeLabel(sl.start)}–${timeLabel(sl.end)}`
+
+function OfficeHoursEditor({ slots, setSlots, note, setNote, timeLabel, pendingRef }: {
+  slots: OfficeSlot[]
+  setSlots: (s: OfficeSlot[]) => void
+  note: string
+  setNote: (n: string) => void
+  timeLabel: (m: number) => string
+  pendingRef: React.MutableRefObject<(() => OfficeSlot[]) | null>
+}) {
+  const [open, setOpen] = useState(false)
+  const [days, setDays] = useState<number[]>([])
+  const [start, setStart] = useState(14 * 60)
+  const [end, setEnd] = useState(16 * 60)
+  const valid = days.length > 0 && end > start
+  const draft = (): OfficeSlot[] => (open && valid ? days.map((day) => ({ id: crypto.randomUUID(), day, start, end })) : [])
+  pendingRef.current = draft // si guardan el profesor con el panel abierto, no se pierde lo escrito
+
+  function add() {
+    if (!valid) return
+    setSlots([...slots, ...draft()].sort(slotSort))
+    setDays([])
+    setOpen(false)
+  }
+  function changeStart(v: number) {
+    setEnd(end > start ? v + (end - start) : v + 120) // conserva la duración
+    setStart(v)
+  }
+
+  return (
+    <div className="space-y-2.5">
+      <Label className="flex items-center gap-1.5"><Clock className="size-3.5" />Asesorías <span className="font-normal text-muted-foreground">(opcional)</span></Label>
+      {slots.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {slots.map((sl) => (
+            <span key={sl.id} className="num inline-flex animate-pop items-center gap-1 rounded-full border bg-muted/40 py-1 pl-2.5 pr-1 text-xs">
+              {slotText(sl, timeLabel)}
+              <button type="button" aria-label={`Quitar ${slotText(sl, timeLabel)}`} onClick={() => setSlots(slots.filter((x) => x.id !== sl.id))}
+                className="grid size-5 place-items-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><X className="size-3" /></button>
+            </span>
+          ))}
+        </div>
+      )}
+      {open ? (
+        <div className="animate-rise space-y-3 rounded-2xl border bg-muted/30 p-3">
+          <div className="flex gap-1.5" role="group" aria-label="Días de la asesoría">
+            {DAYS.map((name, i) => {
+              const on = days.includes(i)
+              return (
+                <button key={name} type="button" aria-pressed={on} aria-label={name} title={name}
+                  onClick={() => setDays((d) => (d.includes(i) ? d.filter((x) => x !== i) : [...d, i]))}
+                  className={cn("grid h-9 flex-1 place-items-center rounded-lg border text-sm font-semibold transition active:scale-95", on ? "border-foreground bg-foreground text-background" : "bg-background text-muted-foreground hover:text-foreground")}>
+                  {DAY_SHORT[i]}
+                </button>
+              )
+            })}
+          </div>
+          <div className="flex items-center gap-2">
+            <Input type="time" aria-label="Desde" value={minutesToTime(start)} onChange={(e) => e.target.value && changeStart(timeToMinutes(e.target.value))} />
+            <span className="text-sm text-muted-foreground">a</span>
+            <Input type="time" aria-label="Hasta" value={minutesToTime(Math.max(0, Math.min(end, 24 * 60 - 1)))} onChange={(e) => e.target.value && setEnd(timeToMinutes(e.target.value))} />
+          </div>
+          {end <= start && <p className="text-xs text-destructive">La hora de fin debe ser después de la de inicio.</p>}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-muted-foreground">Elige uno o varios días con la misma hora.</span>
+            <div className="flex gap-2">
+              <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
+              <Button type="button" size="sm" onClick={add} disabled={!valid}>Agregar</Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setOpen(true)} className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed py-2 text-xs font-medium text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
+          <Plus className="size-3.5" />Agregar horario de asesoría
+        </button>
+      )}
+      <Input id="t-hours" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Nota (opcional): previa cita por correo…" aria-label="Nota de asesorías" />
+    </div>
+  )
+}
+
 /* ───────────── Formulario de profesor ───────────── */
 
-function TeacherForm({ teacher, subject, onSave, onCancel }: {
+function TeacherForm({ teacher, subject, timeLabel, onSave, onCancel }: {
   teacher?: Teacher
   subject: Subject
+  timeLabel: (m: number) => string
   onSave: (t: Omit<Teacher, "id">) => void
   onCancel: () => void
 }) {
@@ -174,6 +259,8 @@ function TeacherForm({ teacher, subject, onSave, onCancel }: {
   const [phone, setPhone] = useState(teacher?.phone ?? "")
   const [office, setOffice] = useState(teacher?.office ?? "")
   const [hours, setHours] = useState(teacher?.hours ?? "")
+  const [slots, setSlots] = useState<OfficeSlot[]>(teacher?.slots ?? [])
+  const pendingRef = useRef<(() => OfficeSlot[]) | null>(null)
   const [tried, setTried] = useState(false)
 
   const nameOk = name.trim().length > 0
@@ -184,7 +271,8 @@ function TeacherForm({ teacher, subject, onSave, onCancel }: {
     setTried(true)
     if (!nameOk || !emailOk) return
     const clean = (v: string) => v.trim() || undefined
-    onSave({ name: name.trim(), role: clean(role), email: clean(email), phone: clean(phone), office: clean(office), hours: clean(hours) })
+    const all = [...slots, ...(pendingRef.current?.() ?? [])].sort(slotSort)
+    onSave({ name: name.trim(), role: clean(role), email: clean(email), phone: clean(phone), office: clean(office), hours: clean(hours), slots: all.length ? all : undefined })
   }
 
   return (
@@ -225,9 +313,8 @@ function TeacherForm({ teacher, subject, onSave, onCancel }: {
           <Label htmlFor="t-office" className="flex items-center gap-1.5"><MapPin className="size-3.5" />Oficina</Label>
           <Input id="t-office" value={office} onChange={(e) => setOffice(e.target.value)} placeholder="Ej: Bloque B, 305" />
         </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="t-hours" className="flex items-center gap-1.5"><Clock className="size-3.5" />Asesorías</Label>
-          <Input id="t-hours" value={hours} onChange={(e) => setHours(e.target.value)} placeholder="Ej: Martes 2–4 pm" />
+        <div className="sm:col-span-2">
+          <OfficeHoursEditor slots={slots} setSlots={setSlots} note={hours} setNote={setHours} timeLabel={timeLabel} pendingRef={pendingRef} />
         </div>
       </div>
 
@@ -241,10 +328,11 @@ function TeacherForm({ teacher, subject, onSave, onCancel }: {
 
 /* ───────────── Tarjeta de profesor ───────────── */
 
-function TeacherCard({ teacher, subject, classCount, onEdit, onDelete }: {
+function TeacherCard({ teacher, subject, classCount, timeLabel, onEdit, onDelete }: {
   teacher: Teacher
   subject: Subject
   classCount: number
+  timeLabel: (m: number) => string
   onEdit: () => void
   onDelete: () => void
 }) {
@@ -256,7 +344,7 @@ function TeacherCard({ teacher, subject, classCount, onEdit, onDelete }: {
       {copy && <CopyButton text={copy.text} label={copy.label} />}
     </div>
   )
-  const hasContact = teacher.email || teacher.phone || teacher.office || teacher.hours
+  const hasContact = teacher.email || teacher.phone || teacher.office || teacher.hours || teacher.slots?.length
 
   return (
     <div className="animate-pop rounded-2xl border bg-card p-3">
@@ -288,7 +376,22 @@ function TeacherCard({ teacher, subject, classCount, onEdit, onDelete }: {
           {teacher.email && row(<Mail className="size-4" />, <a href={`mailto:${teacher.email}`} className="underline-offset-4 hover:underline">{teacher.email}</a>, { text: teacher.email, label: "Copiar correo" })}
           {teacher.phone && row(<Phone className="size-4" />, <a href={`tel:${teacher.phone.replace(/\s/g, "")}`} className="underline-offset-4 hover:underline">{teacher.phone}</a>, { text: teacher.phone, label: "Copiar teléfono" })}
           {teacher.office && row(<MapPin className="size-4" />, teacher.office)}
-          {teacher.hours && row(<Clock className="size-4" />, <>Asesorías: {teacher.hours}</>)}
+          {teacher.slots && teacher.slots.length > 0 ? (
+            <div className="flex items-start gap-2 pt-1.5 text-sm">
+              <Clock className="mt-1 size-4 text-muted-foreground" />
+              <div className="min-w-0 flex-1 space-y-1">
+                <p className="text-xs text-muted-foreground">Asesorías</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {teacher.slots.map((sl) => (
+                    <span key={sl.id} className="num rounded-full px-2.5 py-1 text-xs font-medium text-neutral-900" style={{ backgroundColor: subject.bg, boxShadow: `inset 0 0 0 1px ${subject.border}` }}>{slotText(sl, timeLabel)}</span>
+                  ))}
+                </div>
+                {teacher.hours && <p className="text-xs text-muted-foreground">{teacher.hours}</p>}
+              </div>
+            </div>
+          ) : (
+            teacher.hours && row(<Clock className="size-4" />, <>Asesorías: {teacher.hours}</>)
+          )}
         </div>
       ) : (
         <button type="button" onClick={onEdit} className="mt-2.5 w-full rounded-xl border border-dashed py-2 text-xs text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
@@ -313,26 +416,29 @@ type Props = {
   timeLabel: (min: number) => string
   onAddClass: (subjectId: string) => void
   onEditClass: (c: ClassSession) => void
-  newSubjectToken: number // cada vez que sube, se abre el formulario de nueva materia
+  request: MateriasRequest | null // algo que abrir apenas se muestre (nueva materia, o la ficha de una materia / profesor)
+  onRequestHandled: () => void
 }
+
+export type MateriasRequest = { kind: "new" } | { kind: "open"; subjectId: string; teacherId?: string }
 
 type Dlg = { subjectId: string | null; view: "detail" | "subject" | "teacher"; teacherId?: string; fresh?: boolean }
 
 export function MateriasTab({
   subjects, setSubjects, classes, setClasses, setGrades, setExams, setAbsences, setSubjectConfigs,
-  timeLabel, onAddClass, onEditClass, newSubjectToken,
+  timeLabel, onAddClass, onEditClass, request, onRequestHandled,
 }: Props) {
   const [dlg, setDlg] = useState<Dlg | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
-  // abrir "nueva materia" desde fuera (p. ej. el botón del horario vacío)
-  const lastToken = useRef(newSubjectToken)
+  // peticiones de fuera (botón del horario vacío, tocar una asesoría): se atienden una vez y se avisa
   useEffect(() => {
-    if (newSubjectToken !== lastToken.current) {
-      lastToken.current = newSubjectToken
-      setDlg({ subjectId: null, view: "subject" })
-    }
-  }, [newSubjectToken])
+    if (!request) return
+    setConfirmDelete(false)
+    if (request.kind === "new") setDlg({ subjectId: null, view: "subject" })
+    else setDlg(request.teacherId ? { subjectId: request.subjectId, view: "teacher", teacherId: request.teacherId } : { subjectId: request.subjectId, view: "detail" })
+    onRequestHandled()
+  }, [request, onRequestHandled])
 
   const current = dlg?.subjectId ? subjects.find((s) => s.id === dlg.subjectId) : undefined
   const close = () => { setDlg(null); setConfirmDelete(false) }
@@ -458,7 +564,7 @@ export function MateriasTab({
     body = (
       <>
         {header(t ? "Editar profesor" : "Nuevo profesor", current.name, () => open({ subjectId: current.id, view: "detail" }))}
-        <TeacherForm key={t?.id ?? "new"} teacher={t} subject={current} onSave={saveTeacher} onCancel={() => open({ subjectId: current.id, view: "detail" })} />
+        <TeacherForm key={t?.id ?? "new"} teacher={t} subject={current} timeLabel={timeLabel} onSave={saveTeacher} onCancel={() => open({ subjectId: current.id, view: "detail" })} />
       </>
     )
   } else if (dlg?.view === "detail" && current) {
@@ -501,7 +607,7 @@ export function MateriasTab({
           ) : (
             <div className="space-y-2.5">
               {teachers.map((t) => (
-                <TeacherCard key={t.id} teacher={t} subject={s} classCount={cl.filter((c) => c.teacherId === t.id).length}
+                <TeacherCard key={t.id} teacher={t} subject={s} timeLabel={timeLabel} classCount={cl.filter((c) => c.teacherId === t.id).length}
                   onEdit={() => open({ subjectId: s.id, view: "teacher", teacherId: t.id })} onDelete={() => removeTeacher(s.id, t.id)} />
               ))}
             </div>

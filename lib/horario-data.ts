@@ -1,3 +1,6 @@
+/** Un horario de asesoría de un profesor: un día de la semana y una franja (minutos desde medianoche). */
+export type OfficeSlot = { id: string; day: number; start: number; end: number }
+
 /** Un profesor de una materia (una materia puede tener varios: teoría, laboratorio, monitor…). */
 export type Teacher = {
   id: string
@@ -6,7 +9,8 @@ export type Teacher = {
   email?: string
   phone?: string
   office?: string  // oficina / salón
-  hours?: string   // horario de asesorías
+  hours?: string   // nota de asesorías en texto libre ("previa cita por correo")
+  slots?: OfficeSlot[] // horarios de asesoría estructurados (alimentan la vista Asesorías)
 }
 
 export type Subject = {
