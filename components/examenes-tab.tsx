@@ -499,12 +499,12 @@ export function ExamenesTab({ subjects, exams, setExams, hiddenSubjects, onToggl
           {subjectsWithExams.length > 1 && (
             <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label="Filtrar por materia">
               <button onClick={() => setFilter("all")} aria-pressed={filter === "all"}
-                className={cn("shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition", filter === "all" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}>
+                className={cn("shrink-0 rounded-full border px-3 py-2 text-xs font-medium transition sm:py-1", filter === "all" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}>
                 Todas
               </button>
               {subjectsWithExams.map((s) => (
                 <button key={s.id} onClick={() => setFilter(filter === s.id ? "all" : s.id)} aria-pressed={filter === s.id}
-                  className={cn("inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition", filter === s.id ? "text-neutral-900" : "text-muted-foreground hover:text-foreground")}
+                  className={cn("inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium transition sm:py-1", filter === s.id ? "text-neutral-900" : "text-muted-foreground hover:text-foreground")}
                   style={filter === s.id ? { background: s.bg, borderColor: s.border } : undefined}>
                   <span className="size-2 rounded-full" style={{ background: s.border }} />{s.name}
                 </button>

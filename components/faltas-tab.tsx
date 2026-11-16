@@ -267,7 +267,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
               type="button"
               onClick={(e) => { e.stopPropagation(); onToggleHidden(subject.id) }}
               aria-label="Ocultar materia de esta vista"
-              className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
+              className="tap rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
               title="Ocultar de esta vista"
             >
               <EyeOff className="size-4" />
@@ -384,7 +384,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
                         </div>
                         <button
                           onClick={() => handleDeleteAbsence(absence.id)}
-                          className="p-1 text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
+                          className="tap p-1 text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
                           title="Eliminar falta"
                         >
                           <Trash2 className="size-3.5" />

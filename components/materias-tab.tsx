@@ -103,7 +103,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
       onClick={async () => {
         try { await navigator.clipboard.writeText(text); setDone(true); setTimeout(() => setDone(false), 1500) } catch { /* sin portapapeles */ }
       }}
-      className="grid size-7 shrink-0 place-items-center rounded-lg text-muted-foreground transition hover:bg-foreground/[0.07] hover:text-foreground"
+      className="tap grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition hover:bg-foreground/[0.07] hover:text-foreground"
     >
       {done ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
     </button>
@@ -201,7 +201,7 @@ function OfficeHoursEditor({ slots, setSlots, note, setNote, timeLabel, pendingR
             <span key={sl.id} className="num inline-flex animate-pop items-center gap-1 rounded-full border bg-muted/40 py-1 pl-2.5 pr-1 text-xs">
               {slotText(sl, timeLabel)}
               <button type="button" aria-label={`Quitar ${slotText(sl, timeLabel)}`} onClick={() => setSlots(slots.filter((x) => x.id !== sl.id))}
-                className="grid size-5 place-items-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><X className="size-3" /></button>
+                className="tap grid size-5 place-items-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><X className="size-3" /></button>
             </span>
           ))}
         </div>
@@ -299,7 +299,7 @@ function TeacherForm({ teacher, subject, timeLabel, onSave, onCancel }: {
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="t-email" className="flex items-center gap-1.5"><Mail className="size-3.5" />Correo</Label>
           <Input id="t-email" type="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="profe@universidad.edu.co" aria-invalid={tried && !emailOk} />
@@ -359,8 +359,8 @@ function TeacherCard({ teacher, subject, classCount, timeLabel, onEdit, onDelete
         </div>
         {!confirming && (
           <div className="flex shrink-0 gap-0.5">
-            <button type="button" onClick={onEdit} aria-label={`Editar a ${teacher.name}`} className="grid size-8 place-items-center rounded-lg text-muted-foreground transition hover:bg-foreground/[0.07] hover:text-foreground"><Pencil className="size-4" /></button>
-            <button type="button" onClick={() => setConfirming(true)} aria-label={`Quitar a ${teacher.name}`} className="grid size-8 place-items-center rounded-lg text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button>
+            <button type="button" onClick={onEdit} aria-label={`Editar a ${teacher.name}`} className="grid size-9 sm:size-8 place-items-center rounded-lg text-muted-foreground transition hover:bg-foreground/[0.07] hover:text-foreground"><Pencil className="size-4" /></button>
+            <button type="button" onClick={() => setConfirming(true)} aria-label={`Quitar a ${teacher.name}`} className="grid size-9 sm:size-8 place-items-center rounded-lg text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button>
           </div>
         )}
       </div>
@@ -576,7 +576,7 @@ export function MateriasTab({
         <DialogHeader className="space-y-1">
           <div className="flex items-center gap-3">
             <span className="h-10 w-1.5 shrink-0 rounded-full" style={{ background: s.border }} />
-            <DialogTitle className="min-w-0 flex-1 truncate text-lg">{s.name}</DialogTitle>
+            <DialogTitle className="line-clamp-2 min-w-0 flex-1 break-words text-lg leading-snug">{s.name}</DialogTitle>
             <button type="button" onClick={() => open({ subjectId: s.id, view: "subject" })} aria-label="Editar materia" title="Editar nombre y color"
               className="mr-6 grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition hover:bg-foreground/[0.07] hover:text-foreground">
               <Pencil className="size-4" />
@@ -684,7 +684,7 @@ export function MateriasTab({
             <p className="text-sm text-muted-foreground">Toca una materia para ver y editar a sus profesores y sus clases.</p>
             <Button size="sm" onClick={() => open({ subjectId: null, view: "subject" })} className="shrink-0 rounded-full"><Plus className="size-4" />Materia</Button>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">{subjects.map(card)}</div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">{subjects.map(card)}</div>
         </>
       )}
 

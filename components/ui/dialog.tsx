@@ -53,7 +53,7 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed z-50 grid w-full gap-4 bg-popover p-4 text-sm text-popover-foreground ring-1 ring-border shadow-2xl shadow-black/30 outline-none duration-200 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 " +
+          "fixed z-50 grid w-full grid-cols-[minmax(0,1fr)] gap-4 bg-popover p-4 text-sm text-popover-foreground ring-1 ring-border shadow-2xl shadow-black/30 outline-none duration-200 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 " +
             // móvil: hoja inferior que sube desde abajo
             "max-sm:inset-x-0 max-sm:bottom-0 max-sm:max-h-[92dvh] max-sm:overflow-y-auto max-sm:rounded-t-3xl max-sm:pb-[max(1rem,env(safe-area-inset-bottom))] max-sm:data-open:slide-in-from-bottom-full max-sm:data-closed:slide-out-to-bottom-full " +
             // tablet / PC: diálogo centrado con zoom suave

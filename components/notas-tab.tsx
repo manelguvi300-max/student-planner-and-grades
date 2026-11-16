@@ -326,7 +326,7 @@ function SubjectGrades({
           type="button"
           onClick={(e) => { e.stopPropagation(); onToggleHidden() }}
           aria-label="Ocultar materia de esta vista"
-          className="rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
+          className="tap rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
           title="Ocultar de esta vista"
         >
           <EyeOff className="size-4" />
@@ -413,13 +413,13 @@ function SubjectGrades({
                             <span className="block h-full rounded-full bg-foreground/50" style={{ width: `${Math.min(g.weight, 100)}%` }} />
                           </span>
                         </span>
-                        <span className="flex items-center gap-2 whitespace-nowrap text-muted-foreground shrink-0">
+                        <span className="flex items-center gap-4 whitespace-nowrap text-muted-foreground shrink-0 sm:gap-2">
                           <span className="num text-xs">{g.weight}%</span>
                           <button
                             type="button"
                             onClick={() => startEdit(g)}
                             aria-label={`Editar ${g.name}`}
-                            className="text-muted-foreground transition hover:text-foreground"
+                            className="tap text-muted-foreground transition hover:text-foreground"
                           >
                             <Pencil className="size-3.5" />
                           </button>
@@ -427,7 +427,7 @@ function SubjectGrades({
                             type="button"
                             onClick={() => remove(g.id)}
                             aria-label={`Eliminar ${g.name}`}
-                            className="text-muted-foreground transition hover:text-destructive"
+                            className="tap text-muted-foreground transition hover:text-destructive"
                           >
                             <Trash2 className="size-4" />
                           </button>

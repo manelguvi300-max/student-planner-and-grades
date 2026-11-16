@@ -1,7 +1,7 @@
 "use client"
 
-import { useMemo } from "react"
-import { ChevronRight, MapPin } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { CalendarDays, ChevronRight, List, MapPin } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { DAYS, getTeachers, initials, type Subject } from "@/lib/horario-data"
 
@@ -15,8 +15,105 @@ type Props = {
   onOpen: (subjectId: string, teacherId: string) => void
 }
 
+const PX_HOUR = 48
+
+/** Reparte en carriles las asesorías que se cruzan en un mismo día, para que se vean lado a lado. */
+function layout(list: Entry[]) {
+  const out: { e: Entry; lane: number; lanes: number }[] = []
+  let cluster: { e: Entry; lane: number }[] = []
+  let clusterEnd = -1
+  const flush = () => {
+    const lanes = Math.max(1, ...cluster.map((c) => c.lane + 1))
+    cluster.forEach((c) => out.push({ ...c, lanes }))
+    cluster = []
+  }
+  for (const e of list) {
+    if (cluster.length && e.start >= clusterEnd) { flush(); clusterEnd = -1 }
+    const used = new Set(cluster.filter((c) => c.e.end > e.start).map((c) => c.lane))
+    let lane = 0
+    while (used.has(lane)) lane++
+    cluster.push({ e, lane })
+    clusterEnd = Math.max(clusterEnd, e.end)
+  }
+  if (cluster.length) flush()
+  return out
+}
+
+function WeekGrid({ entries, nowMin, todayIdx, timeLabel, onOpen }: Omit<Props, "subjects"> & { entries: Entry[] }) {
+  // el rango se ajusta a las asesorías que hay (no a todo el día) para que quede compacto
+  const first = Math.floor(Math.min(...entries.map((e) => e.start)) / 60)
+  const last = Math.ceil(Math.max(...entries.map((e) => e.end)) / 60)
+  const from = Math.max(0, first - (last - first < 3 ? 1 : 0)) * 60
+  const to = Math.min(24, last + (last - first < 3 ? 1 : 0)) * 60
+  const hours: number[] = []
+  for (let h = from / 60; h <= to / 60; h++) hours.push(h)
+  const top = (m: number) => ((m - from) / 60) * PX_HOUR
+  const height = ((to - from) / 60) * PX_HOUR
+
+  return (
+    <div className="animate-fade-in overflow-hidden rounded-2xl border bg-card">
+      <div className="flex border-b py-2 pl-11 pr-1">
+        {DAYS.map((d, i) => (
+          <span key={d} className={cn("flex-1 text-center text-[11px] font-semibold uppercase tracking-wider", i === todayIdx ? "text-foreground" : "text-muted-foreground")}>
+            {d.slice(0, 3)}
+            {i === todayIdx && <span className="mx-auto mt-0.5 block size-1 rounded-full bg-foreground" />}
+          </span>
+        ))}
+      </div>
+      <div className="relative flex" style={{ height: height + 22, paddingTop: 6 }}>
+        <div className="relative w-11 shrink-0">
+          {hours.map((h) => (
+            <span key={h} className="num absolute right-1.5 -translate-y-1/2 text-[10px] text-muted-foreground" style={{ top: top(h * 60) + 6 }}>{timeLabel(h * 60)}</span>
+          ))}
+        </div>
+        {DAYS.map((d, i) => (
+          <div key={d} className="relative flex-1 border-l border-border/50">
+            {hours.map((h) => <div key={h} className="absolute inset-x-0 border-t border-dashed border-border/40" style={{ top: top(h * 60) }} />)}
+            {i === todayIdx && <div aria-hidden className="pointer-events-none absolute inset-x-0.5 inset-y-0 rounded-lg bg-foreground/[0.04]" />}
+            {i === todayIdx && nowMin !== null && nowMin >= from && nowMin <= to && (
+              <div aria-hidden className="pointer-events-none absolute inset-x-0 z-10 h-px bg-destructive/70" style={{ top: top(nowMin) }} />
+            )}
+            {layout(entries.filter((e) => e.day === i)).map(({ e, lane, lanes }) => {
+              const h = Math.max(top(e.end) - top(e.start) - 2, 22)
+              const first = lanes > 1 ? initials(e.name) : e.name.split(" ")[0]
+              return (
+                <button
+                  key={e.id}
+                  type="button"
+                  onClick={() => onOpen(e.subject.id, e.teacherId)}
+                  title={`${e.name} · ${e.subject.name} · ${timeLabel(e.start)}–${timeLabel(e.end)}`}
+                  aria-label={`${e.name}, ${e.subject.name}, ${DAYS[i]} ${timeLabel(e.start)} a ${timeLabel(e.end)}`}
+                  className="absolute z-[1] overflow-hidden rounded-lg px-1 py-1 text-left text-[10px] leading-tight text-neutral-900 transition hover:z-20 hover:scale-[1.03] active:scale-95"
+                  style={{
+                    top: top(e.start) + 1, height: h,
+                    left: `calc(${(lane / lanes) * 100}% + 2px)`, width: `calc(${100 / lanes}% - 4px)`,
+                    backgroundColor: e.subject.bg, boxShadow: `inset 2px 0 0 ${e.subject.border}`,
+                  }}
+                >
+                  <b className="block truncate pl-0.5 text-[11px] font-semibold">{first}</b>
+                  {h >= 38 && lanes === 1 && <span className="num block truncate pl-0.5 opacity-70">{timeLabel(e.start)}</span>}
+                  {h >= 58 && lanes === 1 && <span className="block truncate pl-0.5 opacity-70">{e.subject.name}</span>}
+                </button>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /** Horario de asesorías de todos los profesores, en una agenda corta agrupada por día. */
 export function AsesoriasView({ subjects, nowMin, todayIdx, timeLabel, onOpen }: Props) {
+  // lista o calendario: se recuerda la última elección
+  const [mode, setMode] = useState<"lista" | "semana">("lista")
+  useEffect(() => {
+    try { if (localStorage.getItem("planner.asesoriasView") === "semana") setMode("semana") } catch { /* sin almacenamiento */ }
+  }, [])
+  const pick = (m: "lista" | "semana") => {
+    setMode(m)
+    try { localStorage.setItem("planner.asesoriasView", m) } catch { /* sin almacenamiento */ }
+  }
   const entries = useMemo(() => {
     const out: Entry[] = []
     for (const subject of subjects)
@@ -61,6 +158,20 @@ export function AsesoriasView({ subjects, nowMin, todayIdx, timeLabel, onOpen }:
         </button>
       )}
 
+      <div className="flex justify-end">
+        <div className="flex gap-0.5 rounded-lg bg-muted p-0.5 text-xs font-medium" role="group" aria-label="Tipo de vista">
+          {([["lista", "Lista", List], ["semana", "Semana", CalendarDays]] as const).map(([m, label, Icon]) => (
+            <button key={m} type="button" aria-pressed={mode === m} onClick={() => pick(m)}
+              className={cn("flex items-center gap-1.5 rounded-md px-3 py-1.5 transition", mode === m ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+              <Icon className="size-3.5" />{label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {mode === "semana" ? (
+        <WeekGrid entries={entries} nowMin={nowMin} todayIdx={todayIdx} timeLabel={timeLabel} onOpen={onOpen} />
+      ) : (
       <div className="space-y-4">
         {days.map(({ name, i, list }) => (
           <section key={i} className="space-y-2">
@@ -95,6 +206,7 @@ export function AsesoriasView({ subjects, nowMin, todayIdx, timeLabel, onOpen }:
           </section>
         ))}
       </div>
+      )}
 
       <p className="text-center text-xs text-muted-foreground">Toca una asesoría para ver o cambiar los datos del profesor.</p>
     </div>

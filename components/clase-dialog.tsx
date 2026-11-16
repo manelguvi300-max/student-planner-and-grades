@@ -225,13 +225,13 @@ function ClaseForm({ state, onClose, subjects, setSubjects, classes, setClasses,
       {section("Hora", <Clock className="size-3.5" />, (
         <div className="space-y-2.5">
           <div className="flex items-center gap-3">
-            <Input type="time" aria-label="Hora de inicio" value={minutesToTime(start)} className="w-32"
+            <Input type="time" aria-label="Hora de inicio" value={minutesToTime(start)} className="w-36"
               onChange={(e) => e.target.value && setStart(timeToMinutes(e.target.value))} />
             <span className="text-sm text-muted-foreground">
               {customEnd ? "hasta" : timeOk ? <>termina a las <b className="num text-foreground">{timeLabel(end)}</b></> : "—"}
             </span>
             {customEnd && (
-              <Input type="time" aria-label="Hora de fin" value={timeOk || end > 0 ? minutesToTime(Math.max(0, Math.min(end, 24 * 60 - 1))) : ""} className="w-32"
+              <Input type="time" aria-label="Hora de fin" value={timeOk || end > 0 ? minutesToTime(Math.max(0, Math.min(end, 24 * 60 - 1))) : ""} className="w-36"
                 onChange={(e) => e.target.value && setDur(timeToMinutes(e.target.value) - start)} />
             )}
           </div>

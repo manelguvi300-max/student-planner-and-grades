@@ -383,7 +383,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                     type="button"
                     aria-pressed={mobileView === v}
                     onClick={() => setMobileView(v)}
-                    className={cn("rounded-md px-2.5 py-1 capitalize transition", mobileView === v ? "bg-background text-foreground shadow-sm" : "text-muted-foreground")}
+                    className={cn("rounded-md px-3 py-1.5 capitalize transition", mobileView === v ? "bg-background text-foreground shadow-sm" : "text-muted-foreground")}
                   >
                     {v}
                   </button>

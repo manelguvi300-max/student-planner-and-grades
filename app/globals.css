@@ -191,6 +191,11 @@
   #print-root { display: block; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 
+/* Área táctil mínima: amplía el botón con un pseudo-elemento, sin mover nada del diseño */
+@media (pointer: coarse) {
+  .tap { position: relative; }
+  .tap::after { content: ""; position: absolute; inset: -0.6rem; }
+}
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .pb-nav { padding-bottom: calc(6.5rem + env(safe-area-inset-bottom)); }

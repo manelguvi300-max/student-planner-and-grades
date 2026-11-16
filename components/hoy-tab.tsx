@@ -73,7 +73,7 @@ function Section({ title, action, onAction, children, delay = 0 }: { title: stri
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-base font-semibold">{title}</h2>
         {action && (
-          <button type="button" onClick={onAction} className="group flex items-center gap-1 text-xs text-muted-foreground transition hover:text-foreground">
+          <button type="button" onClick={onAction} className="tap group flex items-center gap-1 text-xs text-muted-foreground transition hover:text-foreground">
             {action}
             <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
           </button>
@@ -239,7 +239,7 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
         </Tile>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         {/* Línea de tiempo del día */}
         <Section title={todayIdx >= 0 && todayIdx <= 4 ? `Tu ${DAYS[todayIdx].toLowerCase()}` : "Tu día"} action="Ver horario" onAction={() => onNavigate("horario")} delay={300}>
           {todays.length === 0 ? (
