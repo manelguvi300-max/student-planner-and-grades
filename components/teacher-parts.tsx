@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useRef } from "react"
-import { Plus, Mail, Phone, MapPin, Clock, Copy, Check, X } from "lucide-react"
+import { Plus, Mail, Phone, MapPin, Clock, Copy, Check, X, GraduationCap } from "lucide-react"
+import { MultiPicker } from "./multi-picker"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -249,19 +250,11 @@ export function TeacherForm({ teacher, subjects, presetSubjectIds, timeLabel, on
         {subjects.length === 0 ? (
           <p className="text-xs text-muted-foreground">Aún no tienes materias. Podrás asignarlas después.</p>
         ) : (
-          <div className="flex flex-wrap gap-2">
-            {subjects.map((sb) => {
-              const on = subjectIds.includes(sb.id)
-              return (
-                <button key={sb.id} type="button" aria-pressed={on} onClick={() => setSubjectIds((ids) => (on ? ids.filter((x) => x !== sb.id) : [...ids, sb.id]))}
-                  className={cn("flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition active:scale-95", on ? "text-neutral-900" : "text-muted-foreground hover:text-foreground")}
-                  style={on ? { backgroundColor: sb.bg, borderColor: sb.border } : undefined}>
-                  {on ? <Check className="size-3.5 shrink-0" /> : <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: sb.bg, boxShadow: `0 0 0 1.5px ${sb.border}` }} />}
-                  <span className="truncate">{sb.name}</span>
-                </button>
-              )
-            })}
-          </div>
+          <MultiPicker noun="materia" nounPlural="materias" value={subjectIds} onChange={setSubjectIds}
+            items={subjects.map((sb) => ({
+              id: sb.id, label: sb.name, color: { bg: sb.bg, border: sb.border },
+              lead: <span className="grid size-9 shrink-0 place-items-center rounded-xl text-neutral-900" style={{ backgroundColor: sb.bg, boxShadow: `inset 0 0 0 1.5px ${sb.border}` }}><GraduationCap className="size-4" /></span>,
+            }))} />
         )}
       </div>
 

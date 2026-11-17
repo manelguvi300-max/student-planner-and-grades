@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Plus, Pencil, Trash2, Mail, Phone, MapPin, Clock, Search, UserPlus, Check, Users, BookOpen } from "lucide-react"
+import { Plus, Pencil, Trash2, Mail, Phone, MapPin, Clock, Search, UserPlus, Check, Users, BookOpen, GraduationCap } from "lucide-react"
+import { MultiPicker } from "./multi-picker"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
@@ -164,20 +165,16 @@ export function ProfesoresTab({ teachers, setTeachers, subjects, setSubjects, cl
             <p className="text-xs text-muted-foreground">Aún no tienes materias. Créalas en la pestaña Materias.</p>
           ) : (
             <>
-              <div className="flex flex-wrap gap-2">
-                {subjects.map((s) => {
-                  const on = own.some((x) => x.id === s.id)
-                  return (
-                    <button key={s.id} type="button" aria-pressed={on} onClick={() => toggleAssign(ops, t.id, s.id, !on)}
-                      className={cn("flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition active:scale-95", on ? "text-neutral-900" : "text-muted-foreground hover:text-foreground")}
-                      style={on ? { backgroundColor: s.bg, borderColor: s.border } : undefined}>
-                      {on ? <Check className="size-3.5 shrink-0" /> : <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: s.bg, boxShadow: `0 0 0 1.5px ${s.border}` }} />}
-                      <span className="truncate">{s.name}</span>
-                    </button>
-                  )
-                })}
-              </div>
-              <p className="text-xs text-muted-foreground">Toca una materia para asignarla o quitarla.</p>
+              <MultiPicker noun="materia" nounPlural="materias" value={own.map((x) => x.id)}
+                onChange={(ids) => {
+                  const cur = own.map((x) => x.id)
+                  ids.filter((id) => !cur.includes(id)).forEach((id) => toggleAssign(ops, t.id, id, true))
+                  cur.filter((id) => !ids.includes(id)).forEach((id) => toggleAssign(ops, t.id, id, false))
+                }}
+                items={subjects.map((s) => ({
+                  id: s.id, label: s.name, color: { bg: s.bg, border: s.border },
+                  lead: <span className="grid size-9 shrink-0 place-items-center rounded-xl text-neutral-900" style={{ backgroundColor: s.bg, boxShadow: `inset 0 0 0 1.5px ${s.border}` }}><GraduationCap className="size-4" /></span>,
+                }))} />
               {own.length > 0 && (
                 <button type="button" onClick={() => { close(); onOpenSubject(own[0].id) }} className="flex items-center gap-1.5 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
                   <BookOpen className="size-3.5" />Ver {own[0].name}

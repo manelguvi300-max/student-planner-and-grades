@@ -10,9 +10,10 @@ import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import {
-  COLORS_PALETTE, borderFromBg, loadCustomColors, removeCustomColor, saveCustomColor, teachersOf,
+  COLORS_PALETTE, borderFromBg, loadCustomColors, removeCustomColor, saveCustomColor, subjectsOf, teachersOf,
   type Absence, type ClassSession, type ColorSwatch, type Exam, type Grade, type Subject, type SubjectConfig, type Teacher,
 } from "@/lib/horario-data"
+import { MultiPicker } from "./multi-picker"
 import { Avatar, TeacherForm, saveTeacher, teacherColor, toggleAssign, type TeacherOps } from "./teacher-parts"
 
 const DAY_SHORT = ["L", "M", "Mi", "J", "V"]
@@ -104,21 +105,15 @@ function SubjectForm({ subject, subjects, teachers, onCreateTeacher, onSave, onC
   const [name, setName] = useState(subject?.name ?? "")
   const [color, setColor] = useState<ColorSwatch>(subject ? { bg: subject.bg, border: subject.border } : pickDefaultColor(subjects))
   const [ids, setIds] = useState<string[]>(subject?.teacherIds ?? [])
-  const [adding, setAdding] = useState(false)
-  const [newName, setNewName] = useState("")
   const ok = name.trim().length > 0
 
-  function addTeacher() {
-    const n = newName.trim()
-    if (!n) return
+  function addTeacher(n: string) {
     const id = onCreateTeacher(n) // efecto fuera del updater: si no, StrictMode lo ejecuta dos veces
     setIds((x) => [...x, id])
-    setNewName("")
-    setAdding(false)
   }
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); if (adding) return addTeacher(); if (ok) onSave(name.trim(), color, ids) }} className="space-y-5">
+    <form onSubmit={(e) => { e.preventDefault(); if (ok) onSave(name.trim(), color, ids) }} className="space-y-5">
       {/* Vista previa */}
       <div className="flex items-center gap-3 rounded-2xl border p-3" style={{ backgroundColor: color.bg, borderColor: color.border }}>
         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-black/10 text-neutral-900"><GraduationCap className="size-5" /></span>
@@ -138,30 +133,13 @@ function SubjectForm({ subject, subjects, teachers, onCreateTeacher, onSave, onC
 
       <div className="space-y-2">
         <Label>Profesores <span className="font-normal text-muted-foreground">(opcional)</span></Label>
-        <div className="flex flex-wrap gap-2">
-          {teachers.map((t) => {
-            const on = ids.includes(t.id)
-            return (
-              <button key={t.id} type="button" aria-pressed={on} onClick={() => setIds((x) => (on ? x.filter((i) => i !== t.id) : [...x, t.id]))}
-                className={cn("flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition active:scale-95", on ? "border-foreground bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}>
-                {on && <Check className="size-3.5 shrink-0" />}<span className="truncate">{t.name || "Profesor"}</span>
-              </button>
-            )
-          })}
-          {!adding && (
-            <button type="button" onClick={() => setAdding(true)} className="flex items-center gap-1 rounded-full border border-dashed px-3 py-1.5 text-xs text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
-              <Plus className="size-3.5" />Nuevo profesor
-            </button>
-          )}
-        </div>
-        {adding && (
-          <div className="animate-rise flex items-center gap-2">
-            <Input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nombre del profesor" maxLength={60}
-              onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setAdding(false) } }} />
-            <Button type="button" size="sm" onClick={addTeacher} disabled={!newName.trim()}>Agregar</Button>
-          </div>
-        )}
-        <p className="text-xs text-muted-foreground">Después completas su correo y asesorías en la sección Profesores.</p>
+        <MultiPicker noun="profesor" nounPlural="profesores" value={ids} onChange={setIds} onCreate={addTeacher}
+          items={teachers.map((t) => ({
+            id: t.id, label: t.name || "Profesor", color: teacherColor(t, subjects),
+            sub: [t.role, subjectsOf(t.id, subjects).map((s) => s.name).join(", ")].filter(Boolean).join(" · ") || undefined,
+            lead: <Avatar name={t.name || "?"} color={teacherColor(t, subjects)} />,
+          }))} />
+        <p className="text-xs text-muted-foreground">Escribe un nombre para buscar o crear un profesor. Su correo y asesorías los completas en Profesores.</p>
       </div>
 
       <div className="flex justify-end gap-2">
