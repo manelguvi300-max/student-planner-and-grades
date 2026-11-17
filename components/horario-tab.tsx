@@ -498,7 +498,6 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
 
           {/* ───────── Tablet / escritorio: semana completa ───────── */}
           <div className="relative hidden animate-slide-up overflow-x-auto rounded-3xl border bg-card shadow-(--card-shadow) sm:block">
-            <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(ellipse_60%_100%_at_50%_0%,color-mix(in_oklab,var(--foreground)_8%,transparent),transparent)]" />
             <div className="relative min-w-[700px]">
               {/* Días */}
               <div className="flex px-1 pt-2 pb-1.5">
@@ -546,7 +545,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                     onClick={(e) => clickSlot(e, dayIndex)}
                   >
                     {dayIndex === todayIdx && (
-                      <div aria-hidden className="pointer-events-none absolute inset-x-1 inset-y-0 rounded-2xl bg-gradient-to-b from-foreground/[0.08] via-foreground/[0.03] to-transparent" />
+                      <div aria-hidden className="pointer-events-none absolute inset-x-1 inset-y-0 rounded-2xl bg-foreground/[0.04]" />
                     )}
                     {hours.map((h) => (
                       <div key={h} className="absolute left-0 right-0 border-t border-dashed border-border/40" style={{ top: minutesToPx(h * 60) }} />

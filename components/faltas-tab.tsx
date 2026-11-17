@@ -429,15 +429,17 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <section className="relative animate-rise overflow-hidden rounded-3xl border bg-card p-4 shadow-(--card-shadow) sm:p-6">
-        <div aria-hidden className="pointer-events-none absolute -right-16 -top-20 size-64 rounded-full bg-foreground/10 blur-3xl" />
-        <h2 className="relative text-xl font-semibold tracking-tight">Faltas</h2>
-        <p className="relative mt-0.5 hidden text-sm text-muted-foreground sm:block">
-          Las faltas permitidas son un % de inasistencia sobre las horas de trabajo directo (HD). Define la regla una vez; en cada materia solo anotas sus HD.
-        </p>
+      {/* Un solo recuadro en tres franjas: título, regla y conteos */}
+      <section className="overflow-hidden rounded-2xl border bg-card">
+        <div className="p-4 sm:p-5">
+          <h2 className="text-xl font-semibold tracking-tight">Faltas</h2>
+          <p className="mt-0.5 hidden text-sm text-muted-foreground sm:block">
+            Las faltas permitidas son un % de inasistencia sobre las horas de trabajo directo (HD). Define la regla una vez; en cada materia solo anotas sus HD.
+          </p>
+        </div>
 
         {/* Regla global */}
-        <div className="relative mt-4 flex items-center gap-3 rounded-2xl border bg-background/40 px-4 py-3">
+        <div className="flex items-center gap-3 border-t px-4 py-3 sm:px-5">
           <Calculator className="size-5 shrink-0 text-muted-foreground" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium">Regla para todas las materias</p>
@@ -448,15 +450,15 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
           </Button>
         </div>
 
-        <div className="relative mt-3 grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="grid grid-cols-3 divide-x border-t">
           {[
             { label: "Registradas", value: totalAbsences, tone: "" },
-            { label: "En riesgo", value: atRisk, tone: atRisk ? "text-amber-500" : "" },
+            { label: "En riesgo", value: atRisk, tone: atRisk ? "text-amber-600 dark:text-amber-400" : "" },
             { label: "Falta HD", value: needsHD, tone: "" },
           ].map((s) => (
-            <div key={s.label} className="rounded-2xl bg-muted/50 px-3 py-3">
-              <p className={cn("text-3xl font-light", s.tone)}><CountUp value={s.value} /></p>
-              <p className="mt-0.5 truncate text-[11px] uppercase tracking-[0.12em] text-muted-foreground">{s.label}</p>
+            <div key={s.label} className="min-w-0 px-4 py-3 sm:px-5">
+              <p className={cn("num text-2xl font-semibold", s.tone)}>{s.value}</p>
+              <p className="truncate text-xs text-muted-foreground">{s.label}</p>
             </div>
           ))}
         </div>

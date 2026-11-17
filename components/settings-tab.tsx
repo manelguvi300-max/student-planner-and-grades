@@ -87,9 +87,8 @@ export function SettingsTab({ userName, userEmail, userImage, hiddenCount, onSho
   return (
     <div className="mx-auto grid max-w-4xl gap-6 lg:grid-cols-[17rem_1fr] lg:items-start">
       {/* Cuenta */}
-      <section className="relative animate-rise overflow-hidden rounded-3xl border bg-card p-5 text-center shadow-(--card-shadow) lg:sticky lg:top-10">
-        <div aria-hidden className="pointer-events-none absolute -right-14 -top-16 size-52 rounded-full bg-foreground/10 blur-3xl" />
-        <div className="relative">
+      <section className="rounded-2xl border bg-card p-5 text-center lg:sticky lg:top-10">
+        <div>
           {userImage && !imgFailed ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={userImage} alt="" referrerPolicy="no-referrer" onError={() => setImgFailed(true)} className="mx-auto size-16 rounded-2xl object-cover shadow-lg shadow-black/20" />

@@ -66,17 +66,17 @@ export function NotasTab({ subjects, grades, setGrades, hiddenSubjects, onToggle
 
   return (
     <div className="space-y-6">
-      <section className="relative flex animate-rise items-center gap-4 overflow-hidden rounded-3xl border bg-card p-4 shadow-(--card-shadow) sm:gap-6 sm:p-6">
-        <div aria-hidden className="pointer-events-none absolute -right-16 -top-20 size-64 rounded-full bg-foreground/10 blur-3xl" />
+      <section className="flex items-center gap-4 rounded-2xl border bg-card p-4 sm:gap-5 sm:p-5">
         {avg !== null && (
-          <Ring value={avg / 5} size={104} stroke={8}>
+          // el anillo cambia de color según vayas: verde si el acumulado ya alcanza para aprobar, ámbar si no
+          <Ring value={avg / 5} size={88} stroke={7} className={avg >= PASSING_GRADE ? "text-emerald-500" : "text-amber-500"}>
             <span className="text-center leading-none">
-              <CountUp value={avg} decimals={2} className="text-2xl font-bold" />
-              <span className="mt-1 block text-[8px] uppercase tracking-wider text-muted-foreground">acumulado</span>
+              <CountUp value={avg} decimals={2} className="text-xl font-bold" />
+              <span className="mt-1 block text-[10px] text-muted-foreground">de 5</span>
             </span>
           </Ring>
         )}
-        <div className="relative min-w-0 flex-1">
+        <div className="min-w-0 flex-1">
           <h2 className="text-xl font-semibold tracking-tight">Mis notas</h2>
           <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
             {avg === null ? "Agrega notas a tus materias para ver tu promedio." : "Promedio del acumulado de tus materias visibles."}
