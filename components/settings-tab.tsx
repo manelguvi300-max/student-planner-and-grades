@@ -87,26 +87,30 @@ export function SettingsTab({ userName, userEmail, userImage, hiddenCount, onSho
   return (
     <div className="mx-auto grid max-w-4xl gap-6 lg:grid-cols-[17rem_1fr] lg:items-start">
       {/* Cuenta */}
-      <section className="rounded-xl border bg-card p-5 text-center lg:sticky lg:top-10">
+      <section className="rounded-xl border bg-card p-4 lg:sticky lg:top-10 lg:p-5 lg:text-center">
         <div>
+          <div className="flex items-center gap-3.5 lg:block">
           {userImage && !imgFailed ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={userImage} alt="" referrerPolicy="no-referrer" onError={() => setImgFailed(true)} className="mx-auto size-16 rounded-xl object-cover shadow-lg shadow-black/20" />
+            <img src={userImage} alt="" referrerPolicy="no-referrer" onError={() => setImgFailed(true)} className="size-14 shrink-0 rounded-xl object-cover shadow-lg shadow-black/20 lg:mx-auto lg:size-16" />
           ) : (
-            <span className="grad mx-auto grid size-16 place-items-center rounded-xl text-2xl font-semibold shadow-lg shadow-black/20">{initial}</span>
+            <span className="grad grid size-14 shrink-0 place-items-center rounded-xl text-xl font-semibold shadow-lg shadow-black/20 lg:mx-auto lg:size-16 lg:text-2xl">{initial}</span>
           )}
-          <p className="mt-3 truncate font-semibold">{userName || "Tu cuenta"}</p>
-          <p className="truncate text-xs text-muted-foreground">{userEmail || "Sin correo"}</p>
+          <div className="min-w-0 lg:mt-3">
+            <p className="truncate font-semibold">{userName || "Tu cuenta"}</p>
+            <p className="truncate text-xs text-muted-foreground">{userEmail || "Sin correo"}</p>
+          </div>
+          </div>
           <button
             type="button"
             onClick={logout}
             disabled={leaving}
-            className="mt-5 flex h-10 w-full items-center justify-center gap-2 rounded-lg border text-sm font-medium transition hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive active:scale-[0.97] disabled:opacity-60"
+            className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-lg border lg:mt-5 text-sm font-medium transition hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive active:scale-[0.97] disabled:opacity-60"
           >
             {leaving ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
             {leaving ? "Saliendo…" : "Cerrar sesión"}
           </button>
-          <p className="mt-3 text-xs text-muted-foreground">
+          <p className="mt-3 text-center text-xs text-muted-foreground">
             <a href="/terminos.html" target="_blank" rel="noreferrer" className="underline">Términos</a> · <a href="/privacidad.html" target="_blank" rel="noreferrer" className="underline">Privacidad</a>
           </p>
           <OtherApps />

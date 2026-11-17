@@ -69,20 +69,20 @@ export function NotasTab({ subjects, grades, setGrades, hiddenSubjects, onToggle
       <section className="flex items-center gap-4 rounded-xl border bg-card p-4 sm:gap-5 sm:p-5">
         {avg !== null && (
           // el anillo cambia de color según vayas: verde si el acumulado ya alcanza para aprobar, ámbar si no
-          <Ring value={avg / 5} size={88} stroke={7} className={avg >= PASSING_GRADE ? "text-emerald-500" : "text-amber-500"}>
+          <Ring value={avg / 5} size={76} stroke={6} className={avg >= PASSING_GRADE ? "text-emerald-500" : "text-amber-500"}>
             <span className="text-center leading-none">
-              <CountUp value={avg} decimals={2} className="text-xl font-bold" />
+              <CountUp value={avg} decimals={2} className="text-lg font-bold" />
               <span className="mt-1 block text-[10px] text-muted-foreground">de 5</span>
             </span>
           </Ring>
         )}
         <div className="min-w-0 flex-1">
           <h2 className="text-xl font-semibold tracking-tight">Mis notas</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
+          <p className={cn("mt-0.5 text-xs text-muted-foreground sm:text-sm", avg !== null && "hidden sm:block")}>
             {avg === null ? "Agrega notas a tus materias para ver tu promedio." : "Promedio del acumulado de tus materias visibles."}
           </p>
           {avg !== null && (
-            <div className="mt-3 flex flex-wrap gap-1.5 text-[11px] font-medium">
+            <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-medium sm:mt-3">
               <span className="rounded-full bg-foreground/10 px-2.5 py-1">{passing} aprobando</span>
               {failing > 0 && <span className="rounded-full bg-destructive/15 px-2.5 py-1 text-destructive">{failing} en riesgo</span>}
               {noGrades > 0 && <span className="rounded-full bg-foreground/[0.06] px-2.5 py-1 text-muted-foreground">{noGrades} sin notas</span>}

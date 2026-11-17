@@ -198,8 +198,8 @@
 }
 .no-scrollbar { scrollbar-width: none; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
-.pb-nav { padding-bottom: calc(6.5rem + env(safe-area-inset-bottom)); }
-@media (min-width: 1024px) { .pb-nav { padding-bottom: 3rem; } }
+.pb-nav { padding-bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
+@media (min-width: 768px) { .pb-nav { padding-bottom: 3rem; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; }

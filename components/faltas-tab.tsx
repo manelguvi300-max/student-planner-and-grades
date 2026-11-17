@@ -470,7 +470,7 @@ export function FaltasTab({ subjects, absences, classes, setAbsences, subjectCon
               <p className="text-sm text-muted-foreground">Tu asistencia hoy</p>
               {now ? (
                 <>
-                  <h2 className="mt-0.5 text-2xl font-semibold tracking-tight text-balance sm:text-3xl">{verdict.title}</h2>
+                  <h2 className="mt-0.5 text-xl font-semibold tracking-tight text-balance sm:text-3xl">{verdict.title}</h2>
                   {verdict.sub && <p className="mt-1 text-sm text-muted-foreground">{verdict.sub}</p>}
                 </>
               ) : <div className="skeleton mt-1.5 h-8 w-56 max-w-full rounded-lg" />}

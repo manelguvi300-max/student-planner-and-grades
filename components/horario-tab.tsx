@@ -498,7 +498,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
 
           {/* ───────── Tablet / escritorio: semana completa ───────── */}
           <div className="relative hidden animate-slide-up overflow-x-auto rounded-xl border bg-card shadow-(--card-shadow) sm:block">
-            <div className="relative min-w-[700px]">
+            <div className="relative min-w-[600px]">
               {/* Días */}
               <div className="flex px-1 pt-2 pb-1.5">
                 <div className="w-[4.5rem] shrink-0" />

@@ -148,40 +148,45 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
         </nav>
       </aside>
 
-      <main className="pb-nav mx-auto w-full max-w-6xl px-4 pt-[max(1rem,env(safe-area-inset-top))] sm:px-6 lg:px-10 lg:pt-10">
-        {/* Header móvil común a las 3 apps: marca a la izquierda, selector de apps fijo en el borde derecho (120×42) */}
-        <div className="mb-5 flex h-[42px] items-center gap-3 lg:hidden">
-          <div className="grad grid size-9 shrink-0 place-items-center rounded-lg shadow-lg shadow-black/20">
-            <GraduationCap className="size-[18px]" />
+      <main className="pb-nav mx-auto w-full max-w-6xl px-4 sm:px-6 md:pl-24 lg:px-10 lg:pt-10">
+        {/* Móvil y tablet: barra superior fija y compacta (marca · semestre · ajustes). En tablet la marca vive en el riel lateral. */}
+        <div className="sticky top-0 z-30 -mx-4 mb-4 border-b bg-background/85 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-xl sm:-mx-6 sm:px-6 lg:hidden">
+          <div className="flex h-14 items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2.5 md:hidden">
+                <div className="grad grid size-8 shrink-0 place-items-center rounded-lg">
+                  <GraduationCap className="size-[17px]" />
+                </div>
+                <p className="truncate text-[15px] font-semibold">Mi semestre</p>
+              </div>
+            </div>
+            {semesterSwitcher}
+            <button
+              type="button"
+              onClick={() => setTab(inSettings ? "hoy" : "ajustes")}
+              aria-label={inSettings ? "Volver" : "Ajustes"}
+              aria-pressed={inSettings}
+              className={cn(
+                "grid size-10 shrink-0 place-items-center rounded-lg transition duration-300 active:scale-90",
+                inSettings ? "bg-foreground text-background" : "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
+              )}
+            >
+              <Settings className={cn("size-5 transition-transform duration-500", inSettings && "rotate-90")} />
+            </button>
           </div>
-          <div className="min-w-0 flex-1 leading-tight">
-            <p className="truncate text-[15px] font-semibold">Mi semestre</p>
-            <p className="hidden truncate text-xs text-muted-foreground sm:block">Planner universitario</p>
-          </div>
-          {semesterSwitcher}
-          <button
-            type="button"
-            onClick={() => setTab(inSettings ? "hoy" : "ajustes")}
-            aria-label={inSettings ? "Volver" : "Ajustes"}
-            aria-pressed={inSettings}
-            className={cn(
-              "grid size-10 shrink-0 place-items-center rounded-lg transition duration-300 active:scale-90",
-              inSettings ? "bg-foreground text-background" : "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
-            )}
-          >
-            <Settings className={cn("size-5 transition-transform duration-500", inSettings && "rotate-90")} />
-          </button>
         </div>
 
-        {/* Título de la vista (saludo / Ajustes) */}
-        <header className="mb-5 lg:mb-8">
-          <h1 key={inSettings ? "s" : "h"} className="animate-rise text-xl font-semibold tracking-tight text-balance sm:text-2xl lg:text-3xl">
-            {inSettings ? "Ajustes" : firstName ? `Hola, ${firstName}` : "Mi semestre"}
-          </h1>
-          <p className="h-4 truncate text-xs text-muted-foreground first-letter:uppercase sm:h-5 sm:text-sm">
-            {inSettings ? "Personaliza tu planner y administra tu cuenta" : today}
-          </p>
-        </header>
+        {/* Saludo: solo en Hoy y en Ajustes; las demás vistas abren directo con su propio título */}
+        {(tab === "hoy" || inSettings) && (
+          <header className="mb-5 lg:mb-8">
+            <h1 key={inSettings ? "s" : "h"} className="animate-rise text-xl font-semibold tracking-tight text-balance sm:text-2xl lg:text-3xl">
+              {inSettings ? "Ajustes" : firstName ? `Hola, ${firstName}` : "Mi semestre"}
+            </h1>
+            <p className="h-4 truncate text-xs text-muted-foreground first-letter:uppercase sm:h-5 sm:text-sm">
+              {inSettings ? "Personaliza tu planner y administra tu cuenta" : today}
+            </p>
+          </header>
+        )}
 
         <Tabs value={tab} onValueChange={setTab} className="w-full">
           <TabsContent value="hoy" className="animate-rise">
@@ -258,37 +263,55 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
         </footer>
       </main>
 
-      {/* Móvil / tablet: barra inferior flotante de cristal con píldora deslizante */}
-      <nav className="glass fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-md rounded-2xl p-1.5 shadow-2xl shadow-black/30 lg:hidden">
-        <span
-          aria-hidden
-          className="absolute inset-y-1.5 left-1.5 rounded-xl bg-foreground/10 ring-1 ring-foreground/10"
-          style={{
-            width: `calc((100% - 0.75rem) / ${MOBILE_ITEMS.length})`,
-            transform: `translateX(${Math.min(idx, MOBILE_ITEMS.length - 1) * 100}%)`,
-            opacity: inSettings ? 0 : 1,
-            transition: `transform .5s ${spring}, opacity .3s`,
-          }}
-        />
+      {/* Tablet: riel lateral con icono y etiqueta */}
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[4.5rem] flex-col items-center gap-1 border-r bg-background py-4 md:flex lg:hidden">
+        <div className="grad mb-4 grid size-10 place-items-center rounded-xl">
+          <GraduationCap className="size-5" />
+        </div>
         {MOBILE_ITEMS.map((item, i) => {
-          const active = i === idx
+          const active = i === idx && !inSettings
           return (
             <button
               key={item.value}
               type="button"
               onClick={() => setTab(item.value)}
               aria-current={active ? "page" : undefined}
-              aria-label={item.label}
               className={cn(
-                "relative flex flex-1 flex-col items-center gap-1 rounded-xl py-2.5 text-[11px] font-medium transition-all duration-300",
-                active ? "text-foreground" : "text-muted-foreground active:scale-95"
+                "flex w-16 flex-col items-center gap-1 rounded-xl py-2.5 text-[11px] font-medium transition active:scale-95",
+                active ? "bg-foreground/[0.08] text-foreground" : "text-muted-foreground hover:bg-foreground/[0.05] hover:text-foreground"
               )}
             >
-              <item.icon className={cn("size-[22px] transition-all duration-300", active && "-translate-y-0.5 text-brand")} />
+              <item.icon className={cn("size-[22px]", active && "text-brand")} />
               {item.label}
             </button>
           )
         })}
+      </aside>
+
+      {/* Móvil: barra inferior anclada al borde (no tapa el contenido) */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden" aria-label="Secciones">
+        <div className="mx-auto flex h-16 max-w-md px-2">
+          {MOBILE_ITEMS.map((item, i) => {
+            const active = i === idx && !inSettings
+            return (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => setTab(item.value)}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors active:scale-95",
+                  active ? "text-foreground" : "text-muted-foreground"
+                )}
+              >
+                <span className={cn("grid h-8 w-14 place-items-center rounded-xl transition-colors duration-300", active && "bg-brand/15 text-brand")}>
+                  <item.icon className="size-[22px]" />
+                </span>
+                {item.label}
+              </button>
+            )
+          })}
+        </div>
       </nav>
     </div>
   )

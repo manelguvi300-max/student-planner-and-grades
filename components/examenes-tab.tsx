@@ -200,14 +200,16 @@ function KindPicker({ value, onChange, api }: { value: string; onChange: (id: st
   )
 }
 
-function ExamForm({ subjects, kindsApi, initial, defaultDate, onSave, onCancel }: {
+function ExamForm({ subjects, kindsApi, initial, defaultDate, onSave, onCancel, onDelete }: {
   subjects: Subject[]
   kindsApi: KindsApi
   initial?: Exam
   defaultDate?: string
   onSave: (e: Omit<Exam, "id" | "done"> & { id?: string }) => void
   onCancel: () => void
+  onDelete?: () => void
 }) {
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const [subjectId, setSubjectId] = useState(initial?.subjectId ?? subjects[0]?.id ?? "")
   const [title, setTitle] = useState(initial?.title ?? "")
   const [date, setDate] = useState(initial?.date ?? defaultDate ?? "")
@@ -286,9 +288,24 @@ function ExamForm({ subjects, kindsApi, initial, defaultDate, onSave, onCancel }
           placeholder="Temas, materiales, salón, enlace…" className={TEXTAREA} />
       </div>
 
-      <div className="flex justify-end gap-2 pt-1">
-        <Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit">{initial ? "Guardar cambios" : "Agregar"}</Button>
+      <div className="sheet-actions flex items-center gap-2 pt-1">
+        {onDelete && (confirmDelete ? (
+          <>
+            <span className="mr-auto text-sm text-muted-foreground">¿Eliminar este evento?</span>
+            <Button type="button" variant="ghost" onClick={() => setConfirmDelete(false)}>No</Button>
+            <Button type="button" variant="destructive" onClick={onDelete}>Eliminar</Button>
+          </>
+        ) : (
+          <button type="button" onClick={() => setConfirmDelete(true)} aria-label="Eliminar evento" className="grid size-9 place-items-center rounded-lg text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive">
+            <Trash2 className="size-4" />
+          </button>
+        ))}
+        {!confirmDelete && (
+          <div className="ml-auto flex gap-2">
+            <Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button>
+            <Button type="submit">{initial ? "Guardar cambios" : "Agregar"}</Button>
+          </div>
+        )}
       </div>
     </form>
   )
@@ -296,27 +313,27 @@ function ExamForm({ subjects, kindsApi, initial, defaultDate, onSave, onCancel }
 
 /* ───────────── Tarjeta de examen ───────────── */
 
-function ExamCard({ exam, subject, kind, onToggleDone, onEdit, onDelete }: {
+function ExamCard({ exam, subject, kind, onToggleDone, onEdit }: {
   exam: Exam
   subject?: Subject
   kind: EventKind
   onToggleDone: () => void
   onEdit: () => void
-  onDelete: () => void
 }) {
   const { settings } = useSettings()
-  const [open, setOpen] = useState(false)
-  const [confirming, setConfirming] = useState(false)
   const n = daysUntil(exam.date)
   const d = dateOf(exam.date)
   const tone = eventTone(subject, kind)
-  const hasNotes = Boolean(exam.notes?.trim())
+  const Icon = KIND_ICON[kind.id] ?? Tag
+  const title = exam.title || subject?.name || kind.name
   const whenRaw = d.toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short" }).replace(/\./g, "")
   const when = whenRaw.charAt(0).toUpperCase() + whenRaw.slice(1)
+  const time = exam.time ? minutesToLabel(timeToMinutes(exam.time), settings.timeFormat) : ""
 
   return (
-    <div className={cn("overflow-hidden rounded-xl border bg-card transition-opacity animate-pop", exam.done && "opacity-60")}>
-      <div className="flex items-start gap-3 p-3">
+    <div className={cn("flex overflow-hidden rounded-xl border bg-card transition-opacity animate-pop", exam.done && "opacity-60")}>
+      <button type="button" onClick={onEdit} aria-label={`Editar: ${title}`}
+        className="flex min-w-0 flex-1 items-center gap-3 p-3 text-left transition-colors hover:bg-foreground/[0.03] active:bg-foreground/[0.06]">
         <span className="grid size-12 shrink-0 place-items-center rounded-lg" style={{ background: tone.bg, color: tone.text, boxShadow: `inset 3px 0 0 ${tone.border}` }}>
           <span className="text-center leading-none">
             <span className="num block text-lg font-bold">{d.getDate()}</span>
@@ -324,66 +341,29 @@ function ExamCard({ exam, subject, kind, onToggleDone, onEdit, onDelete }: {
           </span>
         </span>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <p className={cn("truncate font-medium leading-tight", exam.done && "line-through")}>{exam.title || subject?.name || kind.name}</p>
-            <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium", dueTone(n, exam.done))}>
-              {exam.done ? "Hecho" : dueLabel(n)}
-            </span>
-          </div>
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
-            {exam.title && subject && <span>{subject.name} ·</span>}
-            <span>{when}</span>
-            {exam.time && <span className="inline-flex items-center gap-1"><Clock className="size-3" />{minutesToLabel(timeToMinutes(exam.time), settings.timeFormat)}</span>}
-          </p>
-
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <span className="min-w-0 flex-1">
+          <span className={cn("block truncate font-medium leading-tight", exam.done && "line-through")}>{title}</span>
+          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+            {exam.title && subject ? `${subject.name} · ` : ""}{when}{time ? ` · ${time}` : ""}
+          </span>
+          <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
             <span className="inline-flex h-5 items-center gap-1 rounded-md px-1.5 text-xs font-medium" style={{ background: tint(kind.color), color: ink(kind.color) }}>
-              {(() => { const Icon = KIND_ICON[kind.id] ?? Tag; return <Icon className="size-3" /> })()}{kind.name}
+              <Icon className="size-3" />{kind.name}
             </span>
-            <Badge variant="secondary">{exam.group === "grupal" ? <Users /> : <User />}{exam.group === "grupal" ? "Grupal" : "Individual"}</Badge>
-            {exam.weight > 0 && <Badge className="tabular-nums">{exam.weight}%</Badge>}
-            {hasNotes && (
-              <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open}
-                className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground transition hover:text-foreground">
-                <StickyNote className="size-3.5" />Nota
-                <ChevronDown className={cn("size-3.5 transition-transform duration-300", open && "rotate-180")} />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+            {exam.group === "grupal" && <span className="inline-flex h-5 items-center gap-1 rounded-md bg-foreground/[0.07] px-1.5 text-xs font-medium text-muted-foreground"><Users className="size-3" />Grupal</span>}
+            {exam.weight > 0 && <span className="num inline-flex h-5 items-center rounded-md bg-foreground/[0.07] px-1.5 text-xs font-medium text-muted-foreground">{exam.weight}%</span>}
+            {exam.notes?.trim() && <StickyNote className="size-3.5 text-muted-foreground" aria-label="Tiene notas" />}
+            <span className={cn("ml-auto rounded-full px-2 py-0.5 text-[11px] font-medium", dueTone(n, exam.done))}>{exam.done ? "Hecho" : dueLabel(n)}</span>
+          </span>
+        </span>
+      </button>
 
-      {hasNotes && (
-        <div className={cn("grid transition-[grid-template-rows] duration-300 ease-in-out", open ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
-          <div className="overflow-hidden">
-            <p className="whitespace-pre-wrap border-t px-3 py-2.5 text-sm text-muted-foreground">{exam.notes}</p>
-          </div>
-        </div>
-      )}
-
-      <div className="flex items-center justify-end gap-1 border-t bg-muted/20 px-2 py-1.5">
-        {confirming ? (
-          <>
-            <span className="mr-auto pl-1 text-xs text-muted-foreground">¿Eliminar este evento?</span>
-            <Button size="sm" variant="ghost" onClick={() => setConfirming(false)}>No</Button>
-            <Button size="sm" variant="destructive" onClick={onDelete}>Eliminar</Button>
-          </>
-        ) : (
-          <>
-            <button type="button" onClick={onToggleDone} aria-pressed={Boolean(exam.done)}
-              className={cn("mr-auto inline-flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-medium transition hover:bg-foreground/[0.06]", exam.done ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground hover:text-foreground")}>
-              <Check className="size-4" />{exam.done ? "Hecho" : "Marcar hecho"}
-            </button>
-            <button type="button" onClick={onEdit} aria-label="Editar evento" className="grid size-8 place-items-center rounded-lg text-muted-foreground transition hover:bg-foreground/[0.06] hover:text-foreground">
-              <Pencil className="size-4" />
-            </button>
-            <button type="button" onClick={() => setConfirming(true)} aria-label="Eliminar evento" className="grid size-8 place-items-center rounded-lg text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive">
-              <Trash2 className="size-4" />
-            </button>
-          </>
-        )}
-      </div>
+      <button type="button" onClick={onToggleDone} aria-pressed={Boolean(exam.done)} aria-label={exam.done ? "Marcar como pendiente" : "Marcar como hecho"}
+        className="grid w-14 shrink-0 place-items-center border-l transition-colors hover:bg-foreground/[0.04] active:bg-foreground/[0.08]">
+        <span className={cn("grid size-6 place-items-center rounded-full border-2 transition-colors", exam.done ? "border-emerald-500 bg-emerald-500 text-white" : "border-foreground/25")}>
+          {exam.done && <Check className="size-3.5" strokeWidth={3} />}
+        </span>
+      </button>
     </div>
   )
 }
@@ -656,7 +636,7 @@ export function ExamenesTab({ subjects, exams, setExams, kinds, setKinds, hidden
   const openNew = (date?: string) => setDialog({ open: true, date })
   const card = (e: Exam) => (
     <ExamCard key={e.id} exam={e} subject={getSubject(subjects, e.subjectId)} kind={findKind(kinds, e.kind)}
-      onToggleDone={() => toggleDone(e.id)} onEdit={() => setDialog({ open: true, editing: e })} onDelete={() => remove(e.id)} />
+      onToggleDone={() => toggleDone(e.id)} onEdit={() => setDialog({ open: true, editing: e })} />
   )
   const group = (title: string, list: Exam[], note?: string) => list.length > 0 && (
     <section className="space-y-3">
@@ -669,7 +649,7 @@ export function ExamenesTab({ subjects, exams, setExams, kinds, setKinds, hidden
 
   const subtitle = pending.length === 0
     ? "Nada pendiente en tu agenda."
-    : `${pending.length} ${pending.length === 1 ? "pendiente" : "pendientes"}${next ? ` · el próximo ${dueLabel(daysUntil(next.date)).toLowerCase()}` : ""}`
+    : `${pending.length} ${pending.length === 1 ? "pendiente" : "pendientes"}${next ? ` · próximo ${dueLabel(daysUntil(next.date)).toLowerCase()}` : ""}`
 
   return (
     <div className="mx-auto max-w-3xl space-y-5 animate-fade-in">
@@ -695,7 +675,7 @@ export function ExamenesTab({ subjects, exams, setExams, kinds, setKinds, hidden
         <>
           {/* Resumen */}
           {visible.length > 0 && (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="hidden grid-cols-3 gap-3 sm:grid">
               <div className="rounded-xl border bg-card p-3">
                 <p className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground"><ClipboardList className="size-3.5" />Próximo</p>
                 <p className="mt-2 text-lg font-semibold leading-none tracking-tight">{next ? dueLabel(daysUntil(next.date)) : "Libre"}</p>
@@ -802,7 +782,8 @@ export function ExamenesTab({ subjects, exams, setExams, kinds, setKinds, hidden
             <DialogTitle>{dialog.editing ? "Editar evento" : "Nuevo evento"}</DialogTitle>
             <DialogDescription>{dialog.editing ? "Cambia lo que necesites." : "Fecha, peso y notas opcionales."}</DialogDescription>
           </DialogHeader>
-          <ExamForm subjects={subjects} kindsApi={kindsApi} initial={dialog.editing} defaultDate={dialog.date} onSave={save} onCancel={closeDialog} />
+          <ExamForm subjects={subjects} kindsApi={kindsApi} initial={dialog.editing} defaultDate={dialog.date} onSave={save} onCancel={closeDialog}
+            onDelete={dialog.editing ? () => { remove(dialog.editing!.id); closeDialog() } : undefined} />
         </DialogContent>
       </Dialog>
     </div>
