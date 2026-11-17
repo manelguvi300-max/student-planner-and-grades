@@ -265,7 +265,7 @@ export function TeacherForm({ teacher, subjects, presetSubjectIds, timeLabel, fo
         )}
       </section>
 
-      <div className="flex justify-end gap-2 border-t pt-3">
+      <div className="sheet-actions flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button>
         <Button type="submit">{teacher ? "Guardar cambios" : "Agregar profesor"}</Button>
       </div>

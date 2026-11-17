@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
+import { useSheetBack } from "@/lib/use-sheet-back"
 import {
   DAYS, getSubject, teachersOf, minutesToTime, timeToMinutes,
   type ClassSession, type ColorSwatch, type Subject, type Teacher,
@@ -33,6 +34,7 @@ type Props = {
 }
 
 export function ClaseDialog({ state, onClose, ...rest }: Props) {
+  useSheetBack(state !== null, onClose)
   return (
     <Dialog open={state !== null} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[92dvh] gap-5 overflow-y-auto sm:max-w-[460px]">
@@ -167,7 +169,7 @@ function ClaseForm({ state, onClose, teachers: directory, subjects, setSubjects,
               <div className="flex items-center gap-2 border-b px-3">
                 <Search className="size-4 shrink-0 text-muted-foreground" />
                 <input autoFocus={!!subject} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar materia…" aria-label="Buscar materia"
-                  className="h-10 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                  className="h-10 w-full bg-transparent text-base outline-none md:text-sm placeholder:text-muted-foreground"
                   onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (matches[0]) choose(matches[0].id) } }} />
               </div>
               <ul className="max-h-48 overflow-y-auto p-1" role="listbox" aria-label="Materias">
@@ -306,7 +308,7 @@ function ClaseForm({ state, onClose, teachers: directory, subjects, setSubjects,
       ))}
 
       {/* Acciones */}
-      <div className="flex items-center justify-between gap-2 pt-1">
+      <div className="sheet-actions flex items-center justify-between gap-2">
         {editing ? (
           confirmDel ? (
             <div className="flex items-center gap-1.5">

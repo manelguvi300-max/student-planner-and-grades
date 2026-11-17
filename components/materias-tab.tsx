@@ -13,6 +13,7 @@ import {
   type Absence, type ClassSession, type ColorSwatch, type Exam, type Grade, type Subject, type SubjectConfig, type Teacher,
 } from "@/lib/horario-data"
 import { MultiPicker } from "./multi-picker"
+import { useSheetBack } from "@/lib/use-sheet-back"
 import { Avatar, saveTeacher, teacherColor, toggleAssign, type TeacherOps } from "./teacher-parts"
 
 const DAY_SHORT = ["L", "M", "Mi", "J", "V"]
@@ -134,7 +135,7 @@ function SubjectForm({ subject, subjects, teachers, onCreateTeacher, onSave, onC
           }))} />
       </section>
 
-      <div className="flex justify-end gap-2 border-t pt-3">
+      <div className="sheet-actions flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button>
         <Button type="submit" disabled={!ok}>{subject ? "Guardar cambios" : "Crear materia"}</Button>
       </div>
@@ -185,6 +186,7 @@ export function MateriasTab({
 
   const current = dlg?.subjectId ? subjects.find((s) => s.id === dlg.subjectId) : undefined
   const close = () => { setDlg(null); setConfirmDelete(false) }
+  useSheetBack(dlg !== null, close)
   const open = (next: Dlg) => { setConfirmDelete(false); setDlg(next) }
 
   const classesOf = (id: string) => classes.filter((c) => c.subjectId === id).sort((a, b) => a.day - b.day || a.startTime - b.startTime)

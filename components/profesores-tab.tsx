@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Plus, Pencil, Trash2, Mail, Phone, MapPin, Clock, Search, UserPlus, Users, ChevronRight, ArrowLeft } from "lucide-react"
 import { MultiPicker } from "./multi-picker"
+import { useSheetBack } from "@/lib/use-sheet-back"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
@@ -53,6 +54,7 @@ export function ProfesoresTab({ teachers, setTeachers, subjects, setSubjects, cl
   const shown = query.trim() ? sorted.filter((t) => norm(`${t.name} ${t.role ?? ""} ${subjectsOf(t.id, subjects).map((s) => s.name).join(" ")}`).includes(norm(query.trim()))) : sorted
   const current = dlg?.teacherId ? teachers.find((t) => t.id === dlg.teacherId) : undefined
   const close = () => { setDlg(null); setConfirmDelete(false) }
+  useSheetBack(dlg !== null, close)
   const open = (next: Dlg) => { setConfirmDelete(false); setDlg(next) }
 
   function onSave(data: Omit<Teacher, "id">, subjectIds: string[]) {
@@ -221,7 +223,7 @@ export function ProfesoresTab({ teachers, setTeachers, subjects, setSubjects, cl
                     <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border bg-card px-3">
                       <Search className="size-4 shrink-0 text-muted-foreground" />
                       <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar profesor o materia…" aria-label="Buscar profesor"
-                        className="h-10 w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
+                        className="h-10 w-full min-w-0 bg-transparent text-base outline-none md:text-sm placeholder:text-muted-foreground" />
                     </div>
                   )}
                   {hasOfficeHours && (

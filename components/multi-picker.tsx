@@ -109,9 +109,13 @@ export function MultiPicker({ items, value, onChange, noun, onCreate, variant = 
         ))}
         {rows_ && <Plus className="ml-1.5 size-4 shrink-0 text-muted-foreground" />}
         <input ref={inputRef} value={query} onChange={(e) => { setQuery(e.target.value); setActive(0); setOpen(true) }}
-          onFocus={() => setOpen(true)} onKeyDown={onKeyDown} role="combobox" aria-expanded={open} aria-autocomplete="list" aria-label={`Agregar ${noun}`}
+          onFocus={() => {
+            setOpen(true)
+            // en el móvil el teclado tapa media pantalla: se centra el campo para que se vean las sugerencias
+            if (window.matchMedia("(pointer: coarse)").matches) setTimeout(() => rootRef.current?.scrollIntoView({ block: "center", behavior: "smooth" }), 320)
+          }} onKeyDown={onKeyDown} role="combobox" aria-expanded={open} aria-autocomplete="list" aria-label={`Agregar ${noun}`}
           placeholder={rows_ ? `Agregar ${noun}…` : selected.length ? `Agregar otro…` : onCreate ? `Buscar o crear ${noun}…` : `Buscar ${noun}…`} enterKeyHint="done"
-          className="h-7 min-w-28 flex-1 bg-transparent px-1.5 text-sm outline-none placeholder:text-muted-foreground" />
+          className="h-7 min-w-28 flex-1 bg-transparent px-1.5 text-base outline-none placeholder:text-muted-foreground md:text-sm pointer-coarse:h-8" />
       </div>
 
       {open && rows > 0 && (

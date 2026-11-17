@@ -301,7 +301,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
         {tabs.map(([v, label, Icon]) => (
           <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => { setRequest(null); setTeacherRequest(null); setView(v) }}
             className={cn("relative flex items-center justify-center gap-1.5 rounded-xl py-2 transition-colors active:scale-95", view === v ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
-            <Icon className="size-4" />{label}
+            <Icon className="size-4 max-[350px]:hidden" />{label}
           </button>
         ))}
       </div>
