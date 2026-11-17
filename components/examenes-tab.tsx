@@ -13,7 +13,8 @@ import { Badge } from "@/components/ui/badge"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { SubjectPicker } from "@/components/subject-picker"
+import { useSheetBack } from "@/lib/use-sheet-back"
 import { cn } from "@/lib/utils"
 import { getSubject, minutesToLabel, timeToMinutes, type Subject, type Exam } from "@/lib/horario-data"
 import { useSettings } from "@/lib/settings"
@@ -119,14 +120,7 @@ function ExamForm({ subjects, initial, defaultDate, onSave, onCancel }: {
     <form onSubmit={submit} className="space-y-4">
       <div className="space-y-1.5">
         <Label>Materia</Label>
-        <Select value={subjectId} onValueChange={(v) => v && setSubjectId(v)}>
-          <SelectTrigger aria-invalid={tried && subjectBad}>
-            <SelectValue placeholder="Selecciona una materia">{() => getSubject(subjects, subjectId)?.name}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {subjects.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <SubjectPicker subjects={subjects} value={subjectId} onChange={setSubjectId} invalid={tried && subjectBad} />
       </div>
 
       <div className="space-y-1.5">
@@ -404,6 +398,7 @@ export function ExamenesTab({ subjects, exams, setExams, hiddenSubjects, onToggl
   const [dialog, setDialog] = useState<{ open: boolean; editing?: Exam; date?: string }>({ open: false })
 
   const closeDialog = () => setDialog((d) => ({ ...d, open: false }))
+  useSheetBack(dialog.open, closeDialog)
   const hiddenSubjectsList = subjects.filter((s) => hiddenSubjects.includes(s.id))
 
   function save(data: Omit<Exam, "id" | "done"> & { id?: string }) {
