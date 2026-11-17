@@ -3,10 +3,10 @@
 import { auth } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { plannerData } from "@/lib/db/schema"
-import { eq } from "drizzle-orm"
+import { loadPlanner } from "@/lib/planner-server"
 import { headers } from "next/headers"
 import type { ClassSession, Exam, Grade, Absence, SubjectConfig, HiddenMap } from "@/lib/horario-data"
-import { DEFAULT_CLASSES, NO_HIDDEN, normalizeHidden } from "@/lib/horario-data"
+import { DEFAULT_CLASSES, normalizeHidden } from "@/lib/horario-data"
 
 export type PlannerState = {
   subjects: import("@/lib/horario-data").Subject[]
@@ -25,35 +25,7 @@ async function getUserId() {
 }
 
 export async function getPlannerData(): Promise<PlannerState> {
-  const userId = await getUserId()
-
-  const rows = await db.select().from(plannerData).where(eq(plannerData.userId, userId)).limit(1)
-
-  if (rows.length === 0) {
-    const initial: PlannerState = {
-      subjects: [],
-      classes: DEFAULT_CLASSES,
-      grades: {},
-      exams: [],
-      absences: [],
-      subjectConfigs: {},
-      hidden: NO_HIDDEN,
-    }
-    const { hidden, ...rest } = initial
-    await db.insert(plannerData).values({ userId, ...rest, hiddenSubjects: hidden })
-    return initial
-  }
-
-  const row = rows[0]
-  return {
-    subjects: (row.subjects as import("@/lib/horario-data").Subject[]) ?? [],
-    classes: (row.classes as ClassSession[]) ?? [],
-    grades: (row.grades as Record<string, Grade[]>) ?? {},
-    exams: (row.exams as Exam[]) ?? [],
-    absences: (row.absences as Absence[]) ?? [],
-    subjectConfigs: (row.subjectConfigs as Record<string, SubjectConfig>) ?? {},
-    hidden: normalizeHidden(row.hiddenSubjects),
-  }
+  return loadPlanner(await getUserId())
 }
 
 export async function savePlannerData(state: PlannerState): Promise<void> {

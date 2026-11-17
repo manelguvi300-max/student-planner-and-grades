@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
-import { getPlannerData, migrateFromLocal, savePlannerData, type PlannerState } from "@/app/actions/planner"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { migrateFromLocal, savePlannerData, type PlannerState } from "@/app/actions/planner"
 import { DEFAULT_CLASSES, NO_HIDDEN, normalizeHidden, migrateTeachers, teachersFromConfigs, withDirectory, kindsFromConfigs, withKinds, semestersFromConfigs, withSemesters, SEMESTERS_KEY, type SemesterData, type Teacher, type EventKind, type ClassSession, type Exam, type Grade, type Absence, type SubjectConfig, type HiddenMap } from "@/lib/horario-data"
 import type { Subject } from "@/lib/horario-data"
 
@@ -40,95 +40,94 @@ function readLocalState(): PlannerState | null {
 const EMPTY_SEMESTER: SemesterData = { subjects: [], classes: [], grades: {}, exams: [], absences: [], subjectConfigs: {}, hidden: NO_HIDDEN }
 const isReserved = (k: string) => k.startsWith("__")
 
-export type PlannerStatus = "loading" | "saving" | "saved"
+export function usePlanner(initial: PlannerState) {
+  // Los datos llegan ya cargados desde el servidor (ver app/page.tsx); migrateTeachers pasa a los profesores antiguos al directorio.
+  const [init] = useState(() => {
+    const mig = migrateTeachers(initial.subjects ?? [], initial.subjectConfigs ?? {})
+    return { ...initial, subjects: mig.subjects, subjectConfigs: mig.configs, hidden: normalizeHidden(initial.hidden) }
+  })
+  const [subjects, setSubjects] = useState<Subject[]>(init.subjects)
+  const [classes, setClasses] = useState<ClassSession[]>(init.classes)
+  const [grades, setGrades] = useState<Record<string, Grade[]>>(init.grades)
+  const [exams, setExams] = useState<Exam[]>(init.exams)
+  const [absences, setAbsences] = useState<Absence[]>(init.absences ?? [])
+  const [subjectConfigs, setSubjectConfigs] = useState<Record<string, SubjectConfig>>(init.subjectConfigs)
+  const [hidden, setHidden] = useState<HiddenMap>(init.hidden)
 
-export function usePlanner() {
-  const [subjects, setSubjects] = useState<Subject[]>([])
-  const [classes, setClasses] = useState<ClassSession[]>(DEFAULT_CLASSES)
-  const [grades, setGrades] = useState<Record<string, Grade[]>>({})
-  const [exams, setExams] = useState<Exam[]>([])
-  const [absences, setAbsences] = useState<Absence[]>([])
-  const [subjectConfigs, setSubjectConfigs] = useState<Record<string, SubjectConfig>>({})
-  const [hidden, setHidden] = useState<HiddenMap>(NO_HIDDEN)
-  const [status, setStatus] = useState<PlannerStatus>("loading")
-
-  const ready = useRef(false)
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
+  // Una sola vez por dispositivo: datos del localStorage antiguo y materias ocultas de este dispositivo.
   useEffect(() => {
     let cancelled = false
-
-    async function load() {
+    async function legacy() {
       try {
-        let data = await getPlannerData()
-
         if (!window.localStorage.getItem(MIGRATED_FLAG)) {
           const local = readLocalState()
           if (local) {
-            data = await migrateFromLocal(local)
+            const data = await migrateFromLocal(local)
+            if (cancelled) return
+            const mig = migrateTeachers(data.subjects ?? [], data.subjectConfigs ?? {})
+            setSubjects(mig.subjects)
+            setClasses(data.classes)
+            setGrades(data.grades)
+            setExams(data.exams)
+            setAbsences(data.absences ?? [])
+            setSubjectConfigs(mig.configs)
           }
           window.localStorage.setItem(MIGRATED_FLAG, "true")
         }
-
-        if (cancelled) return
-        // los profesores que estaban dentro de cada materia pasan al directorio (se guarda en el siguiente guardado)
-        const mig = migrateTeachers(data.subjects ?? [], data.subjectConfigs ?? {})
-        setSubjects(mig.subjects)
-        setClasses(data.classes)
-        setGrades(data.grades)
-        setExams(data.exams)
-        setAbsences(data.absences ?? [])
-        setSubjectConfigs(mig.configs)
-        let h = normalizeHidden(data.hidden)
-        try {
-          const old = window.localStorage.getItem(OLD_HIDDEN_KEY)
-          if (old) {
-            const local = normalizeHidden(JSON.parse(old))
-            if (!hiddenCount(h) && hiddenCount(local)) h = local // la cuenta aún no tenía ocultas: se adoptan las de este dispositivo
-            window.localStorage.removeItem(OLD_HIDDEN_KEY)
-          }
-        } catch {}
-        setHidden(h)
-        setStatus("saved")
-        ready.current = true
-      } catch {
-        if (!cancelled) setStatus("saved")
-      }
+        const old = window.localStorage.getItem(OLD_HIDDEN_KEY)
+        if (old) {
+          const local = normalizeHidden(JSON.parse(old))
+          if (!hiddenCount(init.hidden) && hiddenCount(local)) setHidden(local) // la cuenta aún no tenía ocultas: se adoptan las de este dispositivo
+          window.localStorage.removeItem(OLD_HIDDEN_KEY)
+        }
+      } catch {}
     }
-
-    load()
+    legacy()
     return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Guardado: se espera a que el usuario deje de editar (700 ms) y se envía todo junto. Si la app pasa a segundo plano
+  // o se cierra con cambios pendientes, se envían al instante (en el móvil el sistema puede matar la app en cualquier momento).
+  const latest = useRef<PlannerState>({ subjects, classes, grades, exams, absences, subjectConfigs, hidden })
+  latest.current = { subjects, classes, grades, exams, absences, subjectConfigs, hidden }
+  const dirty = useRef(false)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const firstRun = useRef(true)
+
+  const flush = useRef(() => {
+    if (timer.current) { clearTimeout(timer.current); timer.current = null }
+    if (!dirty.current) return
+    dirty.current = false
+    savePlannerData(latest.current).catch(() => { dirty.current = true }) // si falla, el siguiente cambio lo reintenta
+  }).current
+
   useEffect(() => {
-    if (!ready.current) return
+    if (firstRun.current) { firstRun.current = false; return } // el primer render son los datos del servidor: nada que guardar
+    dirty.current = true
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(flush, 700)
+  }, [subjects, classes, grades, exams, absences, subjectConfigs, hidden, flush])
 
-    setStatus("saving")
-    if (saveTimer.current) clearTimeout(saveTimer.current)
-
-    saveTimer.current = setTimeout(() => {
-      savePlannerData({ subjects, classes, grades, exams, absences, subjectConfigs, hidden })
-        .then(() => setStatus("saved"))
-        .catch(() => setStatus("saved"))
-    }, 700)
-
-    return () => {
-      if (saveTimer.current) clearTimeout(saveTimer.current)
-    }
-  }, [subjects, classes, grades, exams, absences, subjectConfigs, hidden])
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === "hidden") flush() }
+    document.addEventListener("visibilitychange", onHide)
+    window.addEventListener("pagehide", flush)
+    return () => { document.removeEventListener("visibilitychange", onHide); window.removeEventListener("pagehide", flush); flush() }
+  }, [flush])
 
   // directorio de profesores (vive dentro de subjectConfigs, sin cambiar la base de datos)
-  const teachers = teachersFromConfigs(subjectConfigs)
+  const teachers = useMemo(() => teachersFromConfigs(subjectConfigs), [subjectConfigs])
   const setTeachers = (u: Teacher[] | ((prev: Teacher[]) => Teacher[])) =>
     setSubjectConfigs((prev) => withDirectory(prev, typeof u === "function" ? u(teachersFromConfigs(prev)) : u))
 
   // categorías propias de la agenda (también dentro de subjectConfigs)
-  const kinds = kindsFromConfigs(subjectConfigs)
+  const kinds = useMemo(() => kindsFromConfigs(subjectConfigs), [subjectConfigs])
   const setKinds = (u: EventKind[] | ((prev: EventKind[]) => EventKind[])) =>
     setSubjectConfigs((prev) => withKinds(prev, typeof u === "function" ? u(kindsFromConfigs(prev)) : u))
 
   // semestres: el activo vive en el estado de siempre; los demás, archivados dentro de subjectConfigs (ver horario-data)
-  const semesters = semestersFromConfigs(subjectConfigs)
+  const semesters = useMemo(() => semestersFromConfigs(subjectConfigs), [subjectConfigs])
 
   /** Guarda el semestre actual en el archivo y carga `target` (todo junto, para que se guarde una sola vez). */
   function loadSemester(nextId: string, list: typeof semesters.list, target: SemesterData, archive: typeof semesters.archive) {
@@ -188,6 +187,5 @@ export function usePlanner() {
     absences, setAbsences,
     subjectConfigs, setSubjectConfigs,
     hidden, setHidden,
-    status,
   }
 }

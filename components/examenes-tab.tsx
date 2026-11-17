@@ -369,7 +369,7 @@ function ExamCard({ exam, subject, kind, showDate, overdue, onToggleDone, onEdit
 
       <button type="button" onClick={onToggleDone} aria-pressed={Boolean(exam.done)} aria-label={exam.done ? "Marcar como pendiente" : "Marcar como hecho"}
         className="grid w-12 shrink-0 place-items-center transition-colors hover:bg-foreground/[0.04] active:bg-foreground/[0.08]">
-        <span className={cn("grid size-6 place-items-center rounded-full border-2 transition-all duration-300", exam.done ? "scale-100 border-emerald-500 bg-emerald-500 text-white" : "border-foreground/25")}>
+        <span className={cn("grid size-6 place-items-center rounded-full border-2 transition-[transform,background-color,border-color] duration-300", exam.done ? "scale-100 border-emerald-500 bg-emerald-500 text-white" : "border-foreground/25")}>
           {exam.done && <Check className="size-3.5 animate-pop" strokeWidth={3} />}
         </span>
       </button>

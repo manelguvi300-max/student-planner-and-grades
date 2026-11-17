@@ -5,15 +5,27 @@ import { CalendarDays, GraduationCap, ClipboardList, UserX, House, Settings } fr
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { HoyTab } from "@/components/hoy-tab"
 import { NO_HIDDEN, type HiddenMap } from "@/lib/horario-data"
-import { HorarioTab } from "@/components/horario-tab"
-import { NotasTab } from "@/components/notas-tab"
-import { ExamenesTab } from "@/components/examenes-tab"
-import { FaltasTab } from "@/components/faltas-tab"
-import { SettingsTab } from "@/components/settings-tab"
+import dynamic from "next/dynamic"
+import type { PlannerState } from "@/app/actions/planner"
 import { SemesterSwitcher } from "@/components/semester-switcher"
 import { usePlanner } from "@/lib/use-planner"
 import { useSettings } from "@/lib/settings"
 import { cn } from "@/lib/utils"
+
+// Cada pestaña se descarga aparte (la primera carga pesa menos) y el resto se precarga en segundo plano al quedar libre el navegador.
+const tabLoaders = {
+  horario: () => import("@/components/horario-tab").then((m) => m.HorarioTab),
+  notas: () => import("@/components/notas-tab").then((m) => m.NotasTab),
+  examenes: () => import("@/components/examenes-tab").then((m) => m.ExamenesTab),
+  faltas: () => import("@/components/faltas-tab").then((m) => m.FaltasTab),
+  ajustes: () => import("@/components/settings-tab").then((m) => m.SettingsTab),
+}
+const TabSkeleton = () => <div aria-hidden className="h-64 animate-pulse rounded-xl bg-muted/40" />
+const HorarioTab = dynamic(tabLoaders.horario, { loading: TabSkeleton })
+const NotasTab = dynamic(tabLoaders.notas, { loading: TabSkeleton })
+const ExamenesTab = dynamic(tabLoaders.examenes, { loading: TabSkeleton })
+const FaltasTab = dynamic(tabLoaders.faltas, { loading: TabSkeleton })
+const SettingsTab = dynamic(tabLoaders.ajustes, { loading: TabSkeleton })
 
 // "ajustes" va al final: en móvil se abre desde el engranaje del encabezado, no desde la barra inferior.
 const NAV_ITEMS = [
@@ -27,7 +39,7 @@ const NAV_ITEMS = [
 const MOBILE_ITEMS = NAV_ITEMS.slice(0, 5)
 
 
-export function PlannerView({ userName, userEmail, userImage }: { userName: string; userEmail: string; userImage: string }) {
+export function PlannerView({ initial, userName, userEmail, userImage }: { initial: PlannerState; userName: string; userEmail: string; userImage: string }) {
   const { settings, loaded } = useSettings()
   const [tab, setTab] = useState<string>("hoy")
   const {
@@ -41,7 +53,17 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
     teachers, setTeachers,
     kinds, setKinds,
     hidden: hiddenSubjectsByTab, setHidden: setHiddenSubjectsByTab,
-  } = usePlanner()
+  } = usePlanner(initial)
+
+  // Precarga el resto de pestañas cuando el navegador está libre (salvo con ahorro de datos): al cambiar de pestaña ya están listas.
+  useEffect(() => {
+    if ((navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData) return
+    const run = () => Object.values(tabLoaders).forEach((load) => load())
+    const w = window as Window & { requestIdleCallback?: (cb: () => void) => number; cancelIdleCallback?: (id: number) => void }
+    if (w.requestIdleCallback) { const id = w.requestIdleCallback(run); return () => w.cancelIdleCallback?.(id) }
+    const id = window.setTimeout(run, 1500)
+    return () => window.clearTimeout(id)
+  }, [])
 
   // Abrir en la pestaña elegida en Ajustes (solo la primera vez que se leen los ajustes)
   useEffect(() => {
@@ -52,8 +74,11 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
   // Sesión siempre verificada: al volver a la pestaña se consulta al servidor y, si ya no hay sesión
   // (cerrada aquí o en otro dispositivo), se va al login. «Atrás» tras cerrar sesión no muestra la página cacheada.
   useEffect(() => {
+    let last = 0
     const check = async () => {
       if (document.visibilityState !== "visible") return
+      if (Date.now() - last < 20_000) return // no más de una consulta cada 20 s al ir y venir entre apps
+      last = Date.now()
       try {
         const r = await fetch("/api/auth/get-session", { cache: "no-store" })
         const d = r.ok ? await r.json() : null
@@ -304,7 +329,7 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
                   active ? "text-foreground" : "text-muted-foreground"
                 )}
               >
-                <span className={cn("grid h-8 w-14 place-items-center rounded-xl transition-all duration-300", active ? "scale-100 bg-brand/15 text-brand" : "scale-90 bg-transparent")}>
+                <span className={cn("grid h-8 w-14 place-items-center rounded-xl transition-[transform,background-color,color] duration-300", active ? "scale-100 bg-brand/15 text-brand" : "scale-90 bg-transparent")}>
                   <item.icon className={cn("size-[22px]", active && "animate-pop")} />
                 </span>
                 {item.label}
