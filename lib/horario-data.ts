@@ -36,6 +36,39 @@ export const TEACHER_ROLES = ["Teoría", "Laboratorio", "Monitor"]
 /** El directorio de profesores se guarda dentro de subjectConfigs (misma columna), bajo esta clave reservada. */
 export const TEACHERS_KEY = "__teachers"
 
+/* ───────────── Semestres ─────────────
+ * El semestre ACTIVO vive en las columnas de siempre (materias, clases, notas…), así que todo el resto de la app no se entera.
+ * Los demás semestres se guardan archivados dentro de subjectConfigs[SEMESTERS_KEY] (sin migrar la base de datos).
+ * Se comparten entre semestres: el directorio de profesores y la regla global de faltas. */
+export const SEMESTERS_KEY = "__semesters"
+
+export type Semester = { id: string; name: string }
+export type SemesterData = {
+  subjects: Subject[]
+  classes: ClassSession[]
+  grades: Record<string, Grade[]>
+  exams: Exam[]
+  absences: Absence[]
+  subjectConfigs: Record<string, SubjectConfig>
+  hidden: HiddenMap
+}
+export type SemestersMeta = { list: Semester[]; activeId: string; archive: Record<string, SemesterData> }
+
+/** Lo que ya estaba registrado antes de existir los semestres pertenece a este. */
+export const DEFAULT_SEMESTER: Semester = { id: "2026-2", name: "2026-2" }
+
+export const semestersFromConfigs = (c: Record<string, SubjectConfig>): SemestersMeta =>
+  c[SEMESTERS_KEY]?.semesters ?? { list: [DEFAULT_SEMESTER], activeId: DEFAULT_SEMESTER.id, archive: {} }
+
+export const withSemesters = (c: Record<string, SubjectConfig>, semesters: SemestersMeta): Record<string, SubjectConfig> => ({ ...c, [SEMESTERS_KEY]: { semesters } })
+
+/** Siguiente nombre sugerido: 2026-2 → 2027-1, 2026-1 → 2026-2. Si no sigue ese formato, queda vacío. */
+export function nextSemesterName(name: string): string {
+  const m = /^(\d{4})-([12])$/.exec(name.trim())
+  if (!m) return ""
+  return m[2] === "1" ? `${m[1]}-2` : `${Number(m[1]) + 1}-1`
+}
+
 export const teachersFromConfigs = (c: Record<string, SubjectConfig>): Teacher[] => c[TEACHERS_KEY]?.teachers ?? []
 export const withDirectory = (c: Record<string, SubjectConfig>, teachers: Teacher[]): Record<string, SubjectConfig> => ({ ...c, [TEACHERS_KEY]: { teachers } })
 
@@ -122,6 +155,7 @@ export const GLOBAL_CONFIG_KEY = "__global"
 
 export type SubjectConfig = {
   teachers?: Teacher[]  // solo en la entrada reservada TEACHERS_KEY: el directorio de profesores
+  semesters?: SemestersMeta // solo en la entrada reservada SEMESTERS_KEY: la lista de semestres y los archivados
   custom?: boolean       // true = la materia tiene regla propia (mode/percent/maxAbsences); si no, usa la global
   mode?: AbsenceMode     // regla: "calc" | "manual" | "none"
   percent?: number       // regla "calc": % de las HD que se puede faltar (20 por defecto)

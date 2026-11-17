@@ -10,6 +10,7 @@ import { NotasTab } from "@/components/notas-tab"
 import { ExamenesTab } from "@/components/examenes-tab"
 import { FaltasTab } from "@/components/faltas-tab"
 import { SettingsTab } from "@/components/settings-tab"
+import { SemesterSwitcher } from "@/components/semester-switcher"
 import { usePlanner } from "@/lib/use-planner"
 import { useSettings } from "@/lib/settings"
 import { cn } from "@/lib/utils"
@@ -30,6 +31,7 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
   const { settings, loaded } = useSettings()
   const [tab, setTab] = useState<string>("hoy")
   const {
+    semesters, switchSemester, createSemester, renameSemester, deleteSemester,
     subjects, setSubjects,
     classes, setClasses,
     grades, setGrades,
@@ -98,6 +100,11 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
     setToday(new Intl.DateTimeFormat("es", { weekday: "long", day: "numeric", month: "long" }).format(new Date()))
   }, [])
 
+  const semesterSwitcher = (
+    <SemesterSwitcher className="max-w-28 sm:max-w-44 lg:max-w-full" semesters={semesters} activeSubjectCount={subjects.length}
+      onSwitch={switchSemester} onCreate={createSemester} onRename={renameSemester} onDelete={deleteSemester} />
+  )
+
   return (
     <div className="lg:flex">
       {/* Escritorio: barra lateral con resaltado deslizante */}
@@ -111,6 +118,7 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
             <p className="text-xs text-muted-foreground">Planner universitario</p>
           </div>
         </div>
+        <div className="-mt-1 mb-3 px-1">{semesterSwitcher}</div>
         <nav className="relative flex flex-col gap-2">
           {/* los ítems miden h-11 + gap-2 = 3.25rem */}
           <span
@@ -147,8 +155,9 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
           </div>
           <div className="min-w-0 flex-1 leading-tight">
             <p className="truncate text-[15px] font-semibold">Mi semestre</p>
-            <p className="truncate text-xs text-muted-foreground">Planner universitario</p>
+            <p className="hidden truncate text-xs text-muted-foreground sm:block">Planner universitario</p>
           </div>
+          {semesterSwitcher}
           <button
             type="button"
             onClick={() => setTab(inSettings ? "hoy" : "ajustes")}

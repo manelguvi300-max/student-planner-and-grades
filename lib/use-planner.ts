@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { getPlannerData, migrateFromLocal, savePlannerData, type PlannerState } from "@/app/actions/planner"
-import { DEFAULT_CLASSES, NO_HIDDEN, normalizeHidden, migrateTeachers, teachersFromConfigs, withDirectory, type Teacher, type ClassSession, type Exam, type Grade, type Absence, type SubjectConfig, type HiddenMap } from "@/lib/horario-data"
+import { DEFAULT_CLASSES, NO_HIDDEN, normalizeHidden, migrateTeachers, teachersFromConfigs, withDirectory, semestersFromConfigs, withSemesters, SEMESTERS_KEY, type SemesterData, type Teacher, type ClassSession, type Exam, type Grade, type Absence, type SubjectConfig, type HiddenMap } from "@/lib/horario-data"
 import type { Subject } from "@/lib/horario-data"
 
 const LOCAL_KEYS = {
@@ -36,6 +36,9 @@ function readLocalState(): PlannerState | null {
     return null
   }
 }
+
+const EMPTY_SEMESTER: SemesterData = { subjects: [], classes: [], grades: {}, exams: [], absences: [], subjectConfigs: {}, hidden: NO_HIDDEN }
+const isReserved = (k: string) => k.startsWith("__")
 
 export type PlannerStatus = "loading" | "saving" | "saved"
 
@@ -119,7 +122,58 @@ export function usePlanner() {
   const setTeachers = (u: Teacher[] | ((prev: Teacher[]) => Teacher[])) =>
     setSubjectConfigs((prev) => withDirectory(prev, typeof u === "function" ? u(teachersFromConfigs(prev)) : u))
 
+  // semestres: el activo vive en el estado de siempre; los demás, archivados dentro de subjectConfigs (ver horario-data)
+  const semesters = semestersFromConfigs(subjectConfigs)
+
+  /** Guarda el semestre actual en el archivo y carga `target` (todo junto, para que se guarde una sola vez). */
+  function loadSemester(nextId: string, list: typeof semesters.list, target: SemesterData, archive: typeof semesters.archive) {
+    const current: SemesterData = {
+      subjects, classes, grades, exams, absences, hidden,
+      subjectConfigs: Object.fromEntries(Object.entries(subjectConfigs).filter(([k]) => !isReserved(k))),
+    }
+    const nextArchive = { ...archive, [semesters.activeId]: current }
+    delete nextArchive[nextId]
+    // lo compartido entre semestres (directorio de profesores, regla global de faltas) se queda
+    const shared = Object.fromEntries(Object.entries(subjectConfigs).filter(([k]) => isReserved(k) && k !== SEMESTERS_KEY))
+    setSubjects(target.subjects)
+    setClasses(target.classes)
+    setGrades(target.grades)
+    setExams(target.exams)
+    setAbsences(target.absences)
+    setHidden(target.hidden)
+    setSubjectConfigs(withSemesters({ ...target.subjectConfigs, ...shared }, { list, activeId: nextId, archive: nextArchive }))
+  }
+
+  const switchSemester = (id: string) => {
+    if (id === semesters.activeId || !semesters.list.some((s) => s.id === id)) return
+    loadSemester(id, semesters.list, semesters.archive[id] ?? EMPTY_SEMESTER, semesters.archive)
+  }
+
+  /** Crea un semestre vacío ("desde 0") y lo activa. */
+  const createSemester = (name: string) => {
+    const clean = name.trim()
+    if (!clean) return
+    const id = `s-${Date.now().toString(36)}`
+    loadSemester(id, [...semesters.list, { id, name: clean }], EMPTY_SEMESTER, semesters.archive)
+  }
+
+  const updateMeta = (list: typeof semesters.list, archive = semesters.archive) =>
+    setSubjectConfigs((prev) => withSemesters(prev, { list, activeId: semesters.activeId, archive }))
+
+  const renameSemester = (id: string, name: string) => {
+    const clean = name.trim()
+    if (clean) updateMeta(semesters.list.map((s) => (s.id === id ? { ...s, name: clean } : s)))
+  }
+
+  /** Borra un semestre archivado (el activo no se puede borrar). */
+  const deleteSemester = (id: string) => {
+    if (id === semesters.activeId) return
+    const { [id]: _gone, ...archive } = semesters.archive
+    updateMeta(semesters.list.filter((s) => s.id !== id), archive)
+  }
+
   return {
+    semesters, switchSemester, createSemester, renameSemester, deleteSemester,
     teachers, setTeachers,
     subjects, setSubjects,
     classes, setClasses,
