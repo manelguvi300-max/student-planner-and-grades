@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { createPortal } from "react-dom"
 import {
   Plus, Trash2, Users, User, FileText, Presentation, Handshake, Puzzle, ListChecks, PackageCheck, Tag, StickyNote, ChevronDown,
   List, Calendar, ChevronLeft, ChevronRight, Eye, Pencil, Check, Clock,
@@ -622,6 +623,8 @@ export function ExamenesTab({ subjects, exams, setExams, kinds, setKinds, hidden
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [showPast, setShowPast] = useState(false)
   const [activeDay, setActiveDay] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
   const [dialog, setDialog] = useState<{ open: boolean; editing?: Exam; date?: string }>({ open: false })
 
   const closeDialog = () => setDialog((d) => ({ ...d, open: false }))
@@ -879,11 +882,14 @@ export function ExamenesTab({ subjects, exams, setExams, kinds, setKinds, hidden
         </DialogContent>
       </Dialog>
     </div>
-      {/* Móvil: botón flotante; va fuera del contenedor animado para que `fixed` se ancle a la pantalla */}
-      <button type="button" onClick={() => openNew()} aria-label="Nuevo evento"
-        className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom)+1rem)] right-4 z-30 grid size-14 animate-pop place-items-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition active:scale-90 md:hidden">
-        <Plus className="size-6" />
-      </button>
+      {/* Móvil: botón flotante. Va en un portal al body: las pestañas animan con transform y eso rompe `fixed` */}
+      {mounted && createPortal(
+        <button type="button" onClick={() => openNew()} aria-label="Nuevo evento"
+          className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom)+1rem)] right-4 z-30 grid size-14 animate-pop place-items-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition active:scale-90 md:hidden">
+          <Plus className="size-6" />
+        </button>,
+        document.body
+      )}
     </>
   )
 }
