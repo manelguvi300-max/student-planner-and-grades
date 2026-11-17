@@ -7,7 +7,7 @@ import { SettingsProvider } from '@/lib/settings'
 const THEME_SCRIPT = `try{var s=JSON.parse(localStorage.getItem("planner.settings")||"{}"),t=s.theme||"system",d=document.documentElement;if(t==="system")t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";d.dataset.theme=t;d.dataset.motion=s.motion||"full"}catch(e){}`
 
 const sora = Sora({ variable: '--font-sora', subsets: ['latin'] })
-const mono = JetBrains_Mono({ variable: '--font-jb', subsets: ['latin'], weight: ['400', '500', '700'] })
+const mono = JetBrains_Mono({ variable: '--font-jb', subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Mi semestre — Horario, notas y exámenes',
