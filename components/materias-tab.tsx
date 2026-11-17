@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import {
-  Plus, Pencil, Trash2, Mail, Phone, MapPin, Clock, Copy, Check, X, ArrowLeft, UserPlus,
-  CalendarPlus, GraduationCap, ChevronRight,
+  Plus, Pencil, Trash2, Mail, Phone, X, ArrowLeft, UserPlus, CalendarPlus, GraduationCap, ChevronRight, Check, Search,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,13 +10,14 @@ import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import {
-  COLORS_PALETTE, DAYS, TEACHER_ROLES,
-  borderFromBg, getTeachers, initials, loadCustomColors, removeCustomColor, saveCustomColor, withTeachers, minutesToTime, timeToMinutes,
-  type Absence, type ClassSession, type ColorSwatch, type Exam, type Grade, type OfficeSlot, type Subject, type SubjectConfig, type Teacher,
+  COLORS_PALETTE, borderFromBg, loadCustomColors, removeCustomColor, saveCustomColor, teachersOf,
+  type Absence, type ClassSession, type ColorSwatch, type Exam, type Grade, type Subject, type SubjectConfig, type Teacher,
 } from "@/lib/horario-data"
+import { Avatar, TeacherForm, saveTeacher, teacherColor, toggleAssign, type TeacherOps } from "./teacher-parts"
 
 const DAY_SHORT = ["L", "M", "Mi", "J", "V"]
 const SHORT = ["Lun", "Mar", "Mié", "Jue", "Vie"]
+const norm = (t: string) => t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase()
 
 /** Primer color de la paleta que aún no usa ninguna materia (si todos se usan, vuelve a empezar). */
 export function pickDefaultColor(subjects: Subject[]): ColorSwatch {
@@ -91,50 +91,34 @@ export function ColorPicker({ value, onChange }: { value: ColorSwatch; onChange:
   )
 }
 
-/* ───────────── Pequeños bloques reutilizables ───────────── */
-
-function CopyButton({ text, label }: { text: string; label: string }) {
-  const [done, setDone] = useState(false)
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      onClick={async () => {
-        try { await navigator.clipboard.writeText(text); setDone(true); setTimeout(() => setDone(false), 1500) } catch { /* sin portapapeles */ }
-      }}
-      className="tap grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition hover:bg-foreground/[0.07] hover:text-foreground"
-    >
-      {done ? <Check className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
-    </button>
-  )
-}
-
-function Avatar({ name, subject, size = "size-10" }: { name: string; subject: Subject; size?: string }) {
-  return (
-    <span className={cn("grid shrink-0 place-items-center rounded-full text-xs font-bold text-neutral-900", size)} style={{ backgroundColor: subject.bg, boxShadow: `inset 0 0 0 1.5px ${subject.border}` }} aria-hidden>
-      {initials(name)}
-    </span>
-  )
-}
-
 /* ───────────── Formulario de materia ───────────── */
 
-function SubjectForm({ subject, subjects, onSave, onCancel }: {
+function SubjectForm({ subject, subjects, teachers, onCreateTeacher, onSave, onCancel }: {
   subject?: Subject
   subjects: Subject[]
-  onSave: (name: string, color: ColorSwatch) => void
+  teachers: Teacher[]
+  onCreateTeacher: (name: string) => string
+  onSave: (name: string, color: ColorSwatch, teacherIds: string[]) => void
   onCancel: () => void
 }) {
   const [name, setName] = useState(subject?.name ?? "")
   const [color, setColor] = useState<ColorSwatch>(subject ? { bg: subject.bg, border: subject.border } : pickDefaultColor(subjects))
+  const [ids, setIds] = useState<string[]>(subject?.teacherIds ?? [])
+  const [adding, setAdding] = useState(false)
+  const [newName, setNewName] = useState("")
   const ok = name.trim().length > 0
 
+  function addTeacher() {
+    const n = newName.trim()
+    if (!n) return
+    const id = onCreateTeacher(n) // efecto fuera del updater: si no, StrictMode lo ejecuta dos veces
+    setIds((x) => [...x, id])
+    setNewName("")
+    setAdding(false)
+  }
+
   return (
-    <form
-      onSubmit={(e) => { e.preventDefault(); if (ok) onSave(name.trim(), color) }}
-      className="space-y-5"
-    >
+    <form onSubmit={(e) => { e.preventDefault(); if (adding) return addTeacher(); if (ok) onSave(name.trim(), color, ids) }} className="space-y-5">
       {/* Vista previa */}
       <div className="flex items-center gap-3 rounded-2xl border p-3" style={{ backgroundColor: color.bg, borderColor: color.border }}>
         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-black/10 text-neutral-900"><GraduationCap className="size-5" /></span>
@@ -152,6 +136,34 @@ function SubjectForm({ subject, subjects, onSave, onCancel }: {
         <p className="text-xs text-muted-foreground">Es el color de sus clases en el horario, las notas y los exámenes.</p>
       </div>
 
+      <div className="space-y-2">
+        <Label>Profesores <span className="font-normal text-muted-foreground">(opcional)</span></Label>
+        <div className="flex flex-wrap gap-2">
+          {teachers.map((t) => {
+            const on = ids.includes(t.id)
+            return (
+              <button key={t.id} type="button" aria-pressed={on} onClick={() => setIds((x) => (on ? x.filter((i) => i !== t.id) : [...x, t.id]))}
+                className={cn("flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition active:scale-95", on ? "border-foreground bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}>
+                {on && <Check className="size-3.5 shrink-0" />}<span className="truncate">{t.name || "Profesor"}</span>
+              </button>
+            )
+          })}
+          {!adding && (
+            <button type="button" onClick={() => setAdding(true)} className="flex items-center gap-1 rounded-full border border-dashed px-3 py-1.5 text-xs text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
+              <Plus className="size-3.5" />Nuevo profesor
+            </button>
+          )}
+        </div>
+        {adding && (
+          <div className="animate-rise flex items-center gap-2">
+            <Input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nombre del profesor" maxLength={60}
+              onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setAdding(false) } }} />
+            <Button type="button" size="sm" onClick={addTeacher} disabled={!newName.trim()}>Agregar</Button>
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground">Después completas su correo y asesorías en la sección Profesores.</p>
+      </div>
+
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button>
         <Button type="submit" disabled={!ok}>{subject ? "Guardar cambios" : "Crear materia"}</Button>
@@ -160,249 +172,9 @@ function SubjectForm({ subject, subjects, onSave, onCancel }: {
   )
 }
 
-/* ───────────── Horarios de asesoría ───────────── */
-
-const slotSort = (a: OfficeSlot, b: OfficeSlot) => a.day - b.day || a.start - b.start
-export const slotText = (sl: OfficeSlot, timeLabel: (m: number) => string) => `${SHORT[sl.day]} ${timeLabel(sl.start)}–${timeLabel(sl.end)}`
-
-function OfficeHoursEditor({ slots, setSlots, note, setNote, timeLabel, pendingRef }: {
-  slots: OfficeSlot[]
-  setSlots: (s: OfficeSlot[]) => void
-  note: string
-  setNote: (n: string) => void
-  timeLabel: (m: number) => string
-  pendingRef: React.MutableRefObject<(() => OfficeSlot[]) | null>
-}) {
-  const [open, setOpen] = useState(false)
-  const [days, setDays] = useState<number[]>([])
-  const [start, setStart] = useState(14 * 60)
-  const [end, setEnd] = useState(16 * 60)
-  const valid = days.length > 0 && end > start
-  const draft = (): OfficeSlot[] => (open && valid ? days.map((day) => ({ id: crypto.randomUUID(), day, start, end })) : [])
-  pendingRef.current = draft // si guardan el profesor con el panel abierto, no se pierde lo escrito
-
-  function add() {
-    if (!valid) return
-    setSlots([...slots, ...draft()].sort(slotSort))
-    setDays([])
-    setOpen(false)
-  }
-  function changeStart(v: number) {
-    setEnd(end > start ? v + (end - start) : v + 120) // conserva la duración
-    setStart(v)
-  }
-
-  return (
-    <div className="space-y-2.5">
-      <Label className="flex items-center gap-1.5"><Clock className="size-3.5" />Asesorías <span className="font-normal text-muted-foreground">(opcional)</span></Label>
-      {slots.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {slots.map((sl) => (
-            <span key={sl.id} className="num inline-flex animate-pop items-center gap-1 rounded-full border bg-muted/40 py-1 pl-2.5 pr-1 text-xs">
-              {slotText(sl, timeLabel)}
-              <button type="button" aria-label={`Quitar ${slotText(sl, timeLabel)}`} onClick={() => setSlots(slots.filter((x) => x.id !== sl.id))}
-                className="tap grid size-5 place-items-center rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><X className="size-3" /></button>
-            </span>
-          ))}
-        </div>
-      )}
-      {open ? (
-        <div className="animate-rise space-y-3 rounded-2xl border bg-muted/30 p-3">
-          <div className="flex gap-1.5" role="group" aria-label="Días de la asesoría">
-            {DAYS.map((name, i) => {
-              const on = days.includes(i)
-              return (
-                <button key={name} type="button" aria-pressed={on} aria-label={name} title={name}
-                  onClick={() => setDays((d) => (d.includes(i) ? d.filter((x) => x !== i) : [...d, i]))}
-                  className={cn("grid h-9 flex-1 place-items-center rounded-lg border text-sm font-semibold transition active:scale-95", on ? "border-foreground bg-foreground text-background" : "bg-background text-muted-foreground hover:text-foreground")}>
-                  {DAY_SHORT[i]}
-                </button>
-              )
-            })}
-          </div>
-          <div className="flex items-center gap-2">
-            <Input type="time" aria-label="Desde" value={minutesToTime(start)} onChange={(e) => e.target.value && changeStart(timeToMinutes(e.target.value))} />
-            <span className="text-sm text-muted-foreground">a</span>
-            <Input type="time" aria-label="Hasta" value={minutesToTime(Math.max(0, Math.min(end, 24 * 60 - 1)))} onChange={(e) => e.target.value && setEnd(timeToMinutes(e.target.value))} />
-          </div>
-          {end <= start && <p className="text-xs text-destructive">La hora de fin debe ser después de la de inicio.</p>}
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs text-muted-foreground">Elige uno o varios días con la misma hora.</span>
-            <div className="flex gap-2">
-              <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
-              <Button type="button" size="sm" onClick={add} disabled={!valid}>Agregar</Button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <button type="button" onClick={() => setOpen(true)} className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed py-2 text-xs font-medium text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
-          <Plus className="size-3.5" />Agregar horario de asesoría
-        </button>
-      )}
-      <Input id="t-hours" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Nota (opcional): previa cita por correo…" aria-label="Nota de asesorías" />
-    </div>
-  )
-}
-
-/* ───────────── Formulario de profesor ───────────── */
-
-function TeacherForm({ teacher, subject, timeLabel, onSave, onCancel }: {
-  teacher?: Teacher
-  subject: Subject
-  timeLabel: (m: number) => string
-  onSave: (t: Omit<Teacher, "id">) => void
-  onCancel: () => void
-}) {
-  const [name, setName] = useState(teacher?.name ?? "")
-  const [role, setRole] = useState(teacher?.role ?? "")
-  const [email, setEmail] = useState(teacher?.email ?? "")
-  const [phone, setPhone] = useState(teacher?.phone ?? "")
-  const [office, setOffice] = useState(teacher?.office ?? "")
-  const [hours, setHours] = useState(teacher?.hours ?? "")
-  const [slots, setSlots] = useState<OfficeSlot[]>(teacher?.slots ?? [])
-  const pendingRef = useRef<(() => OfficeSlot[]) | null>(null)
-  const [tried, setTried] = useState(false)
-
-  const nameOk = name.trim().length > 0
-  const emailOk = email.trim() === "" || /^\S+@\S+\.\S+$/.test(email.trim())
-
-  function submit(e: React.FormEvent) {
-    e.preventDefault()
-    setTried(true)
-    if (!nameOk || !emailOk) return
-    const clean = (v: string) => v.trim() || undefined
-    const all = [...slots, ...(pendingRef.current?.() ?? [])].sort(slotSort)
-    onSave({ name: name.trim(), role: clean(role), email: clean(email), phone: clean(phone), office: clean(office), hours: clean(hours), slots: all.length ? all : undefined })
-  }
-
-  return (
-    <form onSubmit={submit} className="space-y-4">
-      <div className="flex items-center gap-3">
-        <Avatar name={name || "?"} subject={subject} size="size-12" />
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <Label htmlFor="t-name">Nombre</Label>
-          <Input id="t-name" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: María Pérez" aria-invalid={tried && !nameOk} />
-        </div>
-      </div>
-      {tried && !nameOk && <p className="-mt-2 text-xs text-destructive">Escribe el nombre del profesor.</p>}
-
-      <div className="space-y-1.5">
-        <Label htmlFor="t-role">Rol <span className="font-normal text-muted-foreground">(opcional)</span></Label>
-        <Input id="t-role" value={role} onChange={(e) => setRole(e.target.value)} placeholder="Teoría, laboratorio, monitor…" maxLength={30} />
-        <div className="flex flex-wrap gap-1.5">
-          {TEACHER_ROLES.map((r) => (
-            <button key={r} type="button" onClick={() => setRole(role === r ? "" : r)} aria-pressed={role === r}
-              className={cn("rounded-full border px-2.5 py-1 text-xs font-medium transition", role === r ? "border-foreground bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}>
-              {r}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="t-email" className="flex items-center gap-1.5"><Mail className="size-3.5" />Correo</Label>
-          <Input id="t-email" type="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="profe@universidad.edu.co" aria-invalid={tried && !emailOk} />
-          {tried && !emailOk && <p className="text-xs text-destructive">Revisa el correo.</p>}
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="t-phone" className="flex items-center gap-1.5"><Phone className="size-3.5" />Teléfono</Label>
-          <Input id="t-phone" type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="300 123 4567" />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="t-office" className="flex items-center gap-1.5"><MapPin className="size-3.5" />Oficina</Label>
-          <Input id="t-office" value={office} onChange={(e) => setOffice(e.target.value)} placeholder="Ej: Bloque B, 305" />
-        </div>
-        <div className="sm:col-span-2">
-          <OfficeHoursEditor slots={slots} setSlots={setSlots} note={hours} setNote={setHours} timeLabel={timeLabel} pendingRef={pendingRef} />
-        </div>
-      </div>
-
-      <div className="flex justify-end gap-2 pt-1">
-        <Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit">{teacher ? "Guardar cambios" : "Agregar profesor"}</Button>
-      </div>
-    </form>
-  )
-}
-
-/* ───────────── Tarjeta de profesor ───────────── */
-
-function TeacherCard({ teacher, subject, classCount, timeLabel, onEdit, onDelete }: {
-  teacher: Teacher
-  subject: Subject
-  classCount: number
-  timeLabel: (m: number) => string
-  onEdit: () => void
-  onDelete: () => void
-}) {
-  const [confirming, setConfirming] = useState(false)
-  const row = (icon: React.ReactNode, content: React.ReactNode, copy?: { text: string; label: string }) => (
-    <div className="flex min-h-7 items-center gap-2 text-sm">
-      <span className="text-muted-foreground">{icon}</span>
-      <span className="min-w-0 flex-1 truncate">{content}</span>
-      {copy && <CopyButton text={copy.text} label={copy.label} />}
-    </div>
-  )
-  const hasContact = teacher.email || teacher.phone || teacher.office || teacher.hours || teacher.slots?.length
-
-  return (
-    <div className="animate-pop rounded-2xl border bg-card p-3">
-      <div className="flex items-start gap-3">
-        <Avatar name={teacher.name} subject={subject} />
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold leading-tight">{teacher.name || "Sin nombre"}</p>
-          <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-            {teacher.role && <span className="rounded-full bg-foreground/10 px-2 py-0.5 font-medium text-foreground/80">{teacher.role}</span>}
-            {classCount > 0 && <span>Da {classCount} clase{classCount === 1 ? "" : "s"}</span>}
-          </p>
-        </div>
-        {!confirming && (
-          <div className="flex shrink-0 gap-0.5">
-            <button type="button" onClick={onEdit} aria-label={`Editar a ${teacher.name}`} className="grid size-9 sm:size-8 place-items-center rounded-lg text-muted-foreground transition hover:bg-foreground/[0.07] hover:text-foreground"><Pencil className="size-4" /></button>
-            <button type="button" onClick={() => setConfirming(true)} aria-label={`Quitar a ${teacher.name}`} className="grid size-9 sm:size-8 place-items-center rounded-lg text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"><Trash2 className="size-4" /></button>
-          </div>
-        )}
-      </div>
-
-      {confirming ? (
-        <div className="mt-3 flex items-center gap-2 rounded-xl bg-destructive/10 px-3 py-2 text-sm">
-          <span className="mr-auto">¿Quitar a este profesor?</span>
-          <Button size="sm" variant="ghost" onClick={() => setConfirming(false)}>No</Button>
-          <Button size="sm" variant="destructive" onClick={onDelete}>Quitar</Button>
-        </div>
-      ) : hasContact ? (
-        <div className="mt-2.5 space-y-0.5 border-t pt-2.5">
-          {teacher.email && row(<Mail className="size-4" />, <a href={`mailto:${teacher.email}`} className="underline-offset-4 hover:underline">{teacher.email}</a>, { text: teacher.email, label: "Copiar correo" })}
-          {teacher.phone && row(<Phone className="size-4" />, <a href={`tel:${teacher.phone.replace(/\s/g, "")}`} className="underline-offset-4 hover:underline">{teacher.phone}</a>, { text: teacher.phone, label: "Copiar teléfono" })}
-          {teacher.office && row(<MapPin className="size-4" />, teacher.office)}
-          {teacher.slots && teacher.slots.length > 0 ? (
-            <div className="flex items-start gap-2 pt-1.5 text-sm">
-              <Clock className="mt-1 size-4 text-muted-foreground" />
-              <div className="min-w-0 flex-1 space-y-1">
-                <p className="text-xs text-muted-foreground">Asesorías</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {teacher.slots.map((sl) => (
-                    <span key={sl.id} className="num rounded-full px-2.5 py-1 text-xs font-medium text-neutral-900" style={{ backgroundColor: subject.bg, boxShadow: `inset 0 0 0 1px ${subject.border}` }}>{slotText(sl, timeLabel)}</span>
-                  ))}
-                </div>
-                {teacher.hours && <p className="text-xs text-muted-foreground">{teacher.hours}</p>}
-              </div>
-            </div>
-          ) : (
-            teacher.hours && row(<Clock className="size-4" />, <>Asesorías: {teacher.hours}</>)
-          )}
-        </div>
-      ) : (
-        <button type="button" onClick={onEdit} className="mt-2.5 w-full rounded-xl border border-dashed py-2 text-xs text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
-          Agregar correo, teléfono o asesorías
-        </button>
-      )}
-    </div>
-  )
-}
-
 /* ───────────── Pestaña Materias ───────────── */
+
+export type MateriasRequest = { kind: "new" } | { kind: "open"; subjectId: string }
 
 type Props = {
   subjects: Subject[]
@@ -413,65 +185,56 @@ type Props = {
   setExams: React.Dispatch<React.SetStateAction<Exam[]>>
   setAbsences: React.Dispatch<React.SetStateAction<Absence[]>>
   setSubjectConfigs: React.Dispatch<React.SetStateAction<Record<string, SubjectConfig>>>
+  teachers: Teacher[]
+  setTeachers: TeacherOps["setTeachers"]
   timeLabel: (min: number) => string
   onAddClass: (subjectId: string) => void
   onEditClass: (c: ClassSession) => void
-  request: MateriasRequest | null // algo que abrir apenas se muestre (nueva materia, o la ficha de una materia / profesor)
+  onOpenTeacher: (teacherId: string) => void
+  request: MateriasRequest | null // algo que abrir apenas se muestre (nueva materia, o la ficha de una materia)
   onRequestHandled: () => void
 }
 
-export type MateriasRequest = { kind: "new" } | { kind: "open"; subjectId: string; teacherId?: string }
-
-type Dlg = { subjectId: string | null; view: "detail" | "subject" | "teacher"; teacherId?: string; fresh?: boolean }
+type Dlg = { subjectId: string | null; view: "detail" | "subject" | "assign" | "teacher"; fresh?: boolean }
 
 export function MateriasTab({
-  subjects, setSubjects, classes, setClasses, setGrades, setExams, setAbsences, setSubjectConfigs,
-  timeLabel, onAddClass, onEditClass, request, onRequestHandled,
+  subjects, setSubjects, classes, setClasses, setGrades, setExams, setAbsences, setSubjectConfigs, teachers, setTeachers,
+  timeLabel, onAddClass, onEditClass, onOpenTeacher, request, onRequestHandled,
 }: Props) {
+  const ops: TeacherOps = { subjects, setSubjects, setTeachers, setClasses }
   const [dlg, setDlg] = useState<Dlg | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [query, setQuery] = useState("")
 
-  // peticiones de fuera (botón del horario vacío, tocar una asesoría): se atienden una vez y se avisa
+  // peticiones de fuera (botón del horario vacío, tocar una materia en Profesores): se atienden una vez y se avisa
   useEffect(() => {
     if (!request) return
     setConfirmDelete(false)
-    if (request.kind === "new") setDlg({ subjectId: null, view: "subject" })
-    else setDlg(request.teacherId ? { subjectId: request.subjectId, view: "teacher", teacherId: request.teacherId } : { subjectId: request.subjectId, view: "detail" })
+    setDlg(request.kind === "new" ? { subjectId: null, view: "subject" } : { subjectId: request.subjectId, view: "detail" })
     onRequestHandled()
   }, [request, onRequestHandled])
 
   const current = dlg?.subjectId ? subjects.find((s) => s.id === dlg.subjectId) : undefined
-  const close = () => { setDlg(null); setConfirmDelete(false) }
-  const open = (next: Dlg) => { setConfirmDelete(false); setDlg(next) }
+  const close = () => { setDlg(null); setConfirmDelete(false); setQuery("") }
+  const open = (next: Dlg) => { setConfirmDelete(false); setQuery(""); setDlg(next) }
 
   const classesOf = (id: string) => classes.filter((c) => c.subjectId === id).sort((a, b) => a.day - b.day || a.startTime - b.startTime)
-  const setTeachers = (id: string, fn: (list: Teacher[]) => Teacher[]) =>
-    setSubjects((prev) => prev.map((s) => (s.id === id ? withTeachers(s, fn(getTeachers(s))) : s)))
 
-  function saveSubject(name: string, color: ColorSwatch) {
+  function createTeacherByName(name: string) {
+    return saveTeacher(ops, undefined, { name }, [])
+  }
+
+  function saveSubject(name: string, color: ColorSwatch, teacherIds: string[]) {
     if (current) {
-      setSubjects((prev) => prev.map((s) => (s.id === current.id ? { ...s, name, bg: color.bg, border: color.border } : s)))
+      const removed = (current.teacherIds ?? []).filter((id) => !teacherIds.includes(id))
+      setSubjects((prev) => prev.map((s) => (s.id === current.id ? { ...s, name, bg: color.bg, border: color.border, teacherIds } : s)))
+      if (removed.length) setClasses((prev) => prev.map((c) => (c.subjectId === current.id && c.teacherId && removed.includes(c.teacherId) ? { ...c, teacherId: undefined } : c)))
       open({ subjectId: current.id, view: "detail" })
     } else {
       const id = crypto.randomUUID()
-      setSubjects((prev) => [...prev, { id, name, bg: color.bg, border: color.border }])
+      setSubjects((prev) => [...prev, { id, name, bg: color.bg, border: color.border, teacherIds }])
       open({ subjectId: id, view: "detail", fresh: true })
     }
-  }
-
-  function saveTeacher(data: Omit<Teacher, "id">) {
-    if (!current) return
-    if (dlg?.teacherId && dlg.teacherId !== "new") {
-      setTeachers(current.id, (list) => list.map((t) => (t.id === dlg.teacherId ? { ...t, ...data } : t)))
-    } else {
-      setTeachers(current.id, (list) => [...list, { id: crypto.randomUUID(), ...data }])
-    }
-    open({ subjectId: current.id, view: "detail" })
-  }
-
-  function removeTeacher(subjectId: string, teacherId: string) {
-    setTeachers(subjectId, (list) => list.filter((t) => t.id !== teacherId))
-    setClasses((prev) => prev.map((c) => (c.teacherId === teacherId ? { ...c, teacherId: undefined } : c)))
   }
 
   function deleteSubject(id: string) {
@@ -488,7 +251,7 @@ export function MateriasTab({
 
   const card = (s: Subject) => {
     const cl = classesOf(s.id)
-    const teachers = getTeachers(s)
+    const own = teachersOf(s, teachers)
     const weekMin = cl.reduce((n, c) => n + (c.endTime - c.startTime), 0)
     const days = new Set(cl.map((c) => c.day))
     return (
@@ -510,17 +273,17 @@ export function MateriasTab({
         </span>
 
         <span className="flex items-center justify-between gap-3">
-          {teachers.length > 0 ? (
+          {own.length > 0 ? (
             <span className="flex min-w-0 items-center gap-2">
               <span className="flex -space-x-2">
-                {teachers.slice(0, 3).map((t) => <Avatar key={t.id} name={t.name} subject={s} size="size-7 ring-2 ring-card" />)}
+                {own.slice(0, 3).map((t) => <Avatar key={t.id} name={t.name} color={s} size="size-7 ring-2 ring-card" />)}
               </span>
               <span className="truncate text-xs text-muted-foreground">
-                {teachers[0].name || "Profesor"}{teachers.length > 1 ? ` +${teachers.length - 1}` : ""}
+                {own[0].name || "Profesor"}{own.length > 1 ? ` +${own.length - 1}` : ""}
               </span>
             </span>
           ) : (
-            <span className="flex items-center gap-1.5 text-xs italic text-muted-foreground/70"><UserPlus className="size-3.5" />Agregar profesor</span>
+            <span className="flex items-center gap-1.5 text-xs italic text-muted-foreground/70"><UserPlus className="size-3.5" />Asignar profesor</span>
           )}
           <span className="flex shrink-0 gap-1" aria-label="Días con clase">
             {DAY_SHORT.map((d, i) => (
@@ -541,7 +304,7 @@ export function MateriasTab({
     <DialogHeader className="space-y-1">
       <div className="flex items-center gap-2">
         {back && (
-          <button type="button" onClick={back} aria-label="Volver" className="-ml-1 grid size-8 place-items-center rounded-lg text-muted-foreground transition hover:bg-foreground/[0.07] hover:text-foreground">
+          <button type="button" onClick={back} aria-label="Volver" className="tap -ml-1 grid size-8 place-items-center rounded-lg text-muted-foreground transition hover:bg-foreground/[0.07] hover:text-foreground">
             <ArrowLeft className="size-4" />
           </button>
         )}
@@ -553,23 +316,70 @@ export function MateriasTab({
 
   let body: React.ReactNode = null
   if (dlg?.view === "subject") {
+    const back = current ? () => open({ subjectId: current.id, view: "detail" }) : undefined
     body = (
       <>
-        {header(current ? "Editar materia" : "Nueva materia", current ? "Cambia su nombre o su color." : "Después podrás agregar sus profesores y sus clases.", current ? () => open({ subjectId: current.id, view: "detail" }) : undefined)}
-        <SubjectForm key={current?.id ?? "new"} subject={current} subjects={subjects} onSave={saveSubject} onCancel={() => (current ? open({ subjectId: current.id, view: "detail" }) : close())} />
+        {header(current ? "Editar materia" : "Nueva materia", current ? "Cambia su nombre, su color o sus profesores." : "Después podrás agregar sus clases.", back)}
+        <SubjectForm key={current?.id ?? "new"} subject={current} subjects={subjects} teachers={teachers} onCreateTeacher={createTeacherByName}
+          onSave={saveSubject} onCancel={() => (back ? back() : close())} />
       </>
     )
   } else if (dlg?.view === "teacher" && current) {
-    const t = dlg.teacherId && dlg.teacherId !== "new" ? getTeachers(current).find((x) => x.id === dlg.teacherId) : undefined
     body = (
       <>
-        {header(t ? "Editar profesor" : "Nuevo profesor", current.name, () => open({ subjectId: current.id, view: "detail" }))}
-        <TeacherForm key={t?.id ?? "new"} teacher={t} subject={current} timeLabel={timeLabel} onSave={saveTeacher} onCancel={() => open({ subjectId: current.id, view: "detail" })} />
+        {header("Nuevo profesor", current.name, () => open({ subjectId: current.id, view: "assign" }))}
+        <TeacherForm subjects={subjects} presetSubjectIds={[current.id]} timeLabel={timeLabel}
+          onSave={(data, subjectIds) => { saveTeacher(ops, undefined, data, subjectIds); open({ subjectId: current.id, view: "detail" }) }}
+          onCancel={() => open({ subjectId: current.id, view: "assign" })} />
+      </>
+    )
+  } else if (dlg?.view === "assign" && current) {
+    const list = query.trim() ? teachers.filter((t) => norm(`${t.name} ${t.role ?? ""}`).includes(norm(query.trim()))) : teachers
+    const assigned = new Set(current.teacherIds ?? [])
+    body = (
+      <>
+        {header("Profesores de la materia", current.name, () => open({ subjectId: current.id, view: "detail" }))}
+        {teachers.length > 5 && (
+          <div className="flex items-center gap-2 rounded-xl border bg-card px-3">
+            <Search className="size-4 shrink-0 text-muted-foreground" />
+            <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar profesor…" aria-label="Buscar profesor"
+              className="h-10 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
+          </div>
+        )}
+        {teachers.length === 0 ? (
+          <p className="rounded-2xl border border-dashed p-5 text-center text-sm text-muted-foreground">Aún no tienes profesores guardados. Crea el primero.</p>
+        ) : (
+          <ul className="max-h-64 space-y-1.5 overflow-y-auto" role="listbox" aria-multiselectable aria-label="Profesores">
+            {list.map((t) => {
+              const on = assigned.has(t.id)
+              return (
+                <li key={t.id}>
+                  <button type="button" role="option" aria-selected={on} onClick={() => toggleAssign(ops, t.id, current.id, !on)}
+                    className={cn("flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition active:scale-[0.99]", on ? "border-foreground/40 bg-foreground/[0.05]" : "hover:border-foreground/25")}>
+                    <Avatar name={t.name} color={teacherColor(t, subjects)} size="size-9" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{t.name || "Sin nombre"}</span>
+                      {t.role && <span className="block truncate text-xs text-muted-foreground">{t.role}</span>}
+                    </span>
+                    <span className={cn("grid size-6 shrink-0 place-items-center rounded-full border", on ? "border-foreground bg-foreground text-background" : "border-muted-foreground/40")}>
+                      {on && <Check className="size-3.5" />}
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+            {list.length === 0 && <li className="px-3 py-4 text-center text-sm text-muted-foreground">Nadie coincide con «{query.trim()}».</li>}
+          </ul>
+        )}
+        <div className="flex items-center justify-between gap-2">
+          <Button type="button" variant="ghost" onClick={() => open({ subjectId: current.id, view: "teacher" })}><UserPlus className="size-4" />Crear profesor nuevo</Button>
+          <Button type="button" onClick={() => open({ subjectId: current.id, view: "detail" })}>Listo</Button>
+        </div>
       </>
     )
   } else if (dlg?.view === "detail" && current) {
     const s = current
-    const teachers = getTeachers(s)
+    const own = teachersOf(s, teachers)
     const cl = classesOf(s.id)
     body = (
       <>
@@ -577,8 +387,8 @@ export function MateriasTab({
           <div className="flex items-center gap-3">
             <span className="h-10 w-1.5 shrink-0 rounded-full" style={{ background: s.border }} />
             <DialogTitle className="line-clamp-2 min-w-0 flex-1 break-words text-lg leading-snug">{s.name}</DialogTitle>
-            <button type="button" onClick={() => open({ subjectId: s.id, view: "subject" })} aria-label="Editar materia" title="Editar nombre y color"
-              className="mr-6 grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition hover:bg-foreground/[0.07] hover:text-foreground">
+            <button type="button" onClick={() => open({ subjectId: s.id, view: "subject" })} aria-label="Editar materia" title="Editar nombre, color y profesores"
+              className="tap mr-6 grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition hover:bg-foreground/[0.07] hover:text-foreground">
               <Pencil className="size-4" />
             </button>
           </div>
@@ -587,30 +397,44 @@ export function MateriasTab({
 
         {dlg.fresh && (
           <p className="rounded-xl bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">
-            ¡Materia creada! Ahora agrega a su profesor y sus clases.
+            ¡Materia creada! Ahora agrega sus clases.
           </p>
         )}
 
         {/* Profesores */}
         <section className="space-y-2.5">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Profesores <span className="font-normal normal-case tracking-normal">{teachers.length || ""}</span></h3>
-            {teachers.length > 0 && <Button size="sm" variant="secondary" onClick={() => open({ subjectId: s.id, view: "teacher", teacherId: "new" })}><Plus className="size-3.5" />Agregar</Button>}
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Profesores <span className="font-normal normal-case tracking-normal">{own.length || ""}</span></h3>
+            {own.length > 0 && <Button size="sm" variant="secondary" onClick={() => open({ subjectId: s.id, view: "assign" })}><Plus className="size-3.5" />Asignar</Button>}
           </div>
-          {teachers.length === 0 ? (
-            <button type="button" onClick={() => open({ subjectId: s.id, view: "teacher", teacherId: "new" })}
+          {own.length === 0 ? (
+            <button type="button" onClick={() => open({ subjectId: s.id, view: "assign" })}
               className="flex w-full flex-col items-center gap-1.5 rounded-2xl border border-dashed px-4 py-6 text-center transition hover:border-foreground/40 hover:bg-foreground/[0.03]">
               <UserPlus className="size-5 text-muted-foreground" />
-              <span className="text-sm font-medium">Agregar profesor</span>
-              <span className="max-w-[17rem] text-xs text-muted-foreground">Guarda su correo, teléfono y asesorías para tenerlos a un toque. Puedes agregar varios (teoría, laboratorio…).</span>
+              <span className="text-sm font-medium">Asignar profesor</span>
+              <span className="max-w-[17rem] text-xs text-muted-foreground">Elige uno de tus profesores o crea uno nuevo. Puedes asignar varios (teoría, laboratorio…).</span>
             </button>
           ) : (
-            <div className="space-y-2.5">
-              {teachers.map((t) => (
-                <TeacherCard key={t.id} teacher={t} subject={s} timeLabel={timeLabel} classCount={cl.filter((c) => c.teacherId === t.id).length}
-                  onEdit={() => open({ subjectId: s.id, view: "teacher", teacherId: t.id })} onDelete={() => removeTeacher(s.id, t.id)} />
-              ))}
-            </div>
+            <ul className="space-y-1.5">
+              {own.map((t) => {
+                const n = cl.filter((c) => c.teacherId === t.id).length
+                return (
+                  <li key={t.id} className="flex items-center gap-2 rounded-xl border bg-card p-2 pl-3">
+                    <button type="button" onClick={() => { close(); onOpenTeacher(t.id) }} className="flex min-w-0 flex-1 items-center gap-3 text-left active:scale-[0.99]">
+                      <Avatar name={t.name} color={s} size="size-9" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">{t.name || "Sin nombre"}</span>
+                        <span className="block truncate text-xs text-muted-foreground">{[t.role, n > 0 && `Da ${n} clase${n === 1 ? "" : "s"}`].filter(Boolean).join(" · ") || "Ver datos"}</span>
+                      </span>
+                    </button>
+                    {t.email && <a href={`mailto:${t.email}`} aria-label={`Escribir a ${t.name}`} className="tap grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition hover:bg-foreground/[0.07] hover:text-foreground"><Mail className="size-4" /></a>}
+                    {t.phone && <a href={`tel:${t.phone.replace(/\s/g, "")}`} aria-label={`Llamar a ${t.name}`} className="tap grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition hover:bg-foreground/[0.07] hover:text-foreground"><Phone className="size-4" /></a>}
+                    <button type="button" onClick={() => toggleAssign(ops, t.id, s.id, false)} aria-label={`Quitar a ${t.name} de esta materia`} title="Quitar de esta materia"
+                      className="tap grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"><X className="size-4" /></button>
+                  </li>
+                )
+              })}
+            </ul>
           )}
         </section>
 
@@ -630,7 +454,7 @@ export function MateriasTab({
           ) : (
             <ul className="space-y-1.5">
               {cl.map((c) => {
-                const t = teachers.find((x) => x.id === c.teacherId)
+                const t = own.find((x) => x.id === c.teacherId)
                 return (
                   <li key={c.id}>
                     <button type="button" onClick={() => { close(); onEditClass(c) }}
@@ -653,7 +477,7 @@ export function MateriasTab({
         <div className="border-t pt-3">
           {confirmDelete ? (
             <div className="space-y-2.5 rounded-xl bg-destructive/10 p-3 text-sm">
-              <p>Se eliminarán <b>{s.name}</b> y todo lo suyo: {cl.length} clase{cl.length === 1 ? "" : "s"}, notas, exámenes y faltas. No se puede deshacer.</p>
+              <p>Se eliminarán <b>{s.name}</b> y todo lo suyo: {cl.length} clase{cl.length === 1 ? "" : "s"}, notas, exámenes y faltas. Los profesores se conservan. No se puede deshacer.</p>
               <div className="flex justify-end gap-2">
                 <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)}>Cancelar</Button>
                 <Button size="sm" variant="destructive" onClick={() => deleteSubject(s.id)}>Eliminar materia</Button>
@@ -675,13 +499,13 @@ export function MateriasTab({
         <div className="animate-scale-in rounded-3xl border-2 border-dashed bg-card px-6 py-14 text-center">
           <div className="mx-auto mb-4 grid size-14 place-items-center rounded-2xl bg-foreground/10"><GraduationCap className="size-6" /></div>
           <h3 className="text-lg font-semibold">Aún no tienes materias</h3>
-          <p className="mx-auto mt-1 mb-5 max-w-xs text-sm text-muted-foreground">Crea una materia, ponle un color y agrega a su profesor. Después ubicas sus clases en la semana.</p>
+          <p className="mx-auto mt-1 mb-5 max-w-xs text-sm text-muted-foreground">Crea una materia, ponle un color y asígnale su profesor. Después ubicas sus clases en la semana.</p>
           <Button onClick={() => open({ subjectId: null, view: "subject" })}><Plus className="size-4" />Crear primera materia</Button>
         </div>
       ) : (
         <>
           <div className="flex items-center justify-between gap-3">
-            <p className="text-sm text-muted-foreground">Toca una materia para ver y editar a sus profesores y sus clases.</p>
+            <p className="text-sm text-muted-foreground">Toca una materia para ver sus clases y asignar profesores.</p>
             <Button size="sm" onClick={() => open({ subjectId: null, view: "subject" })} className="shrink-0 rounded-full"><Plus className="size-4" />Materia</Button>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">{subjects.map(card)}</div>

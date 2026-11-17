@@ -1,7 +1,10 @@
 /** Un horario de asesoría de un profesor: un día de la semana y una franja (minutos desde medianoche). */
 export type OfficeSlot = { id: string; day: number; start: number; end: number }
 
-/** Un profesor de una materia (una materia puede tener varios: teoría, laboratorio, monitor…). */
+/**
+ * Un profesor. Vive en un directorio propio (no dentro de una materia): así sus datos se escriben una sola vez
+ * aunque dé varias materias, y se puede crear antes de asignarle alguna.
+ */
 export type Teacher = {
   id: string
   name: string
@@ -18,8 +21,9 @@ export type Subject = {
   name: string
   bg: string
   border: string
+  teacherIds?: string[] // profesores asignados (ids del directorio)
+  // Formatos anteriores (profesores dentro de la materia): se pasan al directorio con migrateTeachers().
   teachers?: Teacher[]
-  // Formato anterior (un solo profesor): se sigue leyendo con getTeachers().
   teacherName?: string
   teacherEmail?: string
   teacherPhone?: string
@@ -29,18 +33,37 @@ export type Subject = {
 /** Roles sugeridos al agregar un profesor. */
 export const TEACHER_ROLES = ["Teoría", "Laboratorio", "Monitor"]
 
-/** Profesores de una materia, incluyendo el profesor del formato anterior si aún no se migró. */
-export function getTeachers(s: Subject): Teacher[] {
-  if (s.teachers) return s.teachers
-  if (s.teacherName || s.teacherEmail || s.teacherPhone || s.officeHours) {
-    return [{ id: `legacy-${s.id}`, name: s.teacherName ?? "", email: s.teacherEmail, phone: s.teacherPhone, hours: s.officeHours }]
-  }
-  return []
+/** El directorio de profesores se guarda dentro de subjectConfigs (misma columna), bajo esta clave reservada. */
+export const TEACHERS_KEY = "__teachers"
+
+export const teachersFromConfigs = (c: Record<string, SubjectConfig>): Teacher[] => c[TEACHERS_KEY]?.teachers ?? []
+export const withDirectory = (c: Record<string, SubjectConfig>, teachers: Teacher[]): Record<string, SubjectConfig> => ({ ...c, [TEACHERS_KEY]: { teachers } })
+
+/** Profesores asignados a una materia. */
+export function teachersOf(s: Subject, directory: Teacher[]): Teacher[] {
+  return (s.teacherIds ?? []).map((id) => directory.find((t) => t.id === id)).filter((t): t is Teacher => !!t)
 }
 
-/** Guarda la lista de profesores y borra los campos del formato anterior. */
-export function withTeachers(s: Subject, teachers: Teacher[]): Subject {
-  return { ...s, teachers, teacherName: undefined, teacherEmail: undefined, teacherPhone: undefined, officeHours: undefined }
+/** Materias a las que está asignado un profesor. */
+export const subjectsOf = (teacherId: string, subjects: Subject[]) => subjects.filter((s) => s.teacherIds?.includes(teacherId))
+
+/** Pasa los profesores que estaban dentro de cada materia (formato anterior) al directorio. `changed` = hubo algo que migrar. */
+export function migrateTeachers(subjects: Subject[], configs: Record<string, SubjectConfig>) {
+  const directory = [...teachersFromConfigs(configs)]
+  let changed = false
+  const next = subjects.map((s) => {
+    const old: Teacher[] = s.teachers ?? (s.teacherName || s.teacherEmail || s.teacherPhone || s.officeHours
+      ? [{ id: `legacy-${s.id}`, name: s.teacherName ?? "", email: s.teacherEmail, phone: s.teacherPhone, hours: s.officeHours }]
+      : [])
+    if (!old.length && s.teachers === undefined) return s
+    changed = true
+    for (const t of old) if (!directory.some((d) => d.id === t.id)) directory.push(t)
+    const ids = [...(s.teacherIds ?? [])]
+    for (const t of old) if (!ids.includes(t.id)) ids.push(t.id)
+    const { teachers: _t, teacherName: _n, teacherEmail: _e, teacherPhone: _p, officeHours: _o, ...rest } = s
+    return { ...rest, teacherIds: ids }
+  })
+  return { subjects: next, configs: changed ? withDirectory(configs, directory) : configs, changed }
 }
 
 /** Iniciales para el avatar de un profesor: "María Pérez" → "MP". */
@@ -98,6 +121,7 @@ export type AbsenceUnit = "classes" | "hours"
 export const GLOBAL_CONFIG_KEY = "__global"
 
 export type SubjectConfig = {
+  teachers?: Teacher[]  // solo en la entrada reservada TEACHERS_KEY: el directorio de profesores
   custom?: boolean       // true = la materia tiene regla propia (mode/percent/maxAbsences); si no, usa la global
   mode?: AbsenceMode     // regla: "calc" | "manual" | "none"
   percent?: number       // regla "calc": % de las HD que se puede faltar (20 por defecto)

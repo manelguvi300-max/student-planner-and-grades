@@ -1,14 +1,14 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState, useRef } from "react"
-import { Plus, CalendarDays, GraduationCap, Download, UserRoundCheck } from "lucide-react"
+import { Plus, CalendarDays, GraduationCap, Download, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DAYS,
   DEFAULT_START_HOUR,
   DEFAULT_END_HOUR,
   getSubject,
-  getTeachers,
+  teachersOf,
   hourLabel,
   minutesToLabel,
   type Absence,
@@ -17,10 +17,11 @@ import {
   type Grade,
   type Subject,
   type SubjectConfig,
+  type Teacher,
 } from "@/lib/horario-data"
 import { ClaseDialog, type ClassDialogState } from "./clase-dialog"
 import { MateriasTab, type MateriasRequest } from "./materias-tab"
-import { AsesoriasView } from "./asesorias-view"
+import { ProfesoresTab, type ProfesoresRequest } from "./profesores-tab"
 import { ROW_PX, useSettings } from "@/lib/settings"
 import { cn } from "@/lib/utils"
 import { HorarioPrint } from "./horario-print"
@@ -39,6 +40,8 @@ type Props = {
   setExams: React.Dispatch<React.SetStateAction<Exam[]>>
   setAbsences: React.Dispatch<React.SetStateAction<Absence[]>>
   setSubjectConfigs: React.Dispatch<React.SetStateAction<Record<string, SubjectConfig>>>
+  teachers: Teacher[]
+  setTeachers: (u: Teacher[] | ((prev: Teacher[]) => Teacher[])) => void
 }
 
 /** Minutos desde medianoche "ahora", refrescado cada 30 s (null hasta montar, para no romper la hidratación). */
@@ -53,16 +56,18 @@ function useNowMinutes() {
   return now
 }
 
-export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrades, setExams, setAbsences, setSubjectConfigs }: Props) {
+export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrades, setExams, setAbsences, setSubjectConfigs, teachers, setTeachers }: Props) {
   const { settings } = useSettings()
   const PX_PER_HOUR = ROW_PX[settings.rowHeight]
   const timeLabel = (minutes: number) => minutesToLabel(minutes, settings.timeFormat)
   const nowMin = useNowMinutes()
   const todayIdx = new Date().getDay() - 1 // 0=Lunes … 4=Viernes; -1 / 5 = fin de semana
   const [dialog, setDialog] = useState<ClassDialogState | null>(null)
-  const [view, setView] = useState<"semana" | "materias" | "asesorias">("semana")
+  const [view, setView] = useState<"semana" | "materias" | "profesores">("semana")
   const [request, setRequest] = useState<MateriasRequest | null>(null)
+  const [teacherRequest, setTeacherRequest] = useState<ProfesoresRequest | null>(null)
   const clearRequest = useCallback(() => setRequest(null), [])
+  const clearTeacherRequest = useCallback(() => setTeacherRequest(null), [])
   const [selectedMobileDay, setSelectedMobileDay] = useState(() => {
     // 0=Domingo, 1=Lunes ... 6=Sábado (estándar de JS Date)
     const jsDay = new Date().getDay()
@@ -183,12 +188,10 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
   // fantasma "+" al pasar el cursor por un hueco de la semana (escritorio): clic = nueva clase ahí
   const [ghost, setGhost] = useState<{ day: number; min: number } | null>(null)
 
-  // "Asesorías" solo aparece cuando algún profesor tiene horario de asesoría
-  const hasOfficeHours = subjects.some((s) => getTeachers(s).some((t) => t.slots?.length))
   const tabs = [
     ["semana", "Semana", CalendarDays],
     ["materias", "Materias", GraduationCap],
-    ...(hasOfficeHours ? [["asesorias", "Asesorías", UserRoundCheck] as const] : []),
+    ["profesores", "Profesores", Users],
   ] as const
 
   const totalHours = classes.reduce((n, c) => n + (c.endTime - c.startTime), 0) / 60
@@ -207,7 +210,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
   /** Nombre del profesor que da esta clase (si se asignó). */
   function teacherOf(c: ClassSession) {
     const sub = getSubject(subjects, c.subjectId)
-    return sub ? getTeachers(sub).find((t) => t.id === c.teacherId)?.name : undefined
+    return sub ? teachersOf(sub, teachers).find((t) => t.id === c.teacherId)?.name : undefined
   }
 
   function stateOf(c: ClassSession): "live" | "done" | "next" {
@@ -262,12 +265,12 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
       {/* Cabecera */}
       <header className="flex items-end justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-xl font-semibold tracking-tight">{view === "semana" ? "Mi horario" : view === "materias" ? "Mis materias" : "Asesorías"}</h2>
+          <h2 className="text-xl font-semibold tracking-tight">{view === "semana" ? "Mi horario" : view === "materias" ? "Mis materias" : "Mis profesores"}</h2>
           <p className="num text-sm text-muted-foreground">
             {view === "materias"
               ? `${subjects.length} materia${subjects.length === 1 ? "" : "s"}`
-              : view === "asesorias"
-              ? "Los horarios de atención de tus profesores."
+              : view === "profesores"
+              ? `${teachers.length} profesor${teachers.length === 1 ? "" : "es"}`
               : classes.length === 0 ? "Toca una clase para editarla." : `${classes.length} clase${classes.length === 1 ? "" : "s"} · ${Number.isInteger(totalHours) ? totalHours : totalHours.toFixed(1)} h por semana`}
           </p>
         </div>
@@ -287,23 +290,30 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
       </header>
 
       {/* Semana | Materias */}
-      <div className={cn("relative grid rounded-2xl bg-muted p-1 text-sm font-medium sm:inline-grid", tabs.length === 3 ? "grid-cols-3 sm:w-96" : "grid-cols-2 sm:w-72")} role="tablist" aria-label="Sección del horario">
+      <div className={cn("relative grid rounded-2xl bg-muted p-1 text-sm font-medium sm:inline-grid", "grid-cols-3 sm:w-[26rem]")} role="tablist" aria-label="Sección del horario">
         <span aria-hidden className="absolute inset-y-1 left-1 rounded-xl bg-background shadow-sm ring-1 ring-border/60" style={{ width: `calc((100% - 0.5rem) / ${tabs.length})`, transform: `translateX(${Math.max(0, tabs.findIndex((t) => t[0] === view)) * 100}%)`, transition: `transform .4s ${spring}` }} />
         {tabs.map(([v, label, Icon]) => (
-          <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => { setRequest(null); setView(v) }}
+          <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => { setRequest(null); setTeacherRequest(null); setView(v) }}
             className={cn("relative flex items-center justify-center gap-1.5 rounded-xl py-2 transition-colors active:scale-95", view === v ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
             <Icon className="size-4" />{label}
           </button>
         ))}
       </div>
 
-      {view === "asesorias" ? (
-        <AsesoriasView
+      {view === "profesores" ? (
+        <ProfesoresTab
+          teachers={teachers}
+          setTeachers={setTeachers}
           subjects={subjects}
+          setSubjects={setSubjects}
+          classes={classes}
+          setClasses={setClasses}
+          timeLabel={timeLabel}
           nowMin={nowMin}
           todayIdx={todayIdx}
-          timeLabel={timeLabel}
-          onOpen={(subjectId, teacherId) => { setRequest({ kind: "open", subjectId, teacherId }); setView("materias") }}
+          request={teacherRequest}
+          onRequestHandled={clearTeacherRequest}
+          onOpenSubject={(subjectId) => { setRequest({ kind: "open", subjectId }); setView("materias") }}
         />
       ) : view === "materias" ? (
         <MateriasTab
@@ -315,9 +325,12 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
           setExams={setExams}
           setAbsences={setAbsences}
           setSubjectConfigs={setSubjectConfigs}
+          teachers={teachers}
+          setTeachers={setTeachers}
           timeLabel={timeLabel}
           onAddClass={(subjectId) => openNew(subjectId)}
           onEditClass={openEdit}
+          onOpenTeacher={(teacherId) => { setTeacherRequest({ kind: "open", teacherId }); setView("profesores") }}
           request={request}
           onRequestHandled={clearRequest}
         />
@@ -556,6 +569,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
       <ClaseDialog
         state={dialog}
         onClose={() => setDialog(null)}
+        teachers={teachers}
         subjects={subjects}
         setSubjects={setSubjects}
         classes={classes}

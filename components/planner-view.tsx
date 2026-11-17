@@ -36,6 +36,7 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
     exams, setExams,
     absences, setAbsences,
     subjectConfigs, setSubjectConfigs,
+    teachers, setTeachers,
     hidden: hiddenSubjectsByTab, setHidden: setHiddenSubjectsByTab,
   } = usePlanner()
 
@@ -195,6 +196,8 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
               setExams={setExams}
               setAbsences={setAbsences}
               setSubjectConfigs={setSubjectConfigs}
+              teachers={teachers}
+              setTeachers={setTeachers}
             />
           </TabsContent>
           <TabsContent value="notas" className="animate-rise">

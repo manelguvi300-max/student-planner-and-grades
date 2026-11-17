@@ -3,16 +3,17 @@
 import { useEffect, useMemo, useState } from "react"
 import { CalendarDays, ChevronRight, List, MapPin } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { DAYS, getTeachers, initials, type Subject } from "@/lib/horario-data"
+import { DAYS, initials, subjectsOf, type Subject, type Teacher } from "@/lib/horario-data"
 
-type Entry = { subject: Subject; teacherId: string; name: string; role?: string; office?: string; day: number; start: number; end: number; id: string }
+type Entry = { color: { bg: string; border: string }; subjectNames: string; teacherId: string; name: string; role?: string; office?: string; day: number; start: number; end: number; id: string }
 
 type Props = {
+  teachers: Teacher[]
   subjects: Subject[]
   nowMin: number | null
   todayIdx: number // 0=Lunes … 4=Viernes; -1 / 5 = fin de semana
   timeLabel: (min: number) => string
-  onOpen: (subjectId: string, teacherId: string) => void
+  onOpen: (teacherId: string) => void
 }
 
 const PX_HOUR = 48
@@ -39,7 +40,7 @@ function layout(list: Entry[]) {
   return out
 }
 
-function WeekGrid({ entries, nowMin, todayIdx, timeLabel, onOpen }: Omit<Props, "subjects"> & { entries: Entry[] }) {
+function WeekGrid({ entries, nowMin, todayIdx, timeLabel, onOpen }: Omit<Props, "subjects" | "teachers"> & { entries: Entry[] }) {
   // el rango se ajusta a las asesorías que hay (no a todo el día) para que quede compacto
   const first = Math.floor(Math.min(...entries.map((e) => e.start)) / 60)
   const last = Math.ceil(Math.max(...entries.map((e) => e.end)) / 60)
@@ -80,19 +81,19 @@ function WeekGrid({ entries, nowMin, todayIdx, timeLabel, onOpen }: Omit<Props, 
                 <button
                   key={e.id}
                   type="button"
-                  onClick={() => onOpen(e.subject.id, e.teacherId)}
-                  title={`${e.name} · ${e.subject.name} · ${timeLabel(e.start)}–${timeLabel(e.end)}`}
-                  aria-label={`${e.name}, ${e.subject.name}, ${DAYS[i]} ${timeLabel(e.start)} a ${timeLabel(e.end)}`}
+                  onClick={() => onOpen(e.teacherId)}
+                  title={`${e.name} · ${e.subjectNames} · ${timeLabel(e.start)}–${timeLabel(e.end)}`}
+                  aria-label={`${e.name}, ${e.subjectNames}, ${DAYS[i]} ${timeLabel(e.start)} a ${timeLabel(e.end)}`}
                   className="absolute z-[1] overflow-hidden rounded-lg px-1 py-1 text-left text-[10px] leading-tight text-neutral-900 transition hover:z-20 hover:scale-[1.03] active:scale-95"
                   style={{
                     top: top(e.start) + 1, height: h,
                     left: `calc(${(lane / lanes) * 100}% + 2px)`, width: `calc(${100 / lanes}% - 4px)`,
-                    backgroundColor: e.subject.bg, boxShadow: `inset 2px 0 0 ${e.subject.border}`,
+                    backgroundColor: e.color.bg, boxShadow: `inset 2px 0 0 ${e.color.border}`,
                   }}
                 >
                   <b className="block truncate pl-0.5 text-[11px] font-semibold">{first}</b>
                   {h >= 38 && lanes === 1 && <span className="num block truncate pl-0.5 opacity-70">{timeLabel(e.start)}</span>}
-                  {h >= 58 && lanes === 1 && <span className="block truncate pl-0.5 opacity-70">{e.subject.name}</span>}
+                  {h >= 58 && lanes === 1 && <span className="block truncate pl-0.5 opacity-70">{e.subjectNames}</span>}
                 </button>
               )
             })}
@@ -104,7 +105,7 @@ function WeekGrid({ entries, nowMin, todayIdx, timeLabel, onOpen }: Omit<Props, 
 }
 
 /** Horario de asesorías de todos los profesores, en una agenda corta agrupada por día. */
-export function AsesoriasView({ subjects, nowMin, todayIdx, timeLabel, onOpen }: Props) {
+export function AsesoriasView({ teachers, subjects, nowMin, todayIdx, timeLabel, onOpen }: Props) {
   // lista o calendario: se recuerda la última elección
   const [mode, setMode] = useState<"lista" | "semana">("lista")
   useEffect(() => {
@@ -116,12 +117,15 @@ export function AsesoriasView({ subjects, nowMin, todayIdx, timeLabel, onOpen }:
   }
   const entries = useMemo(() => {
     const out: Entry[] = []
-    for (const subject of subjects)
-      for (const t of getTeachers(subject))
-        for (const sl of t.slots ?? [])
-          out.push({ subject, teacherId: t.id, name: t.name || "Profesor", role: t.role, office: t.office, day: sl.day, start: sl.start, end: sl.end, id: sl.id })
+    for (const t of teachers) {
+      const own = subjectsOf(t.id, subjects)
+      const color = own[0] ? { bg: own[0].bg, border: own[0].border } : { bg: "#e5e7eb", border: "#9ca3af" }
+      const subjectNames = own.map((x) => x.name).join(", ") || "Sin materia"
+      for (const sl of t.slots ?? [])
+        out.push({ color, subjectNames, teacherId: t.id, name: t.name || "Profesor", role: t.role, office: t.office, day: sl.day, start: sl.start, end: sl.end, id: sl.id })
+    }
     return out.sort((a, b) => a.day - b.day || a.start - b.start)
-  }, [subjects])
+  }, [teachers, subjects])
 
   // la próxima asesoría a partir de ahora (si hoy ya pasó, la de la siguiente semana)
   const next = useMemo(() => {
@@ -144,15 +148,15 @@ export function AsesoriasView({ subjects, nowMin, todayIdx, timeLabel, onOpen }:
       {next && (
         <button
           type="button"
-          onClick={() => onOpen(next.e.subject.id, next.e.teacherId)}
+          onClick={() => onOpen(next.e.teacherId)}
           className="flex w-full animate-pop items-center gap-3 rounded-2xl p-4 text-left text-neutral-900 shadow-(--card-shadow) transition active:scale-[0.99]"
-          style={{ backgroundColor: next.e.subject.bg, boxShadow: `inset 0 0 0 1.5px ${next.e.subject.border}` }}
+          style={{ backgroundColor: next.e.color.bg, boxShadow: `inset 0 0 0 1.5px ${next.e.color.border}` }}
         >
           <span className="grid size-11 shrink-0 place-items-center rounded-full bg-black/10 text-sm font-bold">{initials(next.e.name)}</span>
           <span className="min-w-0 flex-1">
             <span className="block text-[11px] font-semibold uppercase tracking-wider opacity-70">{next.live ? "Asesoría en curso" : "Próxima asesoría"}</span>
             <span className="block truncate font-semibold">{next.e.name}</span>
-            <span className="num block truncate text-sm opacity-80">{when(next)} · {timeLabel(next.e.start)} – {timeLabel(next.e.end)} · {next.e.subject.name}</span>
+            <span className="num block truncate text-sm opacity-80">{when(next)} · {timeLabel(next.e.start)} – {timeLabel(next.e.end)} · {next.e.subjectNames}</span>
           </span>
           <ChevronRight className="size-4 shrink-0 opacity-50" />
         </button>
@@ -186,15 +190,15 @@ export function AsesoriasView({ subjects, nowMin, todayIdx, timeLabel, onOpen }:
                   <li key={e.id}>
                     <button
                       type="button"
-                      onClick={() => onOpen(e.subject.id, e.teacherId)}
+                      onClick={() => onOpen(e.teacherId)}
                       className={cn("flex w-full items-center gap-3 rounded-xl border bg-card px-3 py-2.5 text-left transition hover:border-foreground/25 active:scale-[0.99]", past && "opacity-50")}
                     >
-                      <span className="w-1 self-stretch shrink-0 rounded-full" style={{ background: e.subject.border }} />
+                      <span className="w-1 self-stretch shrink-0 rounded-full" style={{ background: e.color.border }} />
                       <span className="num w-[6.5rem] shrink-0 text-sm font-medium">{timeLabel(e.start)} – {timeLabel(e.end)}</span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-semibold">{e.name}</span>
                         <span className="flex items-center gap-1 truncate text-xs text-muted-foreground">
-                          {e.subject.name}{e.role ? ` · ${e.role}` : ""}
+                          {e.subjectNames}{e.role ? ` · ${e.role}` : ""}
                           {e.office && <><MapPin className="ml-1 size-3 shrink-0" />{e.office}</>}
                         </span>
                       </span>
@@ -208,7 +212,7 @@ export function AsesoriasView({ subjects, nowMin, todayIdx, timeLabel, onOpen }:
       </div>
       )}
 
-      <p className="text-center text-xs text-muted-foreground">Toca una asesoría para ver o cambiar los datos del profesor.</p>
+      <p className="text-center text-xs text-muted-foreground">Toca una asesoría para ver los datos del profesor.</p>
     </div>
   )
 }

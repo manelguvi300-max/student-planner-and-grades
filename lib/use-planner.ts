@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { getPlannerData, migrateFromLocal, savePlannerData, type PlannerState } from "@/app/actions/planner"
-import { DEFAULT_CLASSES, NO_HIDDEN, normalizeHidden, type ClassSession, type Exam, type Grade, type Absence, type SubjectConfig, type HiddenMap } from "@/lib/horario-data"
+import { DEFAULT_CLASSES, NO_HIDDEN, normalizeHidden, migrateTeachers, teachersFromConfigs, withDirectory, type Teacher, type ClassSession, type Exam, type Grade, type Absence, type SubjectConfig, type HiddenMap } from "@/lib/horario-data"
 import type { Subject } from "@/lib/horario-data"
 
 const LOCAL_KEYS = {
@@ -68,12 +68,14 @@ export function usePlanner() {
         }
 
         if (cancelled) return
-        setSubjects(data.subjects ?? [])
+        // los profesores que estaban dentro de cada materia pasan al directorio (se guarda en el siguiente guardado)
+        const mig = migrateTeachers(data.subjects ?? [], data.subjectConfigs ?? {})
+        setSubjects(mig.subjects)
         setClasses(data.classes)
         setGrades(data.grades)
         setExams(data.exams)
         setAbsences(data.absences ?? [])
-        setSubjectConfigs(data.subjectConfigs ?? {})
+        setSubjectConfigs(mig.configs)
         let h = normalizeHidden(data.hidden)
         try {
           const old = window.localStorage.getItem(OLD_HIDDEN_KEY)
@@ -112,7 +114,13 @@ export function usePlanner() {
     }
   }, [subjects, classes, grades, exams, absences, subjectConfigs, hidden])
 
+  // directorio de profesores (vive dentro de subjectConfigs, sin cambiar la base de datos)
+  const teachers = teachersFromConfigs(subjectConfigs)
+  const setTeachers = (u: Teacher[] | ((prev: Teacher[]) => Teacher[])) =>
+    setSubjectConfigs((prev) => withDirectory(prev, typeof u === "function" ? u(teachersFromConfigs(prev)) : u))
+
   return {
+    teachers, setTeachers,
     subjects, setSubjects,
     classes, setClasses,
     grades, setGrades,

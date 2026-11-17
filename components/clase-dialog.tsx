@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import {
-  DAYS, getSubject, getTeachers, minutesToTime, timeToMinutes,
-  type ClassSession, type ColorSwatch, type Subject,
+  DAYS, getSubject, teachersOf, minutesToTime, timeToMinutes,
+  type ClassSession, type ColorSwatch, type Subject, type Teacher,
 } from "@/lib/horario-data"
 import { ColorPicker, pickDefaultColor } from "./materias-tab"
 
@@ -24,6 +24,7 @@ export type ClassDialogState = { cls?: ClassSession; day: number; startMin: numb
 type Props = {
   state: ClassDialogState | null
   onClose: () => void
+  teachers: Teacher[]
   subjects: Subject[]
   setSubjects: React.Dispatch<React.SetStateAction<Subject[]>>
   classes: ClassSession[]
@@ -41,7 +42,7 @@ export function ClaseDialog({ state, onClose, ...rest }: Props) {
   )
 }
 
-function ClaseForm({ state, onClose, subjects, setSubjects, classes, setClasses, timeLabel }: Omit<Props, "state"> & { state: ClassDialogState }) {
+function ClaseForm({ state, onClose, teachers: directory, subjects, setSubjects, classes, setClasses, timeLabel }: Omit<Props, "state"> & { state: ClassDialogState }) {
   const editing = state.cls
   const initialDur = editing ? editing.endTime - editing.startTime : 120
 
@@ -57,7 +58,7 @@ function ClaseForm({ state, onClose, subjects, setSubjects, classes, setClasses,
   const [teacherId, setTeacherId] = useState<string | undefined>(() => {
     if (editing) return editing.teacherId
     const s = getSubject(subjects, state.subjectId ?? subjects[0]?.id ?? "")
-    const t = s ? getTeachers(s) : []
+    const t = s ? teachersOf(s, directory) : []
     return t.length === 1 ? t[0].id : undefined // un solo profesor → ya queda asignado
   })
   const [creating, setCreating] = useState(subjects.length === 0)
@@ -68,7 +69,7 @@ function ClaseForm({ state, onClose, subjects, setSubjects, classes, setClasses,
   const [query, setQuery] = useState("")
 
   const subject = getSubject(subjects, subjectId)
-  const teachers = subject ? getTeachers(subject) : []
+  const teachers = subject ? teachersOf(subject, directory) : []
   const teacher = teachers.find((t) => t.id === teacherId)
   const end = start + dur
   const timeOk = dur > 0 && end <= 24 * 60 - 1
@@ -89,7 +90,7 @@ function ClaseForm({ state, onClose, subjects, setSubjects, classes, setClasses,
   function pickSubject(id: string) {
     setSubjectId(id)
     const s = getSubject(subjects, id)
-    const t = s ? getTeachers(s) : []
+    const t = s ? teachersOf(s, directory) : []
     setTeacherId(t.length === 1 ? t[0].id : undefined) // un solo profesor → ya queda asignado
   }
 
