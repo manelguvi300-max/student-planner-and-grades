@@ -741,7 +741,8 @@ export function ExamenesTab({ subjects, exams, setExams, kinds, setKinds, hidden
   )
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-4 animate-fade-in lg:grid lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-x-8">
+    <>
+    <div className="mx-auto flex max-w-5xl flex-col gap-4 pb-16 animate-fade-in md:pb-0 lg:grid lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-x-8">
       <div className="flex items-start justify-between gap-3 lg:col-start-1">
         <div className="min-w-0">
           <h2 className="text-lg font-semibold">Agenda</h2>
@@ -863,12 +864,6 @@ export function ExamenesTab({ subjects, exams, setExams, kinds, setKinds, hidden
         </div>
       )}
 
-      {/* Móvil: botón flotante para agregar al alcance del pulgar */}
-      <button type="button" onClick={() => openNew()} aria-label="Nuevo evento"
-        className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom)+1rem)] right-4 z-30 grid size-14 animate-pop place-items-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition active:scale-90 md:hidden">
-        <Plus className="size-6" />
-      </button>
-
       <FilterSheet open={filtersOpen} onClose={() => setFiltersOpen(false)} subjects={filterSubjects} kinds={filterKinds}
         subjectCount={subjectCount} kindCount={kindCount} hasNone={Boolean(subjectCount[NONE])} selSubjects={activeSubjects} selKinds={activeKinds}
         setSelSubjects={setSelSubjects} setSelKinds={setSelKinds} resultCount={shown.length} />
@@ -884,5 +879,11 @@ export function ExamenesTab({ subjects, exams, setExams, kinds, setKinds, hidden
         </DialogContent>
       </Dialog>
     </div>
+      {/* Móvil: botón flotante; va fuera del contenedor animado para que `fixed` se ancle a la pantalla */}
+      <button type="button" onClick={() => openNew()} aria-label="Nuevo evento"
+        className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom)+1rem)] right-4 z-30 grid size-14 animate-pop place-items-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition active:scale-90 md:hidden">
+        <Plus className="size-6" />
+      </button>
+    </>
   )
 }
