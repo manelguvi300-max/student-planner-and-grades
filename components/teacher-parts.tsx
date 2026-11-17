@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef } from "react"
-import { Plus, Mail, Phone, MapPin, Clock, Copy, Check, X, GraduationCap } from "lucide-react"
+import { Plus, Mail, Phone, MapPin, Clock, Copy, Check, X } from "lucide-react"
 import { MultiPicker } from "./multi-picker"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -250,10 +250,10 @@ export function TeacherForm({ teacher, subjects, presetSubjectIds, timeLabel, on
         {subjects.length === 0 ? (
           <p className="text-xs text-muted-foreground">Aún no tienes materias. Podrás asignarlas después.</p>
         ) : (
-          <MultiPicker noun="materia" nounPlural="materias" value={subjectIds} onChange={setSubjectIds}
+          <MultiPicker noun="materia" value={subjectIds} onChange={setSubjectIds}
             items={subjects.map((sb) => ({
               id: sb.id, label: sb.name, color: { bg: sb.bg, border: sb.border },
-              lead: <span className="grid size-9 shrink-0 place-items-center rounded-xl text-neutral-900" style={{ backgroundColor: sb.bg, boxShadow: `inset 0 0 0 1.5px ${sb.border}` }}><GraduationCap className="size-4" /></span>,
+              lead: <span className="size-3.5 shrink-0 rounded-full" style={{ backgroundColor: sb.bg, boxShadow: `0 0 0 1.5px ${sb.border}` }} />,
             }))} />
         )}
       </div>

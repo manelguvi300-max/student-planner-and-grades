@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Plus, Pencil, Trash2, Mail, Phone, MapPin, Clock, Search, UserPlus, Check, Users, BookOpen, GraduationCap } from "lucide-react"
+import { Plus, Pencil, Trash2, Mail, Phone, MapPin, Clock, Search, UserPlus, Check, Users, BookOpen } from "lucide-react"
 import { MultiPicker } from "./multi-picker"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -165,7 +165,7 @@ export function ProfesoresTab({ teachers, setTeachers, subjects, setSubjects, cl
             <p className="text-xs text-muted-foreground">Aún no tienes materias. Créalas en la pestaña Materias.</p>
           ) : (
             <>
-              <MultiPicker noun="materia" nounPlural="materias" value={own.map((x) => x.id)}
+              <MultiPicker noun="materia" value={own.map((x) => x.id)}
                 onChange={(ids) => {
                   const cur = own.map((x) => x.id)
                   ids.filter((id) => !cur.includes(id)).forEach((id) => toggleAssign(ops, t.id, id, true))
@@ -173,7 +173,7 @@ export function ProfesoresTab({ teachers, setTeachers, subjects, setSubjects, cl
                 }}
                 items={subjects.map((s) => ({
                   id: s.id, label: s.name, color: { bg: s.bg, border: s.border },
-                  lead: <span className="grid size-9 shrink-0 place-items-center rounded-xl text-neutral-900" style={{ backgroundColor: s.bg, boxShadow: `inset 0 0 0 1.5px ${s.border}` }}><GraduationCap className="size-4" /></span>,
+                  lead: <span className="size-3.5 shrink-0 rounded-full" style={{ backgroundColor: s.bg, boxShadow: `0 0 0 1.5px ${s.border}` }} />,
                 }))} />
               {own.length > 0 && (
                 <button type="button" onClick={() => { close(); onOpenSubject(own[0].id) }} className="flex items-center gap-1.5 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">

@@ -133,13 +133,13 @@ function SubjectForm({ subject, subjects, teachers, onCreateTeacher, onSave, onC
 
       <div className="space-y-2">
         <Label>Profesores <span className="font-normal text-muted-foreground">(opcional)</span></Label>
-        <MultiPicker noun="profesor" nounPlural="profesores" value={ids} onChange={setIds} onCreate={addTeacher}
+        <MultiPicker noun="profesor" value={ids} onChange={setIds} onCreate={addTeacher}
           items={teachers.map((t) => ({
             id: t.id, label: t.name || "Profesor", color: teacherColor(t, subjects),
             sub: [t.role, subjectsOf(t.id, subjects).map((s) => s.name).join(", ")].filter(Boolean).join(" · ") || undefined,
-            lead: <Avatar name={t.name || "?"} color={teacherColor(t, subjects)} />,
+            lead: <Avatar name={t.name || "?"} color={teacherColor(t, subjects)} size="size-6 text-[10px]" />,
           }))} />
-        <p className="text-xs text-muted-foreground">Escribe un nombre para buscar o crear un profesor. Su correo y asesorías los completas en Profesores.</p>
+        <p className="text-xs text-muted-foreground">Su correo y asesorías los completas en Profesores.</p>
       </div>
 
       <div className="flex justify-end gap-2">
