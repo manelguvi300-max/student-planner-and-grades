@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useId, useState } from "react"
-import { Plus, Trash2, AlertTriangle, CheckCircle2, XCircle, UserX, ChevronDown, EyeOff, Eye, Calculator, PenLine, Hash, SlidersHorizontal } from "lucide-react"
+import { Plus, Trash2, AlertTriangle, CheckCircle2, XCircle, UserX, ChevronDown, EyeOff, Eye, Calculator, PenLine, Hash, SlidersHorizontal, Ban } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,16 +14,18 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
+import { useSettings } from "@/lib/settings"
 import { Ring } from "@/components/ui/ring"
 import { CountUp } from "@/components/ui/count-up"
 import {
-  type Subject, type Absence, type SubjectConfig, type AbsenceMode, type AbsenceUnit,
-  GLOBAL_CONFIG_KEY, hasOwnRule, absenceStatus, calcAbsenceLimit, fmtHours, DEFAULT_PERCENT, DEFAULT_BLOCK_HOURS,
+  type Subject, type Absence, type ClassSession, type SubjectConfig, type AbsenceMode, type AbsenceUnit,
+  GLOBAL_CONFIG_KEY, hasOwnRule, absenceStatus, calcAbsenceLimit, fmtHours, getSubject, minutesToLabel, DEFAULT_PERCENT, DEFAULT_BLOCK_HOURS,
 } from "@/lib/horario-data"
 
 type Props = {
   subjects: Subject[]
   absences: Absence[]
+  classes: ClassSession[]
   setAbsences: React.Dispatch<React.SetStateAction<Absence[]>>
   subjectConfigs: Record<string, SubjectConfig>
   setSubjectConfigs: React.Dispatch<React.SetStateAction<Record<string, SubjectConfig>>>
@@ -83,35 +85,17 @@ function NumField({ label, value, placeholder, onCommit }: {
   )
 }
 
-/** Anillo de estado: un arco por categoría, proporcional a cuántas materias hay en ella. Escala igual con 3 que con 30. */
-function StatusRing({ segments, total, children }: { segments: { n: number; color: string }[]; total: number; children: React.ReactNode }) {
-  const size = 124, stroke = 12, r = (size - stroke) / 2, c = 2 * Math.PI * r
-  const gap = segments.length > 1 ? 4 : 0
-  let offset = 0
-  return (
-    <div className="relative grid shrink-0 place-items-center" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90" aria-hidden>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} className="stroke-foreground/10" />
-        {total > 0 && segments.map((s, i) => {
-          const len = (s.n / total) * c
-          const el = (
-            <circle key={i} cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} strokeLinecap="round" stroke={s.color}
-              strokeDasharray={`${Math.max(len - gap - stroke * 0.9, 0.01)} ${c}`} strokeDashoffset={-(offset + (gap + stroke * 0.9) / 2)} />
-          )
-          offset += len
-          return el
-        })}
-      </svg>
-      <div className="absolute inset-0 grid place-items-center">{children}</div>
-    </div>
-  )
-}
-
-export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, setSubjectConfigs, hiddenSubjects, onToggleHidden }: Props) {
+export function FaltasTab({ subjects, absences, classes, setAbsences, subjectConfigs, setSubjectConfigs, hiddenSubjects, onToggleHidden }: Props) {
   const [draftDate, setDraftDate] = useState<string>(() => new Date().toISOString().split("T")[0])
   const [draftAbsHours, setDraftAbsHours] = useState("") // horas que faltó (reglas en horas); vacío = un bloque
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
-  const [filter, setFilter] = useState<"all" | "risk" | "over" | "none" | "ok">("all")
+  const { settings } = useSettings()
+  const [now, setNow] = useState<Date | null>(null)
+  useEffect(() => {
+    setNow(new Date())
+    const id = setInterval(() => setNow(new Date()), 60_000)
+    return () => clearInterval(id)
+  }, [])
 
   // Diálogo de regla: "global" (para todas) o el id de una materia (regla propia)
   const [dialog, setDialog] = useState<{ open: boolean; scope: string }>({ open: false, scope: "global" })
@@ -218,29 +202,39 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
     )
   }
 
-  // resumen de las materias visibles: cada una cae en un estado, y esos estados sirven de filtro de la lista
   const visible = subjects.filter((s) => !hiddenSubjects.includes(s.id))
-  type Cat = "ok" | "risk" | "over" | "none"
-  const cat: Record<string, Cat> = {}
-  const counts: Record<Cat, number> = { ok: 0, risk: 0, over: 0, none: 0 }
-  let totalAbsences = 0
-  for (const s of visible) {
-    const list = absences.filter((a) => a.subjectId === s.id)
-    totalAbsences += list.length
-    const st = absenceStatus(subjectConfigs[s.id], globalCfg, list)
-    const c: Cat = st.needsHours || st.limit === null || st.limit <= 0 ? "none" : st.cancelled ? "over" : st.atRisk ? "risk" : "ok"
-    cat[s.id] = c
-    counts[c]++
-  }
-  const legend = [
-    { key: "ok", label: "En orden", color: "var(--color-emerald-500)" },
-    { key: "risk", label: "En riesgo", color: "var(--color-amber-500)" },
-    { key: "over", label: "Canceladas", color: "var(--destructive)" },
-    { key: "none", label: "Sin límite", color: "color-mix(in oklab, var(--foreground) 28%, transparent)" },
-  ] as const
-  const legendShown = legend.filter((l) => counts[l.key] > 0)
-  const active = filter !== "all" && counts[filter] > 0 ? filter : "all"
+  const label = (m: number) => minutesToLabel(m, settings.timeFormat)
 
+  // Asistencia de hoy: para cada clase que aún queda, ¿qué pasaría si faltaras? Solo se usa para avisar dónde no conviene faltar (lo que las tarjetas de abajo no dicen)
+  type Level = "free" | "last" | "block" | "unknown"
+  const nowMin = now ? now.getHours() * 60 + now.getMinutes() : 0
+  const todayIdx = now ? now.getDay() - 1 : -1 // 0 = lunes … 4 = viernes
+  const todayAll = todayIdx >= 0 && todayIdx <= 4
+    ? classes.filter((c) => c.day === todayIdx && visible.some((s) => s.id === c.subjectId)).sort((x, y) => x.startTime - y.startTime)
+    : []
+  const items = todayAll.filter((c) => c.endTime > nowMin).map((c) => {
+    const subject = getSubject(subjects, c.subjectId)!
+    const st = absenceStatus(subjectConfigs[subject.id], globalCfg, absences.filter((a) => a.subjectId === subject.id))
+    const cost = st.unit === "hours" ? (c.endTime - c.startTime) / 60 : 1 // lo que costaría esta falta
+    let level: Level = "unknown"
+    if (!st.needsHours && st.remaining !== null) {
+      const after = Math.round((st.remaining - cost) * 100) / 100
+      level = after < 0 ? "block" : after === 0 ? "last" : "free"
+    }
+    return { cls: c, subject, level }
+  })
+  const names = (xs: typeof items) => {
+    const n = [...new Set(xs.map((x) => x.subject.name))]
+    return n.length <= 2 ? n.join(" y ") : `${n[0]} y ${n.length - 1} más`
+  }
+  const blocks = items.filter((i) => i.level === "block")
+  const lasts = items.filter((i) => i.level === "last")
+  const verdict =
+    blocks.length ? { bar: "bg-destructive", title: `Hoy no puedes faltar a ${names(blocks)}`, sub: "Una falta más y pasas tu límite." }
+    : lasts.length ? { bar: "bg-amber-500", title: `Hoy cuida tu asistencia en ${names(lasts)}`, sub: "Solo te queda una falta de margen." }
+    : items.length ? { bar: "bg-emerald-500", title: "Asistencia al día", sub: `${items.length === 1 ? "Tu clase de hoy no está" : `Tus ${items.length} clases de hoy no están`} en riesgo.` }
+    : todayAll.length ? { bar: "bg-foreground/25", title: "Ya no te quedan clases hoy", sub: "" }
+    : { bar: "bg-foreground/25", title: "Hoy no tienes clases", sub: "" }
 
   const renderCard = (subject: Subject) => {
     const config = subjectConfigs[subject.id]
@@ -460,44 +454,49 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
     )
   }
 
-  const shown = visible.filter((s) => active === "all" || cat[s.id] === active)
+  const shown = visible
   const hiddenList = subjects.filter((s) => hiddenSubjects.includes(s.id))
   const scopeName = isGlobalScope ? "" : subjects.find((s) => s.id === dialog.scope)?.name
   const pctLabel = percentOk ? percent : DEFAULT_PERCENT
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Resumen visual: un anillo con el estado de todas las materias; la leyenda filtra la lista */}
-      <section className="rounded-2xl border bg-card p-4 sm:p-5">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-xl font-semibold tracking-tight">Faltas</h2>
-          <button type="button" onClick={() => openRule("global")} title={`Regla: ${describeRule(globalCfg)}`} aria-label={`Cambiar la regla de faltas. Regla actual: ${describeRule(globalCfg)}`}
-            className="tap flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium text-muted-foreground transition hover:border-foreground/30 hover:text-foreground active:scale-95">
-            <SlidersHorizontal className="size-3.5" />Regla
-          </button>
-        </div>
+      {/* Asistencia de hoy: cruza el horario con tus faltas: es lo único que las tarjetas de abajo no cuentan */}
+      <section className="flex overflow-hidden rounded-2xl border bg-card">
+        <span aria-hidden className={cn("w-1.5 shrink-0 transition-colors", now ? verdict.bar : "bg-foreground/15")} />
+        <div className="min-w-0 flex-1 p-4 sm:p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm text-muted-foreground">Tu asistencia hoy</p>
+              {now ? (
+                <>
+                  <h2 className="mt-0.5 text-2xl font-semibold tracking-tight text-balance sm:text-3xl">{verdict.title}</h2>
+                  {verdict.sub && <p className="mt-1 text-sm text-muted-foreground">{verdict.sub}</p>}
+                </>
+              ) : <div className="skeleton mt-1.5 h-8 w-56 max-w-full rounded-lg" />}
+            </div>
+            <button type="button" onClick={() => openRule("global")} title={`Regla: ${describeRule(globalCfg)}`} aria-label={`Cambiar la regla de faltas. Regla actual: ${describeRule(globalCfg)}`}
+              className="tap flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium text-muted-foreground transition hover:border-foreground/30 hover:text-foreground active:scale-95">
+              <SlidersHorizontal className="size-3.5" />Regla
+            </button>
+          </div>
 
-        <div className="mt-4 flex items-center gap-5 sm:gap-8">
-          <StatusRing segments={legendShown.map((l) => ({ n: counts[l.key], color: l.color }))} total={visible.length}>
-            <span className="text-center leading-none">
-              <span className="num block text-3xl font-semibold"><CountUp value={totalAbsences} /></span>
-              <span className="mt-1 block text-xs text-muted-foreground">falta{totalAbsences === 1 ? "" : "s"}</span>
-            </span>
-          </StatusRing>
-
-          <ul className="min-w-0 flex-1 space-y-0.5">
-            {legendShown.map((l) => (
-              <li key={l.key}>
-                <button type="button" aria-pressed={active === l.key} onClick={() => setFilter(active === l.key ? "all" : l.key)}
-                  className={cn("tap flex h-9 w-full items-center gap-2.5 rounded-lg px-2 text-left text-sm transition hover:bg-foreground/[0.06] active:scale-[0.98]", active === l.key && "bg-foreground/[0.08]")}>
-                  <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: l.color }} />
-                  <span className="num w-6 shrink-0 text-base font-semibold">{counts[l.key]}</span>
-                  <span className="min-w-0 truncate text-muted-foreground">{l.label}</span>
-                </button>
-              </li>
-            ))}
-            {legendShown.length === 0 && <li className="px-2 text-sm text-muted-foreground">Sin materias</li>}
-          </ul>
+          {items.length > 0 && (
+            <ul className="mt-4 flex flex-wrap gap-2">
+              {items.map((i) => {
+                const tip = i.level === "block" ? "Una falta más y pasas tu límite" : i.level === "last" ? "Te queda una sola falta de margen" : i.level === "free" ? "Sin riesgo por ahora" : "Sin límite definido para esta materia"
+                return (
+                  <li key={i.cls.id} title={tip} className={cn("flex max-w-full items-center gap-1.5 rounded-full border py-1 pl-2.5 pr-3 text-xs", i.level === "block" && "border-destructive/40")}>
+                    {i.level === "block" ? <Ban className="size-3.5 shrink-0 text-destructive" />
+                      : i.level === "last" ? <AlertTriangle className="size-3.5 shrink-0 text-amber-500" />
+                      : null}
+                    <span className="num shrink-0 text-muted-foreground">{label(i.cls.startTime)}</span>
+                    <span className="truncate font-medium">{i.subject.name}</span>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </div>
       </section>
 

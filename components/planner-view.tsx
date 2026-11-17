@@ -231,6 +231,7 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
             <FaltasTab
               subjects={subjects}
               absences={absences}
+              classes={classes}
               setAbsences={setAbsences}
               subjectConfigs={subjectConfigs}
               setSubjectConfigs={setSubjectConfigs}
