@@ -83,11 +83,35 @@ function NumField({ label, value, placeholder, onCommit }: {
   )
 }
 
+/** Anillo de estado: un arco por categoría, proporcional a cuántas materias hay en ella. Escala igual con 3 que con 30. */
+function StatusRing({ segments, total, children }: { segments: { n: number; color: string }[]; total: number; children: React.ReactNode }) {
+  const size = 124, stroke = 12, r = (size - stroke) / 2, c = 2 * Math.PI * r
+  const gap = segments.length > 1 ? 4 : 0
+  let offset = 0
+  return (
+    <div className="relative grid shrink-0 place-items-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90" aria-hidden>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} className="stroke-foreground/10" />
+        {total > 0 && segments.map((s, i) => {
+          const len = (s.n / total) * c
+          const el = (
+            <circle key={i} cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} strokeLinecap="round" stroke={s.color}
+              strokeDasharray={`${Math.max(len - gap - stroke * 0.9, 0.01)} ${c}`} strokeDashoffset={-(offset + (gap + stroke * 0.9) / 2)} />
+          )
+          offset += len
+          return el
+        })}
+      </svg>
+      <div className="absolute inset-0 grid place-items-center">{children}</div>
+    </div>
+  )
+}
+
 export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, setSubjectConfigs, hiddenSubjects, onToggleHidden }: Props) {
   const [draftDate, setDraftDate] = useState<string>(() => new Date().toISOString().split("T")[0])
   const [draftAbsHours, setDraftAbsHours] = useState("") // horas que faltó (reglas en horas); vacío = un bloque
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
-  const [filter, setFilter] = useState<"all" | "risk" | "over" | "nohd" | "ok">("all")
+  const [filter, setFilter] = useState<"all" | "risk" | "over" | "none" | "ok">("all")
 
   // Diálogo de regla: "global" (para todas) o el id de una materia (regla propia)
   const [dialog, setDialog] = useState<{ open: boolean; scope: string }>({ open: false, scope: "global" })
@@ -196,32 +220,26 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
 
   // resumen de las materias visibles: cada una cae en un estado, y esos estados sirven de filtro de la lista
   const visible = subjects.filter((s) => !hiddenSubjects.includes(s.id))
-  type Cat = "ok" | "risk" | "over" | "nohd" | "none"
+  type Cat = "ok" | "risk" | "over" | "none"
   const cat: Record<string, Cat> = {}
-  const counts = { ok: 0, risk: 0, over: 0, nohd: 0 }
+  const counts: Record<Cat, number> = { ok: 0, risk: 0, over: 0, none: 0 }
   let totalAbsences = 0
   for (const s of visible) {
     const list = absences.filter((a) => a.subjectId === s.id)
     totalAbsences += list.length
     const st = absenceStatus(subjectConfigs[s.id], globalCfg, list)
-    const c: Cat = st.needsHours ? "nohd" : st.limit === null || st.limit <= 0 ? "none" : st.cancelled ? "over" : st.atRisk ? "risk" : "ok"
+    const c: Cat = st.needsHours || st.limit === null || st.limit <= 0 ? "none" : st.cancelled ? "over" : st.atRisk ? "risk" : "ok"
     cat[s.id] = c
-    if (c !== "none") counts[c]++
+    counts[c]++
   }
-  const headline =
-    counts.over > 0 ? { tone: "text-destructive", dot: "bg-destructive", text: `${counts.over} materia${counts.over > 1 ? "s" : ""} cancelada${counts.over > 1 ? "s" : ""}` }
-    : counts.risk > 0 ? { tone: "text-amber-600 dark:text-amber-400", dot: "bg-amber-500", text: `${counts.risk} cerca del límite` }
-    : totalAbsences === 0 ? { tone: "text-muted-foreground", dot: "bg-foreground/40", text: "Aún sin faltas" }
-    : { tone: "text-emerald-600 dark:text-emerald-400", dot: "bg-emerald-500", text: "Todo en orden" }
-  const chips = [
-    { key: "all", label: "Todas", n: visible.length, dot: "" },
-    { key: "over", label: "Canceladas", n: counts.over, dot: "bg-destructive" },
-    { key: "risk", label: "En riesgo", n: counts.risk, dot: "bg-amber-500" },
-    { key: "nohd", label: "Sin HD", n: counts.nohd, dot: "bg-foreground/30" },
-    { key: "ok", label: "En orden", n: counts.ok, dot: "bg-emerald-500" },
+  const legend = [
+    { key: "ok", label: "En orden", color: "var(--color-emerald-500)" },
+    { key: "risk", label: "En riesgo", color: "var(--color-amber-500)" },
+    { key: "over", label: "Canceladas", color: "var(--destructive)" },
+    { key: "none", label: "Sin límite", color: "color-mix(in oklab, var(--foreground) 28%, transparent)" },
   ] as const
-  const chipList = chips.filter((c) => c.key === "all" || c.n > 0)
-  const active = chipList.some((c) => c.key === filter) ? filter : "all"
+  const legendShown = legend.filter((l) => counts[l.key] > 0)
+  const active = filter !== "all" && counts[filter] > 0 ? filter : "all"
 
 
   const renderCard = (subject: Subject) => {
@@ -449,47 +467,37 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Resumen: total, cómo vas, y filtros por estado para la lista de abajo */}
-      <section className="overflow-hidden rounded-2xl border bg-card">
-        <div className="p-4 sm:p-5">
+      {/* Resumen visual: un anillo con el estado de todas las materias; la leyenda filtra la lista */}
+      <section className="rounded-2xl border bg-card p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-3">
           <h2 className="text-xl font-semibold tracking-tight">Faltas</h2>
-          <p className="mt-0.5 hidden text-sm text-muted-foreground sm:block">
-            Las faltas permitidas son un % de inasistencia sobre las horas de trabajo directo (HD). Define la regla una vez; en cada materia solo anotas sus HD.
-          </p>
-          <p className="num mt-3 text-3xl font-semibold tracking-tight">
-            {totalAbsences}
-            <span className="ml-2 text-base font-normal text-muted-foreground">falta{totalAbsences === 1 ? "" : "s"} en {visible.length} materia{visible.length === 1 ? "" : "s"}</span>
-          </p>
-          <p className={cn("mt-1 flex items-center gap-1.5 text-sm font-medium", headline.tone)}>
-            <span aria-hidden className={cn("size-2 rounded-full", headline.dot)} />{headline.text}
-          </p>
-
-          {/* Filtros: con muchas materias, ver solo las que importan */}
-          {chipList.length > 2 && (
-            <div role="group" aria-label="Filtrar materias" className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden">
-              {chipList.map((c) => (
-                <button key={c.key} type="button" aria-pressed={active === c.key} onClick={() => setFilter(c.key)}
-                  className={cn("tap flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition active:scale-95",
-                    active === c.key ? "border-foreground bg-foreground text-background" : "text-muted-foreground hover:border-foreground/30 hover:text-foreground")}>
-                  {c.dot && <span aria-hidden className={cn("size-1.5 rounded-full", c.dot)} />}
-                  {c.label}
-                  <span className="num opacity-70">{c.n}</span>
-                </button>
-              ))}
-            </div>
-          )}
+          <button type="button" onClick={() => openRule("global")} title={`Regla: ${describeRule(globalCfg)}`} aria-label={`Cambiar la regla de faltas. Regla actual: ${describeRule(globalCfg)}`}
+            className="tap flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium text-muted-foreground transition hover:border-foreground/30 hover:text-foreground active:scale-95">
+            <SlidersHorizontal className="size-3.5" />Regla
+          </button>
         </div>
 
-        {/* Regla global */}
-        <div className="flex items-center gap-3 border-t px-4 py-3 sm:px-5">
-          <Calculator className="size-5 shrink-0 text-muted-foreground" />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium">Regla para todas las materias</p>
-            <p className="truncate text-xs text-muted-foreground">{describeRule(globalCfg)}{globalCfg ? "" : " · predeterminada"}</p>
-          </div>
-          <Button size="sm" variant={globalCfg ? "secondary" : "default"} onClick={() => openRule("global")} className="shrink-0 rounded-full">
-            {globalCfg ? "Cambiar" : "Configurar"}
-          </Button>
+        <div className="mt-4 flex items-center gap-5 sm:gap-8">
+          <StatusRing segments={legendShown.map((l) => ({ n: counts[l.key], color: l.color }))} total={visible.length}>
+            <span className="text-center leading-none">
+              <span className="num block text-3xl font-semibold"><CountUp value={totalAbsences} /></span>
+              <span className="mt-1 block text-xs text-muted-foreground">falta{totalAbsences === 1 ? "" : "s"}</span>
+            </span>
+          </StatusRing>
+
+          <ul className="min-w-0 flex-1 space-y-0.5">
+            {legendShown.map((l) => (
+              <li key={l.key}>
+                <button type="button" aria-pressed={active === l.key} onClick={() => setFilter(active === l.key ? "all" : l.key)}
+                  className={cn("tap flex h-9 w-full items-center gap-2.5 rounded-lg px-2 text-left text-sm transition hover:bg-foreground/[0.06] active:scale-[0.98]", active === l.key && "bg-foreground/[0.08]")}>
+                  <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: l.color }} />
+                  <span className="num w-6 shrink-0 text-base font-semibold">{counts[l.key]}</span>
+                  <span className="min-w-0 truncate text-muted-foreground">{l.label}</span>
+                </button>
+              </li>
+            ))}
+            {legendShown.length === 0 && <li className="px-2 text-sm text-muted-foreground">Sin materias</li>}
+          </ul>
         </div>
       </section>
 
