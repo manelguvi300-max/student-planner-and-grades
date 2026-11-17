@@ -8,11 +8,11 @@
   --font-heading: var(--font-sans);
   --font-sans: var(--font-sora), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jb), ui-monospace, monospace;
-  --animate-rise: rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-  --animate-fade-in: fade 0.3s ease both;
-  --animate-slide-up: rise 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-rise: rise 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-fade-in: fade 0.2s ease both;
+  --animate-slide-up: rise 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   --animate-scale-in: scale-in 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
-  --animate-pop: pop 0.35s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+  --animate-pop: pop 0.28s cubic-bezier(0.3, 1.6, 0.5, 1) both;
   --animate-sheet: sheet 0.35s cubic-bezier(0.2, 0.9, 0.25, 1) both;
   --animate-glow: glow 2.8s ease-in-out infinite;
   --color-brand: var(--brand);
@@ -136,7 +136,7 @@
     --card-shadow: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 20px 40px -22px rgb(0 0 0 / 0.8);
 }
 
-@keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } }
 @keyframes fade { from { opacity: 0; } }
 @keyframes pop { 0% { transform: scale(0.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 @keyframes scale-in { from { opacity: 0; transform: scale(0.94); } }
@@ -166,8 +166,6 @@
 @layer components {
   .glass {
     background: var(--glass);
-    backdrop-filter: blur(20px) saturate(1.4);
-    -webkit-backdrop-filter: blur(20px) saturate(1.4);
     border: 1px solid var(--border);
   }
   .grad { background-image: linear-gradient(135deg, oklch(0.86 0.07 275), oklch(0.62 0.16 275)); color: oklch(0.18 0.05 275); }
@@ -201,16 +199,16 @@
 @media (min-width: 1024px) { :root { --appbar-h: 0px; } }
 
 /* Entrada escalonada: los hijos directos aparecen uno tras otro (los primeros 10) */
-.stagger > * { animation: rise 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
-.stagger > :nth-child(2) { animation-delay: 40ms; }
-.stagger > :nth-child(3) { animation-delay: 80ms; }
-.stagger > :nth-child(4) { animation-delay: 120ms; }
-.stagger > :nth-child(5) { animation-delay: 160ms; }
-.stagger > :nth-child(6) { animation-delay: 200ms; }
-.stagger > :nth-child(7) { animation-delay: 240ms; }
-.stagger > :nth-child(8) { animation-delay: 280ms; }
-.stagger > :nth-child(9) { animation-delay: 320ms; }
-.stagger > :nth-child(n + 10) { animation-delay: 360ms; }
+.stagger > * { animation: rise 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.stagger > :nth-child(2) { animation-delay: 25ms; }
+.stagger > :nth-child(3) { animation-delay: 50ms; }
+.stagger > :nth-child(4) { animation-delay: 75ms; }
+.stagger > :nth-child(5) { animation-delay: 100ms; }
+.stagger > :nth-child(6) { animation-delay: 125ms; }
+.stagger > :nth-child(7) { animation-delay: 150ms; }
+.stagger > :nth-child(8) { animation-delay: 175ms; }
+.stagger > :nth-child(9) { animation-delay: 200ms; }
+.stagger > :nth-child(n + 10) { animation-delay: 225ms; }
 
 /* Elevación suave al pasar el cursor (solo donde hay cursor) */
 .lift { transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease; }

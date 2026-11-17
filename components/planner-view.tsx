@@ -150,7 +150,7 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
 
       <main className="pb-nav mx-auto w-full max-w-6xl px-4 sm:px-6 md:pl-24 lg:px-10 lg:pt-10">
         {/* Móvil y tablet: barra superior fija y compacta (marca · semestre · ajustes). En tablet la marca vive en el riel lateral. */}
-        <div className="sticky top-0 z-30 -mx-4 mb-4 border-b bg-background/85 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-xl sm:-mx-6 sm:px-6 lg:hidden">
+        <div className="sticky top-0 z-30 -mx-4 mb-4 border-b bg-background px-4 pt-[env(safe-area-inset-top)] md:bg-background/85 md:backdrop-blur-xl sm:-mx-6 sm:px-6 lg:hidden">
           <div className="flex h-14 items-center gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2.5 md:hidden">
@@ -289,7 +289,7 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
       </aside>
 
       {/* Móvil: barra inferior anclada al borde (no tapa el contenido) */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden" aria-label="Secciones">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="Secciones">
         <div className="mx-auto flex h-16 max-w-md px-2">
           {MOBILE_ITEMS.map((item, i) => {
             const active = i === idx && !inSettings

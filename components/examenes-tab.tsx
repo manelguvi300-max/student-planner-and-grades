@@ -383,7 +383,7 @@ function WeekStrip({ days, active, onPick }: { days: StripDay[]; active: string 
   const idx = days.findIndex((d) => d.date === active)
   return (
     <nav aria-label="Próximos 7 días"
-      className="sticky top-[var(--appbar-h)] z-20 -mx-4 border-b bg-background/90 px-3 py-2 backdrop-blur-xl sm:-mx-6 sm:px-5 lg:static lg:mx-0 lg:rounded-xl lg:border lg:bg-card lg:p-3 lg:backdrop-blur-none">
+      className="sticky top-[var(--appbar-h)] z-20 -mx-4 border-b bg-background px-3 py-2 md:bg-background/90 md:backdrop-blur-xl sm:-mx-6 sm:px-5 lg:static lg:mx-0 lg:rounded-xl lg:border lg:bg-card lg:p-3 lg:backdrop-blur-none">
       <p className="mb-2 hidden text-xs font-medium text-muted-foreground lg:block">Próximos 7 días</p>
       <div className="relative grid grid-cols-7">
         <span aria-hidden className="absolute inset-y-0 left-0 w-[calc(100%/7)] rounded-lg bg-foreground/[0.08] transition-[transform,opacity] duration-300 ease-out"
