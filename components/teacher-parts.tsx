@@ -1,11 +1,10 @@
 "use client"
 
 import { useState, useRef } from "react"
-import { Plus, Mail, Phone, MapPin, Clock, Copy, Check, X, ChevronDown } from "lucide-react"
+import { Plus, Mail, Phone, MapPin, Copy, Check, X } from "lucide-react"
 import { MultiPicker } from "./multi-picker"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import {
   DAYS, TEACHER_ROLES, initials, minutesToTime, timeToMinutes, subjectsOf,
@@ -119,7 +118,6 @@ function OfficeHoursEditor({ slots, setSlots, note, setNote, timeLabel, pendingR
 
   return (
     <div className="space-y-2.5">
-      <Label className="flex items-center gap-1.5"><Clock className="size-3.5" />Asesorías <span className="font-normal text-muted-foreground">(opcional)</span></Label>
       {slots.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {slots.map((sl) => (
@@ -160,8 +158,8 @@ function OfficeHoursEditor({ slots, setSlots, note, setNote, timeLabel, pendingR
           </div>
         </div>
       ) : (
-        <button type="button" onClick={() => setOpen(true)} className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed py-2 text-xs font-medium text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
-          <Plus className="size-3.5" />Agregar horario de asesoría
+        <button type="button" onClick={() => setOpen(true)} className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-dashed px-3 text-sm text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
+          <Plus className="size-4" />Agregar horario de asesoría
         </button>
       )}
       <Input id="t-hours" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Nota (opcional): previa cita por correo…" aria-label="Nota de asesorías" />
@@ -190,8 +188,6 @@ export function TeacherForm({ teacher, subjects, presetSubjectIds, timeLabel, on
   const [subjectIds, setSubjectIds] = useState<string[]>(() => (teacher ? subjectsOf(teacher.id, subjects).map((s) => s.id) : presetSubjectIds ?? []))
   const [tried, setTried] = useState(false)
   const [customRole, setCustomRole] = useState(() => !!teacher?.role && !TEACHER_ROLES.includes(teacher.role))
-  // contacto y asesorías: plegados al crear, abiertos si ya hay datos
-  const [more, setMore] = useState(() => !!(teacher?.email || teacher?.phone || teacher?.office || teacher?.hours || teacher?.slots?.length))
 
   const nameOk = name.trim().length > 0
   const emailOk = email.trim() === "" || /^\S+@\S+\.\S+$/.test(email.trim())
@@ -199,87 +195,70 @@ export function TeacherForm({ teacher, subjects, presetSubjectIds, timeLabel, on
   function submit(e: React.FormEvent) {
     e.preventDefault()
     setTried(true)
-    if (!nameOk) return
-    if (!emailOk) { setMore(true); return }
+    if (!nameOk || !emailOk) return
     const clean = (v: string) => v.trim() || undefined
     const all = [...slots, ...(pendingRef.current?.() ?? [])].sort(slotSort)
     onSave({ name: name.trim(), role: clean(role), email: clean(email), phone: clean(phone), office: clean(office), hours: clean(hours), slots: all.length ? all : undefined }, subjectIds)
   }
 
+  const H = ({ children }: { children: React.ReactNode }) => <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{children}</h3>
+  const field = (icon: React.ReactNode, input: React.ReactNode) => (
+    <div className="flex items-center gap-3"><span className="text-muted-foreground">{icon}</span><div className="min-w-0 flex-1">{input}</div></div>
+  )
+
+  // Misma estructura que la ficha del profesor: cabecera → contacto → asesorías → materias
   return (
-    <form onSubmit={submit} className="space-y-4">
-      <div className="flex items-center gap-3">
+    <form onSubmit={submit} className="animate-fade-in space-y-5">
+      <div className="flex items-start gap-3">
         <Avatar name={name || "?"} color={subjects.find((s) => s.id === subjectIds[0]) ?? { bg: "#e5e7eb", border: "#9ca3af" }} size="size-12" />
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <Label htmlFor="t-name">Nombre</Label>
-          <Input id="t-name" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: María Pérez" aria-invalid={tried && !nameOk} />
-        </div>
-      </div>
-      {tried && !nameOk && <p className="-mt-2 text-xs text-destructive">Escribe el nombre del profesor.</p>}
-
-      <div className="space-y-2">
-        <Label>Rol <span className="font-normal text-muted-foreground">(opcional)</span></Label>
-        <div className="flex flex-wrap gap-1.5">
-          {TEACHER_ROLES.map((r) => (
-            <button key={r} type="button" onClick={() => { setRole(role === r ? "" : r); setCustomRole(false) }} aria-pressed={role === r && !customRole}
-              className={cn("min-h-8 rounded-full border px-3 py-1 text-xs font-medium transition", role === r && !customRole ? "border-foreground bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}>
-              {r}
+        <div className="min-w-0 flex-1 space-y-2 pr-6">
+          <Input id="t-name" aria-label="Nombre" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre del profesor" aria-invalid={tried && !nameOk} className="h-11 text-base font-semibold" />
+          {tried && !nameOk && <p className="text-xs text-destructive">Escribe el nombre del profesor.</p>}
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Rol">
+            {TEACHER_ROLES.map((r) => (
+              <button key={r} type="button" onClick={() => { setRole(role === r ? "" : r); setCustomRole(false) }} aria-pressed={role === r && !customRole}
+                className={cn("min-h-8 rounded-full border px-3 py-1 text-xs font-medium transition", role === r && !customRole ? "border-foreground bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}>
+                {r}
+              </button>
+            ))}
+            <button type="button" onClick={() => { setCustomRole((v) => !v); if (!customRole && TEACHER_ROLES.includes(role)) setRole("") }} aria-pressed={customRole}
+              className={cn("min-h-8 rounded-full border px-3 py-1 text-xs font-medium transition", customRole ? "border-foreground bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}>
+              Otro…
             </button>
-          ))}
-          <button type="button" onClick={() => { setCustomRole((v) => !v); if (!customRole && TEACHER_ROLES.includes(role)) setRole("") }} aria-pressed={customRole}
-            className={cn("min-h-8 rounded-full border px-3 py-1 text-xs font-medium transition", customRole ? "border-foreground bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}>
-            Otro…
-          </button>
+          </div>
+          {customRole && <Input autoFocus value={role} onChange={(e) => setRole(e.target.value)} placeholder="Ej: Asistente, Invitado…" maxLength={30} aria-label="Rol" />}
         </div>
-        {customRole && <Input autoFocus value={role} onChange={(e) => setRole(e.target.value)} placeholder="Ej: Asistente, Invitado…" maxLength={30} aria-label="Rol" />}
       </div>
 
-      <div className="space-y-2">
-        <Label>Materias <span className="font-normal text-muted-foreground">(opcional)</span></Label>
+      <section className="space-y-2.5 rounded-2xl border bg-card p-3">
+        {field(<Mail className="size-4" />, <Input id="t-email" type="email" inputMode="email" aria-label="Correo" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Correo" aria-invalid={tried && !emailOk} />)}
+        {tried && !emailOk && <p className="pl-7 text-xs text-destructive">Revisa el correo.</p>}
+        {field(<Phone className="size-4" />, <Input id="t-phone" type="tel" inputMode="tel" aria-label="Teléfono" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Teléfono" />)}
+        {field(<MapPin className="size-4" />, <Input id="t-office" aria-label="Oficina" value={office} onChange={(e) => setOffice(e.target.value)} placeholder="Oficina (ej: Bloque B, 305)" />)}
+      </section>
+
+      <section className="space-y-2">
+        <H>Asesorías</H>
+        <OfficeHoursEditor slots={slots} setSlots={setSlots} note={hours} setNote={setHours} timeLabel={timeLabel} pendingRef={pendingRef} />
+      </section>
+
+      <section className="space-y-2">
+        <H>Materias que da</H>
         {subjects.length === 0 ? (
           <p className="text-xs text-muted-foreground">Aún no tienes materias. Podrás asignarlas después.</p>
         ) : (
-          <MultiPicker noun="materia" value={subjectIds} onChange={setSubjectIds}
+          <MultiPicker variant="rows" noun="materia" value={subjectIds} onChange={setSubjectIds}
             items={subjects.map((sb) => ({
               id: sb.id, label: sb.name, color: { bg: sb.bg, border: sb.border },
-              lead: <span className="size-3.5 shrink-0 rounded-full" style={{ backgroundColor: sb.bg, boxShadow: `0 0 0 1.5px ${sb.border}` }} />,
+              lead: <span className="mx-1 size-4 shrink-0 rounded-full" style={{ backgroundColor: sb.bg, boxShadow: `0 0 0 2px ${sb.border}` }} />,
             }))} />
         )}
-      </div>
+      </section>
 
-      <div className="space-y-3">
-        <button type="button" onClick={() => setMore((v) => !v)} aria-expanded={more}
-          className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-dashed px-3 text-sm text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
-          <ChevronDown className={cn("size-4 transition-transform", more && "rotate-180")} />
-          Contacto y asesorías <span className="text-xs">(opcional)</span>
-        </button>
-        {more && (
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="t-email" className="flex items-center gap-1.5"><Mail className="size-3.5" />Correo</Label>
-          <Input id="t-email" type="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="profe@universidad.edu.co" aria-invalid={tried && !emailOk} />
-          {tried && !emailOk && <p className="text-xs text-destructive">Revisa el correo.</p>}
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="t-phone" className="flex items-center gap-1.5"><Phone className="size-3.5" />Teléfono</Label>
-          <Input id="t-phone" type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="300 123 4567" />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="t-office" className="flex items-center gap-1.5"><MapPin className="size-3.5" />Oficina</Label>
-          <Input id="t-office" value={office} onChange={(e) => setOffice(e.target.value)} placeholder="Ej: Bloque B, 305" />
-        </div>
-        <div className="sm:col-span-2">
-          <OfficeHoursEditor slots={slots} setSlots={setSlots} note={hours} setNote={setHours} timeLabel={timeLabel} pendingRef={pendingRef} />
-        </div>
-      </div>
-        )}
-      </div>
-
-      <div className="flex justify-end gap-2 pt-1">
+      <div className="flex justify-end gap-2 border-t pt-3">
         <Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button>
         <Button type="submit">{teacher ? "Guardar cambios" : "Agregar profesor"}</Button>
       </div>
     </form>
   )
 }
-

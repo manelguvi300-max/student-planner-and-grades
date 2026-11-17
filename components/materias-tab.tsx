@@ -6,7 +6,6 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import {
@@ -112,36 +111,30 @@ function SubjectForm({ subject, subjects, teachers, onCreateTeacher, onSave, onC
     setIds((x) => [...x, id])
   }
 
+  // Misma estructura que la ficha de la materia: barra de color + nombre → (color) → profesores
   return (
-    <form onSubmit={(e) => { e.preventDefault(); if (ok) onSave(name.trim(), color, ids) }} className="space-y-5">
-      {/* Vista previa */}
-      <div className="flex items-center gap-3 rounded-2xl border p-3" style={{ backgroundColor: color.bg, borderColor: color.border }}>
-        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-black/10 text-neutral-900"><GraduationCap className="size-5" /></span>
-        <p className="min-w-0 truncate font-semibold text-neutral-900">{name.trim() || "Nombre de la materia"}</p>
+    <form onSubmit={(e) => { e.preventDefault(); if (ok) onSave(name.trim(), color, ids) }} className="animate-fade-in space-y-5">
+      <div className="flex items-center gap-3 pr-6">
+        <span className="h-11 w-1.5 shrink-0 rounded-full transition-colors" style={{ background: color.border }} />
+        <Input id="subject-name" aria-label="Nombre de la materia" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre de la materia" maxLength={60} className="h-11 text-base font-semibold" />
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="subject-name">Nombre</Label>
-        <Input id="subject-name" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej: Cálculo diferencial" maxLength={60} />
-      </div>
-
-      <div className="space-y-2">
-        <Label>Color</Label>
+      <section className="space-y-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Color</h3>
         <ColorPicker value={color} onChange={setColor} />
-      </div>
+      </section>
 
-      <div className="space-y-2">
-        <Label>Profesores <span className="font-normal text-muted-foreground">(opcional)</span></Label>
-        <MultiPicker noun="profesor" value={ids} onChange={setIds} onCreate={addTeacher}
+      <section className="space-y-2">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Profesores</h3>
+        <MultiPicker variant="rows" noun="profesor" value={ids} onChange={setIds} onCreate={addTeacher}
           items={teachers.map((t) => ({
             id: t.id, label: t.name || "Profesor", color: teacherColor(t, subjects),
-            sub: [t.role, subjectsOf(t.id, subjects).map((s) => s.name).join(", ")].filter(Boolean).join(" · ") || undefined,
-            lead: <Avatar name={t.name || "?"} color={teacherColor(t, subjects)} size="size-6 text-[10px]" />,
+            sub: t.role || undefined,
+            lead: <Avatar name={t.name || "?"} color={teacherColor(t, subjects)} size="size-8 text-[11px]" />,
           }))} />
-        <p className="text-xs text-muted-foreground">Su correo y asesorías los completas en Profesores.</p>
-      </div>
+      </section>
 
-      <div className="flex justify-end gap-2">
+      <div className="flex justify-end gap-2 border-t pt-3">
         <Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button>
         <Button type="submit" disabled={!ok}>{subject ? "Guardar cambios" : "Crear materia"}</Button>
       </div>
@@ -255,8 +248,8 @@ export function MateriasTab({
 
   /* ── contenido del diálogo ── */
 
-  const header = (title: string, desc?: string, back?: () => void) => (
-    <DialogHeader className="space-y-1">
+  const header = (title: string, desc?: string, back?: () => void, hidden?: boolean) => (
+    <DialogHeader className={cn("space-y-1", hidden && "sr-only")}>
       <div className="flex items-center gap-2">
         {back && (
           <button type="button" onClick={back} aria-label="Volver" className="tap -ml-1 grid size-8 place-items-center rounded-lg text-muted-foreground transition hover:bg-foreground/[0.07] hover:text-foreground">
@@ -274,7 +267,8 @@ export function MateriasTab({
     const back = current ? () => open({ subjectId: current.id, view: "detail" }) : undefined
     body = (
       <>
-        {header(current ? "Editar materia" : "Nueva materia", current ? "Cambia su nombre, su color o sus profesores." : "Después podrás agregar sus clases.", back)}
+        {/* Al editar no hay título: la cabecera es la de la ficha, para no perder el sitio */}
+        {current ? header("Editar materia", undefined, undefined, true) : header("Nueva materia", "Después podrás agregar sus clases.", back)}
         <SubjectForm key={current?.id ?? "new"} subject={current} subjects={subjects} teachers={teachers} onCreateTeacher={createTeacherByName}
           onSave={saveSubject} onCancel={() => (back ? back() : close())} />
       </>

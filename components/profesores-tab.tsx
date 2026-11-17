@@ -86,9 +86,10 @@ export function ProfesoresTab({ teachers, setTeachers, subjects, setSubjects, cl
   if (dlg?.view === "form") {
     body = (
       <>
-        <DialogHeader className="space-y-1">
+        {/* Al editar no hay título: la cabecera es la misma de la ficha, para no perder el sitio */}
+        <DialogHeader className={cn("space-y-1", current && "sr-only")}>
           <DialogTitle>{current ? "Editar profesor" : "Nuevo profesor"}</DialogTitle>
-          <DialogDescription>{current ? "Cambia sus datos o las materias que da." : "Guarda sus datos y, si quieres, elige qué materias da."}</DialogDescription>
+          <DialogDescription>{current ? "Cambia sus datos o las materias que da." : "Solo el nombre es obligatorio; lo demás lo puedes completar después."}</DialogDescription>
         </DialogHeader>
         <TeacherForm key={current?.id ?? "new"} teacher={current} subjects={subjects} timeLabel={timeLabel} onSave={onSave}
           onCancel={() => (current ? open({ view: "detail", teacherId: current.id }) : close())} />
