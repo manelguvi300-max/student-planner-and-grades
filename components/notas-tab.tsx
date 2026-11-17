@@ -165,7 +165,7 @@ export function NotasTab({ subjects, grades, setGrades, hiddenSubjects, onToggle
 
           {/* Materias ocultas (colapsadas con opción de restaurar) */}
           {hiddenSubjectsList.length > 0 && (
-            <div className="space-y-2">
+            <div className="stagger space-y-2">
               <p className="text-xs font-medium text-muted-foreground px-1">Materias ocultas en esta vista</p>
               <div className="flex flex-wrap gap-2">
                 {hiddenSubjectsList.map((s) => (

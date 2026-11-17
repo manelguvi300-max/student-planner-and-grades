@@ -304,8 +304,8 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
                   active ? "text-foreground" : "text-muted-foreground"
                 )}
               >
-                <span className={cn("grid h-8 w-14 place-items-center rounded-xl transition-colors duration-300", active && "bg-brand/15 text-brand")}>
-                  <item.icon className="size-[22px]" />
+                <span className={cn("grid h-8 w-14 place-items-center rounded-xl transition-all duration-300", active ? "scale-100 bg-brand/15 text-brand" : "scale-90 bg-transparent")}>
+                  <item.icon className={cn("size-[22px]", active && "animate-pop")} />
                 </span>
                 {item.label}
               </button>

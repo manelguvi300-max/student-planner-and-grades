@@ -501,12 +501,12 @@ export function FaltasTab({ subjects, absences, classes, setAbsences, subjectCon
       </section>
 
       {/* Móvil: una sola lista en el orden original */}
-      <div className="space-y-4 sm:hidden">{shown.map(renderCard)}</div>
+      <div className="stagger space-y-4 sm:hidden">{shown.map(renderCard)}</div>
 
       {/* Escritorio: dos columnas independientes, conservando el mismo orden/emparejamiento de siempre */}
       <div className="hidden gap-4 sm:grid sm:grid-cols-2 sm:items-start">
-        <div className="space-y-4">{shown.filter((_, i) => i % 2 === 0).map(renderCard)}</div>
-        <div className="space-y-4">{shown.filter((_, i) => i % 2 === 1).map(renderCard)}</div>
+        <div className="stagger space-y-4">{shown.filter((_, i) => i % 2 === 0).map(renderCard)}</div>
+        <div className="stagger space-y-4">{shown.filter((_, i) => i % 2 === 1).map(renderCard)}</div>
       </div>
 
       {/* Materias ocultas */}
