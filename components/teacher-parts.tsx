@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Plus, Mail, Phone, MapPin, Copy, Check, X } from "lucide-react"
 import { MultiPicker } from "./multi-picker"
 import { Button } from "@/components/ui/button"
@@ -89,15 +89,23 @@ export function deleteTeacher(ops: TeacherOps, teacherId: string) {
 const slotSort = (a: OfficeSlot, b: OfficeSlot) => a.day - b.day || a.start - b.start
 export const slotText = (sl: OfficeSlot, timeLabel: (m: number) => string) => `${SHORT[sl.day]} ${timeLabel(sl.start)}–${timeLabel(sl.end)}`
 
-function OfficeHoursEditor({ slots, setSlots, note, setNote, timeLabel, pendingRef }: {
+function OfficeHoursEditor({ slots, setSlots, note, setNote, timeLabel, pendingRef, startOpen }: {
   slots: OfficeSlot[]
   setSlots: (s: OfficeSlot[]) => void
   note: string
   setNote: (n: string) => void
   timeLabel: (m: number) => string
   pendingRef: React.MutableRefObject<(() => OfficeSlot[]) | null>
+  /** Abre ya el panel para agregar un horario (se llegó con «Agregar horario de asesoría») */
+  startOpen?: boolean
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(!!startOpen)
+  const rootRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!startOpen) return
+    const t = setTimeout(() => rootRef.current?.scrollIntoView({ block: "center", behavior: "smooth" }), 250) // tras la animación del diálogo
+    return () => clearTimeout(t)
+  }, [startOpen])
   const [days, setDays] = useState<number[]>([])
   const [start, setStart] = useState(14 * 60)
   const [end, setEnd] = useState(16 * 60)
@@ -117,7 +125,7 @@ function OfficeHoursEditor({ slots, setSlots, note, setNote, timeLabel, pendingR
   }
 
   return (
-    <div className="space-y-2.5">
+    <div ref={rootRef} className="space-y-2.5">
       {slots.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {slots.map((sl) => (
@@ -169,10 +177,12 @@ function OfficeHoursEditor({ slots, setSlots, note, setNote, timeLabel, pendingR
 
 /* ───────────── Formulario de profesor ───────────── */
 
-export function TeacherForm({ teacher, subjects, presetSubjectIds, timeLabel, onSave, onCancel }: {
+export function TeacherForm({ teacher, subjects, presetSubjectIds, timeLabel, focus, onSave, onCancel }: {
   teacher?: Teacher
   subjects: Subject[]
   presetSubjectIds?: string[]
+  /** Qué parte llevó a abrir el formulario: así ya queda lista para escribir */
+  focus?: "slots" | "contact"
   timeLabel: (m: number) => string
   onSave: (t: Omit<Teacher, "id">, subjectIds: string[]) => void
   onCancel: () => void
@@ -212,7 +222,7 @@ export function TeacherForm({ teacher, subjects, presetSubjectIds, timeLabel, on
       <div className="flex items-start gap-3">
         <Avatar name={name || "?"} color={subjects.find((s) => s.id === subjectIds[0]) ?? { bg: "#e5e7eb", border: "#9ca3af" }} size="size-12" />
         <div className="min-w-0 flex-1 space-y-2 pr-6">
-          <Input id="t-name" aria-label="Nombre" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre del profesor" aria-invalid={tried && !nameOk} className="h-11 text-base font-semibold" />
+          <Input id="t-name" aria-label="Nombre" autoFocus={!focus} value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre del profesor" aria-invalid={tried && !nameOk} className="h-11 text-base font-semibold" />
           {tried && !nameOk && <p className="text-xs text-destructive">Escribe el nombre del profesor.</p>}
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="Rol">
             {TEACHER_ROLES.map((r) => (
@@ -231,7 +241,7 @@ export function TeacherForm({ teacher, subjects, presetSubjectIds, timeLabel, on
       </div>
 
       <section className="space-y-2.5 rounded-2xl border bg-card p-3">
-        {field(<Mail className="size-4" />, <Input id="t-email" type="email" inputMode="email" aria-label="Correo" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Correo" aria-invalid={tried && !emailOk} />)}
+        {field(<Mail className="size-4" />, <Input id="t-email" type="email" inputMode="email" aria-label="Correo" autoFocus={focus === "contact"} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Correo" aria-invalid={tried && !emailOk} />)}
         {tried && !emailOk && <p className="pl-7 text-xs text-destructive">Revisa el correo.</p>}
         {field(<Phone className="size-4" />, <Input id="t-phone" type="tel" inputMode="tel" aria-label="Teléfono" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Teléfono" />)}
         {field(<MapPin className="size-4" />, <Input id="t-office" aria-label="Oficina" value={office} onChange={(e) => setOffice(e.target.value)} placeholder="Oficina (ej: Bloque B, 305)" />)}
@@ -239,7 +249,7 @@ export function TeacherForm({ teacher, subjects, presetSubjectIds, timeLabel, on
 
       <section className="space-y-2">
         <H>Asesorías</H>
-        <OfficeHoursEditor slots={slots} setSlots={setSlots} note={hours} setNote={setHours} timeLabel={timeLabel} pendingRef={pendingRef} />
+        <OfficeHoursEditor slots={slots} setSlots={setSlots} note={hours} setNote={setHours} timeLabel={timeLabel} pendingRef={pendingRef} startOpen={focus === "slots"} />
       </section>
 
       <section className="space-y-2">

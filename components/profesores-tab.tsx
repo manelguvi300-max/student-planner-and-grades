@@ -27,7 +27,7 @@ type Props = {
   onOpenSubject: (subjectId: string) => void
 }
 
-type Dlg = { view: "detail" | "form"; teacherId?: string; fresh?: boolean }
+type Dlg = { view: "detail" | "form"; teacherId?: string; fresh?: boolean; focus?: "slots" | "contact" }
 
 const norm = (t: string) => t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase()
 
@@ -91,7 +91,7 @@ export function ProfesoresTab({ teachers, setTeachers, subjects, setSubjects, cl
           <DialogTitle>{current ? "Editar profesor" : "Nuevo profesor"}</DialogTitle>
           <DialogDescription>{current ? "Cambia sus datos o las materias que da." : "Solo el nombre es obligatorio; lo demás lo puedes completar después."}</DialogDescription>
         </DialogHeader>
-        <TeacherForm key={current?.id ?? "new"} teacher={current} subjects={subjects} timeLabel={timeLabel} onSave={onSave}
+        <TeacherForm key={`${current?.id ?? "new"}-${dlg?.focus ?? ""}`} teacher={current} focus={dlg?.focus} subjects={subjects} timeLabel={timeLabel} onSave={onSave}
           onCancel={() => (current ? open({ view: "detail", teacherId: current.id }) : close())} />
       </>
     )
@@ -134,7 +134,7 @@ export function ProfesoresTab({ teachers, setTeachers, subjects, setSubjects, cl
               {t.office && row(<MapPin className="size-4" />, t.office)}
             </>
           ) : (
-            <button type="button" onClick={() => open({ view: "form", teacherId: t.id })} className="w-full rounded-xl border border-dashed py-2.5 text-xs text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
+            <button type="button" onClick={() => open({ view: "form", teacherId: t.id, focus: "contact" })} className="w-full rounded-xl border border-dashed py-2.5 text-xs text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
               Agregar correo, teléfono u oficina
             </button>
           )}
@@ -149,7 +149,7 @@ export function ProfesoresTab({ teachers, setTeachers, subjects, setSubjects, cl
               ))}
             </div>
           ) : (
-            <button type="button" onClick={() => open({ view: "form", teacherId: t.id })}
+            <button type="button" onClick={() => open({ view: "form", teacherId: t.id, focus: "slots" })}
               className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-dashed px-3 text-sm text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
               <Plus className="size-4" />Agregar horario de asesoría
             </button>
