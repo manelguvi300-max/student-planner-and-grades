@@ -1,14 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { AlertTriangle, ArrowRight, CalendarDays, CheckCircle2, ClipboardList, GraduationCap, Sparkles, UserX } from "lucide-react"
-import { CountUp } from "@/components/ui/count-up"
+import { ArrowRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useSettings } from "@/lib/settings"
 import {
   DAYS,
   FINAL_WEIGHT,
-  PASSING_GRADE,
   absenceStatus,
   fmtHours,
   GLOBAL_CONFIG_KEY,
@@ -50,46 +48,30 @@ function useNow() {
   return now
 }
 
-function Tile({ icon: Icon, label, onClick, i, children }: { icon: typeof CalendarDays; label: string; onClick: () => void; i: number; children: React.ReactNode }) {
+/** Encabezado pequeño de cada bloque, con un enlace opcional a la pestaña completa */
+function Heading({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{ animationDelay: `${120 + i * 70}ms` }}
-      className="group animate-rise rounded-2xl border bg-card p-4 text-left shadow-(--card-shadow) transition duration-300 hover:-translate-y-0.5 hover:border-foreground/25 active:scale-[0.98]"
-    >
-      <div className="flex items-center justify-between text-muted-foreground">
-        <span className="text-[11px] font-medium uppercase tracking-[0.16em]">{label}</span>
-        <Icon className="size-4 transition-transform duration-300 group-hover:scale-125" />
-      </div>
-      {children}
-    </button>
+    <div className="mb-2 flex items-baseline justify-between px-1">
+      <h2 className="text-sm font-semibold">{title}</h2>
+      {action && (
+        <button type="button" onClick={onAction} className="tap group flex items-center gap-1 text-xs text-muted-foreground transition hover:text-foreground">
+          {action}
+          <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
+        </button>
+      )}
+    </div>
   )
 }
 
-function Section({ title, action, onAction, children, delay = 0 }: { title: string; action?: string; onAction?: () => void; children: React.ReactNode; delay?: number }) {
-  return (
-    <section className="animate-rise" style={{ animationDelay: `${delay}ms` }}>
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-base font-semibold">{title}</h2>
-        {action && (
-          <button type="button" onClick={onAction} className="tap group flex items-center gap-1 text-xs text-muted-foreground transition hover:text-foreground">
-            {action}
-            <ArrowRight className="size-3 transition-transform group-hover:translate-x-0.5" />
-          </button>
-        )}
-      </div>
-      {children}
-    </section>
-  )
-}
+const card = "overflow-hidden rounded-2xl border bg-card"
+const row = "w-full px-4 py-3 text-left transition hover:bg-muted/60 active:bg-muted"
 
 export function HoyTab({ subjects, classes, grades, exams, absences, subjectConfigs, hiddenNotas, onNavigate }: Props) {
   const { settings } = useSettings()
   const now = useNow()
   const label = (m: number) => minutesToLabel(m, settings.timeFormat)
 
-  if (!now) return <div className="skeleton h-56 rounded-3xl" />
+  if (!now) return <div className="skeleton h-56 rounded-2xl" />
 
   const nowMin = now.getHours() * 60 + now.getMinutes()
   const todayIdx = now.getDay() - 1 // 0=Lunes … 4=Viernes; -1 / 5 = fin de semana
@@ -146,14 +128,13 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
 
   if (subjects.length === 0 && classes.length === 0) {
     return (
-      <div className="animate-scale-in rounded-3xl border-2 border-dashed bg-card px-6 py-16 text-center">
-        <div className="mx-auto mb-4 grid size-14 place-items-center rounded-2xl bg-foreground/10"><Sparkles className="size-6" /></div>
-        <h2 className="text-xl font-semibold">Empecemos tu semestre</h2>
-        <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">Crea tus materias y clases en el horario; aquí verás cada día qué sigue, tus exámenes y tus alertas.</p>
+      <div className="animate-fade-in rounded-2xl border border-dashed px-6 py-14 text-center">
+        <h2 className="text-lg font-semibold">Empecemos tu semestre</h2>
+        <p className="mx-auto mt-1.5 max-w-sm text-sm text-muted-foreground">Crea tus materias y clases en el horario; aquí verás qué sigue cada día, tus exámenes y los avisos importantes.</p>
         <button
           type="button"
           onClick={() => onNavigate("horario")}
-          className="mt-6 inline-flex h-11 items-center gap-2 rounded-xl bg-foreground px-5 text-sm font-semibold text-background transition hover:opacity-90 active:scale-[0.97]"
+          className="mt-5 inline-flex h-11 items-center gap-2 rounded-xl bg-foreground px-5 text-sm font-semibold text-background transition hover:opacity-90 active:scale-[0.97]"
         >
           Ir al horario <ArrowRight className="size-4" />
         </button>
@@ -161,135 +142,105 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
     )
   }
 
-  // ── Tarjeta principal: qué toca ahora ──
+  // ── Lo que toca ahora ──
   const heroCls = current ?? next ?? later?.cls
   const heroSubject = heroCls ? getSubject(subjects, heroCls.subjectId) : undefined
   const pct = current ? Math.round(((nowMin - current.startTime) / (current.endTime - current.startTime)) * 100) : 0
+  const heroLabel = current ? "Ahora" : next ? "Sigue" : later ? `Próxima clase · ${DAYS[later.day].toLowerCase()}` : todays.length ? "Por hoy ya terminaste" : "Hoy no tienes clases"
+
+  const stats = [
+    { tab: "horario", label: "Clases hoy", value: String(todays.length), sub: todays.length ? `${remaining} por ver` : "Día libre", warn: false },
+    { tab: "examenes", label: "Próximo examen", value: upcoming[0] ? dueLabel(daysUntil(upcoming[0].date)) : "Ninguno", sub: upcoming[0] ? getSubject(subjects, upcoming[0].subjectId)?.name ?? "" : "Sin exámenes a la vista", warn: false },
+    { tab: "notas", label: "Promedio", value: avg === null ? "—" : avg.toFixed(2).replace(".", ","), sub: avg === null ? "Aún sin notas" : "Acumulado", warn: false },
+    { tab: "faltas", label: "Faltas", value: String(absences.length), sub: atRisk ? `${atRisk} materia${atRisk > 1 ? "s" : ""} en riesgo` : "Todo en orden", warn: atRisk > 0 },
+  ]
 
   return (
-    <div className="space-y-6">
-      <section className="relative animate-rise overflow-hidden rounded-3xl border bg-card p-5 shadow-(--card-shadow) sm:p-7">
-        <div aria-hidden className="pointer-events-none absolute -right-20 -top-24 size-72 rounded-full opacity-40 blur-3xl transition-colors duration-700" style={{ background: heroSubject?.bg ?? "var(--muted)" }} />
-        <div className="relative">
-          <p className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-            <span className={cn("size-1.5 rounded-full", current ? "animate-glow bg-emerald-500" : "bg-foreground/40")} />
-            {current ? "En clase ahora" : next ? "Siguiente clase" : todays.length ? "Terminaste por hoy" : "Hoy no tienes clases"}
-          </p>
-
+    <div className="animate-fade-in space-y-6">
+      {/* Qué sigue */}
+      <section className={cn(card, "flex")}>
+        <span aria-hidden className="w-1.5 shrink-0" style={{ background: heroSubject?.border ?? "var(--border)" }} />
+        <div className="min-w-0 flex-1 p-4 sm:p-5">
+          <p className="text-sm text-muted-foreground">{heroLabel}</p>
           {heroCls && heroSubject ? (
             <>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight text-balance sm:text-4xl">{heroSubject.name}</h2>
-              <p className="num mt-1.5 text-sm text-muted-foreground">
-                {later && `${DAYS[later.day]} · `}
+              <h2 className="mt-0.5 text-2xl font-semibold tracking-tight text-balance sm:text-3xl">{heroSubject.name}</h2>
+              <p className="num mt-1 text-sm text-muted-foreground">
                 {label(heroCls.startTime)} – {label(heroCls.endTime)}
                 {heroCls.room && ` · ${heroCls.room}`}
               </p>
               {current ? (
-                <div className="mt-5">
-                  <div className="h-2 overflow-hidden rounded-full bg-foreground/10">
+                <div className="mt-4">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-foreground/10">
                     <div className="h-full rounded-full transition-[width] duration-1000" style={{ width: `${pct}%`, background: heroSubject.border }} />
                   </div>
-                  <p className="num mt-2 text-sm">Termina en <b>{fmtDur(current.endTime - nowMin)}</b> <span className="text-muted-foreground">· {pct}%</span></p>
+                  <p className="num mt-1.5 text-sm">Termina en {fmtDur(current.endTime - nowMin)}</p>
                 </div>
               ) : next ? (
-                <p className="num mt-5 text-2xl font-light">en <b className="font-semibold">{fmtDur(next.startTime - nowMin)}</b></p>
-              ) : (
-                <p className="mt-5 text-sm text-muted-foreground">Tu próxima clase es el {DAYS[later!.day].toLowerCase()}.</p>
-              )}
+                <p className="num mt-3 text-sm font-medium">Empieza en {fmtDur(next.startTime - nowMin)}</p>
+              ) : null}
             </>
           ) : (
-            <p className="mt-3 max-w-md text-sm text-muted-foreground">
-              {todays.length === 0 && classes.length === 0 ? "Aún no has agregado clases al horario." : "Disfruta el descanso; nada pendiente por ahora."}
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {classes.length === 0 ? "Aún no has agregado clases al horario." : "Nada pendiente por ahora."}
             </p>
           )}
         </div>
       </section>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Tile i={0} icon={CalendarDays} label="Clases hoy" onClick={() => onNavigate("horario")}>
-          <p className="num mt-3 text-4xl font-light"><CountUp value={todays.length} /></p>
-          <p className="mt-1 truncate text-xs text-muted-foreground">{todays.length ? `${remaining} por ver` : "Día libre"}</p>
-        </Tile>
-        <Tile i={1} icon={ClipboardList} label="Próx. examen" onClick={() => onNavigate("examenes")}>
-          {upcoming[0] ? (
-            <>
-              <p className="mt-3 text-2xl font-semibold leading-none tracking-tight">{dueLabel(daysUntil(upcoming[0].date))}</p>
-              <p className="mt-1.5 truncate text-xs text-muted-foreground">{getSubject(subjects, upcoming[0].subjectId)?.name}</p>
-            </>
-          ) : (
-            <>
-              <p className="mt-3 text-2xl font-semibold leading-none tracking-tight">Libre</p>
-              <p className="mt-1.5 text-xs text-muted-foreground">Sin exámenes a la vista</p>
-            </>
-          )}
-        </Tile>
-        <Tile i={2} icon={GraduationCap} label="Promedio" onClick={() => onNavigate("notas")}>
-          {avg === null ? (
-            <p className="mt-3 text-sm text-muted-foreground">Agrega notas para ver tu promedio</p>
-          ) : (
-            <>
-              <p className="mt-3 text-4xl font-light"><CountUp value={avg} decimals={2} /></p>
-              <p className="mt-1 text-xs text-muted-foreground">Acumulado promedio</p>
-            </>
-          )}
-        </Tile>
-        <Tile i={3} icon={UserX} label="Faltas" onClick={() => onNavigate("faltas")}>
-          <p className="num mt-3 text-4xl font-light"><CountUp value={absences.length} /></p>
-          <p className={cn("mt-1 truncate text-xs", atRisk ? "text-amber-500" : "text-muted-foreground")}>{atRisk ? `${atRisk} materia${atRisk > 1 ? "s" : ""} en riesgo` : "Todo en orden"}</p>
-        </Tile>
+      {/* Resumen en una sola tira */}
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border bg-border sm:grid-cols-4">
+        {stats.map((st) => (
+          <button key={st.tab} type="button" onClick={() => onNavigate(st.tab)}
+            className="min-w-0 bg-card px-4 py-3 text-left transition hover:bg-muted/60 active:bg-muted">
+            <span className="block text-xs text-muted-foreground">{st.label}</span>
+            <span className="num mt-0.5 block truncate text-xl font-semibold">{st.value}</span>
+            <span className={cn("block truncate text-xs", st.warn ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>{st.sub}</span>
+          </button>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        {/* Línea de tiempo del día */}
-        <Section title={todayIdx >= 0 && todayIdx <= 4 ? `Tu ${DAYS[todayIdx].toLowerCase()}` : "Tu día"} action="Ver horario" onAction={() => onNavigate("horario")} delay={300}>
+        {/* Agenda del día */}
+        <section>
+          <Heading title={todayIdx >= 0 && todayIdx <= 4 ? `Tu ${DAYS[todayIdx].toLowerCase()}` : "Tu día"} action="Ver horario" onAction={() => onNavigate("horario")} />
           {todays.length === 0 ? (
-            <div className="rounded-2xl border border-dashed bg-card/60 px-4 py-8 text-center text-sm text-muted-foreground">Sin clases hoy. Un buen día para ponerte al día.</div>
+            <p className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">Sin clases hoy. Un buen día para ponerte al día.</p>
           ) : (
-            <ol className="relative space-y-2.5">
-              {todays.map((c, i) => {
+            <ol className={cn(card, "divide-y")}>
+              {todays.map((c) => {
                 const s = getSubject(subjects, c.subjectId)!
                 const state = c.endTime <= nowMin ? "done" : c.startTime <= nowMin ? "now" : "next"
                 return (
-                  <li key={c.id} className="animate-rise" style={{ animationDelay: `${340 + i * 70}ms` }}>
-                    <button
-                      type="button"
-                      onClick={() => onNavigate("horario")}
-                      className={cn(
-                        "flex w-full items-center gap-3 rounded-2xl border bg-card p-3 text-left transition duration-300 hover:border-foreground/25 active:scale-[0.99]",
-                        state === "done" && "opacity-55",
-                        state === "now" && "border-foreground/30 shadow-(--card-shadow)"
-                      )}
-                    >
-                      <span className="num w-14 shrink-0 text-xs text-muted-foreground">{label(c.startTime)}</span>
-                      <span className="h-10 w-1 shrink-0 rounded-full" style={{ background: s.border }} />
+                  <li key={c.id}>
+                    <button type="button" onClick={() => onNavigate("horario")} className={cn(row, "flex items-center gap-3", state === "now" && "bg-foreground/[0.04]")}>
+                      <span className={cn("num w-12 shrink-0 text-sm", state === "done" ? "text-muted-foreground" : "font-medium")}>{label(c.startTime)}</span>
+                      <span className="h-9 w-1 shrink-0 rounded-full" style={{ background: s.border, opacity: state === "done" ? 0.4 : 1 }} />
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold">{s.name}</span>
+                        <span className={cn("block truncate text-sm font-medium", state === "done" && "text-muted-foreground")}>{s.name}</span>
                         <span className="num block truncate text-xs text-muted-foreground">
-                          {label(c.startTime)} – {label(c.endTime)}{c.room && ` · ${c.room}`}
+                          hasta {label(c.endTime)}{c.room && ` · ${c.room}`}
                         </span>
                       </span>
-                      {state === "done" && <CheckCircle2 className="size-4 shrink-0 text-muted-foreground" />}
-                      {state === "now" && <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">En curso</span>}
+                      {state === "now" && <span className="shrink-0 text-xs font-medium text-emerald-600 dark:text-emerald-400">En curso</span>}
                     </button>
                   </li>
                 )
               })}
             </ol>
           )}
-        </Section>
+        </section>
 
         <div className="space-y-6">
-          <Section title="Atención" delay={360}>
-            {alerts.length === 0 ? (
-              <div className="flex items-center gap-3 rounded-2xl border bg-card p-4 text-sm text-muted-foreground">
-                <CheckCircle2 className="size-5 shrink-0 text-emerald-500" /> Sin alertas de faltas ni notas.
-              </div>
-            ) : (
-              <ul className="space-y-2">
+          {/* Avisos: solo aparecen si hay algo que atender */}
+          {alerts.length > 0 && (
+            <section>
+              <Heading title="Para atender" />
+              <ul className={cn(card, "divide-y")}>
                 {alerts.slice(0, 4).map((a) => (
                   <li key={a.id}>
-                    <button type="button" onClick={() => onNavigate(a.tab)} className="flex w-full items-start gap-3 rounded-2xl border bg-card p-3 text-left transition hover:border-foreground/25 active:scale-[0.99]">
-                      <AlertTriangle className={cn("mt-0.5 size-4 shrink-0", a.level === "bad" ? "text-destructive" : "text-amber-500")} />
+                    <button type="button" onClick={() => onNavigate(a.tab)} className={cn(row, "flex items-start gap-3")}>
+                      <span aria-hidden className={cn("mt-1.5 size-2 shrink-0 rounded-full", a.level === "bad" ? "bg-destructive" : "bg-amber-500")} />
                       <span className="min-w-0 text-sm">
                         <span className="block truncate font-medium">{a.subject.name}</span>
                         <span className="block text-xs text-muted-foreground">{a.text}</span>
@@ -298,39 +249,39 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
                   </li>
                 ))}
               </ul>
-            )}
-          </Section>
+            </section>
+          )}
 
-          <Section title="Próximos exámenes" action="Calendario" onAction={() => onNavigate("examenes")} delay={420}>
+          <section>
+            <Heading title="Próximos exámenes" action="Ver todos" onAction={() => onNavigate("examenes")} />
             {upcoming.length === 0 ? (
-              <div className="rounded-2xl border border-dashed bg-card/60 px-4 py-6 text-center text-sm text-muted-foreground">Nada programado.</div>
+              <p className="rounded-2xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">Nada programado.</p>
             ) : (
-              <ul className="space-y-2">
+              <ul className={cn(card, "divide-y")}>
                 {upcoming.slice(0, 4).map((e) => {
                   const s = getSubject(subjects, e.subjectId)!
                   const n = daysUntil(e.date)
                   const d = dateOf(e.date)
                   return (
                     <li key={e.id}>
-                      <button type="button" onClick={() => onNavigate("examenes")} className="flex w-full items-center gap-3 rounded-2xl border bg-card p-3 text-left transition hover:border-foreground/25 active:scale-[0.99]">
-                        <span className="grid size-11 shrink-0 place-items-center rounded-xl text-neutral-900" style={{ background: s.bg }}>
-                          <span className="text-center leading-none">
-                            <span className="num block text-base font-bold">{d.getDate()}</span>
-                            <span className="block text-[9px] font-semibold uppercase">{d.toLocaleDateString("es", { month: "short" }).replace(".", "")}</span>
-                          </span>
+                      <button type="button" onClick={() => onNavigate("examenes")} className={cn(row, "flex items-center gap-3")}>
+                        <span className="w-10 shrink-0 text-center leading-none">
+                          <span className="num block text-lg font-semibold">{d.getDate()}</span>
+                          <span className="block text-[11px] text-muted-foreground">{d.toLocaleDateString("es", { month: "short" }).replace(".", "")}</span>
                         </span>
+                        <span className="h-9 w-1 shrink-0 rounded-full" style={{ background: s.border }} />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-medium">{e.title || s.name}</span>
                           <span className="block truncate text-xs text-muted-foreground">{e.title ? `${s.name} · ` : ""}{e.kind === "examen" ? "Examen" : "Presentación"}{e.weight > 0 ? ` · ${e.weight}%` : ""}</span>
                         </span>
-                        <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium", n <= 3 ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" : "bg-foreground/[0.07] text-muted-foreground")}>{dueLabel(n)}</span>
+                        <span className={cn("shrink-0 text-xs", n <= 3 ? "font-medium text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>{dueLabel(n)}</span>
                       </button>
                     </li>
                   )
                 })}
               </ul>
             )}
-          </Section>
+          </section>
         </div>
       </div>
     </div>
