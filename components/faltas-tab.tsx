@@ -87,6 +87,7 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
   const [draftDate, setDraftDate] = useState<string>(() => new Date().toISOString().split("T")[0])
   const [draftAbsHours, setDraftAbsHours] = useState("") // horas que faltó (reglas en horas); vacío = un bloque
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const [filter, setFilter] = useState<"all" | "risk" | "over" | "nohd" | "ok">("all")
 
   // Diálogo de regla: "global" (para todas) o el id de una materia (regla propia)
   const [dialog, setDialog] = useState<{ open: boolean; scope: string }>({ open: false, scope: "global" })
@@ -193,16 +194,35 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
     )
   }
 
-  // resumen de las materias visibles
+  // resumen de las materias visibles: cada una cae en un estado, y esos estados sirven de filtro de la lista
   const visible = subjects.filter((s) => !hiddenSubjects.includes(s.id))
-  let atRisk = 0, needsHD = 0, totalAbsences = 0
+  type Cat = "ok" | "risk" | "over" | "nohd" | "none"
+  const cat: Record<string, Cat> = {}
+  const counts = { ok: 0, risk: 0, over: 0, nohd: 0 }
+  let totalAbsences = 0
   for (const s of visible) {
     const list = absences.filter((a) => a.subjectId === s.id)
     totalAbsences += list.length
     const st = absenceStatus(subjectConfigs[s.id], globalCfg, list)
-    if (st.needsHours) needsHD++
-    else if (st.cancelled || st.atRisk) atRisk++
+    const c: Cat = st.needsHours ? "nohd" : st.limit === null || st.limit <= 0 ? "none" : st.cancelled ? "over" : st.atRisk ? "risk" : "ok"
+    cat[s.id] = c
+    if (c !== "none") counts[c]++
   }
+  const headline =
+    counts.over > 0 ? { tone: "text-destructive", dot: "bg-destructive", text: `${counts.over} materia${counts.over > 1 ? "s" : ""} cancelada${counts.over > 1 ? "s" : ""}` }
+    : counts.risk > 0 ? { tone: "text-amber-600 dark:text-amber-400", dot: "bg-amber-500", text: `${counts.risk} cerca del límite` }
+    : totalAbsences === 0 ? { tone: "text-muted-foreground", dot: "bg-foreground/40", text: "Aún sin faltas" }
+    : { tone: "text-emerald-600 dark:text-emerald-400", dot: "bg-emerald-500", text: "Todo en orden" }
+  const chips = [
+    { key: "all", label: "Todas", n: visible.length, dot: "" },
+    { key: "over", label: "Canceladas", n: counts.over, dot: "bg-destructive" },
+    { key: "risk", label: "En riesgo", n: counts.risk, dot: "bg-amber-500" },
+    { key: "nohd", label: "Sin HD", n: counts.nohd, dot: "bg-foreground/30" },
+    { key: "ok", label: "En orden", n: counts.ok, dot: "bg-emerald-500" },
+  ] as const
+  const chipList = chips.filter((c) => c.key === "all" || c.n > 0)
+  const active = chipList.some((c) => c.key === filter) ? filter : "all"
+
 
   const renderCard = (subject: Subject) => {
     const config = subjectConfigs[subject.id]
@@ -422,20 +442,42 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
     )
   }
 
-  const shown = subjects.filter((s) => !hiddenSubjects.includes(s.id))
+  const shown = visible.filter((s) => active === "all" || cat[s.id] === active)
   const hiddenList = subjects.filter((s) => hiddenSubjects.includes(s.id))
   const scopeName = isGlobalScope ? "" : subjects.find((s) => s.id === dialog.scope)?.name
   const pctLabel = percentOk ? percent : DEFAULT_PERCENT
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Un solo recuadro en tres franjas: título, regla y conteos */}
+      {/* Resumen: total, cómo vas, y filtros por estado para la lista de abajo */}
       <section className="overflow-hidden rounded-2xl border bg-card">
         <div className="p-4 sm:p-5">
           <h2 className="text-xl font-semibold tracking-tight">Faltas</h2>
           <p className="mt-0.5 hidden text-sm text-muted-foreground sm:block">
             Las faltas permitidas son un % de inasistencia sobre las horas de trabajo directo (HD). Define la regla una vez; en cada materia solo anotas sus HD.
           </p>
+          <p className="num mt-3 text-3xl font-semibold tracking-tight">
+            {totalAbsences}
+            <span className="ml-2 text-base font-normal text-muted-foreground">falta{totalAbsences === 1 ? "" : "s"} en {visible.length} materia{visible.length === 1 ? "" : "s"}</span>
+          </p>
+          <p className={cn("mt-1 flex items-center gap-1.5 text-sm font-medium", headline.tone)}>
+            <span aria-hidden className={cn("size-2 rounded-full", headline.dot)} />{headline.text}
+          </p>
+
+          {/* Filtros: con muchas materias, ver solo las que importan */}
+          {chipList.length > 2 && (
+            <div role="group" aria-label="Filtrar materias" className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden">
+              {chipList.map((c) => (
+                <button key={c.key} type="button" aria-pressed={active === c.key} onClick={() => setFilter(c.key)}
+                  className={cn("tap flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition active:scale-95",
+                    active === c.key ? "border-foreground bg-foreground text-background" : "text-muted-foreground hover:border-foreground/30 hover:text-foreground")}>
+                  {c.dot && <span aria-hidden className={cn("size-1.5 rounded-full", c.dot)} />}
+                  {c.label}
+                  <span className="num opacity-70">{c.n}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Regla global */}
@@ -448,19 +490,6 @@ export function FaltasTab({ subjects, absences, setAbsences, subjectConfigs, set
           <Button size="sm" variant={globalCfg ? "secondary" : "default"} onClick={() => openRule("global")} className="shrink-0 rounded-full">
             {globalCfg ? "Cambiar" : "Configurar"}
           </Button>
-        </div>
-
-        <div className="grid grid-cols-3 divide-x border-t">
-          {[
-            { label: "Registradas", value: totalAbsences, tone: "" },
-            { label: "En riesgo", value: atRisk, tone: atRisk ? "text-amber-600 dark:text-amber-400" : "" },
-            { label: "Falta HD", value: needsHD, tone: "" },
-          ].map((s) => (
-            <div key={s.label} className="min-w-0 px-4 py-3 sm:px-5">
-              <p className={cn("num text-2xl font-semibold", s.tone)}>{s.value}</p>
-              <p className="truncate text-xs text-muted-foreground">{s.label}</p>
-            </div>
-          ))}
         </div>
       </section>
 
