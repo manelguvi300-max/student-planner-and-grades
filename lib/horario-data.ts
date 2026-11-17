@@ -124,16 +124,48 @@ export type Grade = {
 
 export type Exam = {
   id: string
-  subjectId: string
+  subjectId: string  // "" = evento sin materia (una reunión, una actividad suelta…)
   date: string
   group: "individual" | "grupal"
-  kind: "examen" | "presentacion"
+  kind: string    // id de una categoría de la agenda (ver EventKind)
   weight: number
   notes?: string
   title?: string  // ej: "Parcial 1"
   time?: string   // "HH:MM"
   done?: boolean  // ya lo presenté / ya lo entregué
 }
+
+/* ───────────── Categorías de la agenda ─────────────
+ * Hay unas de fábrica y cada persona puede crear las suyas (nombre + color).
+ * Las personalizadas se guardan en subjectConfigs[KINDS_KEY]; se comparten entre semestres. */
+export const KINDS_KEY = "__kinds"
+
+export const KIND_COLORS = {
+  rose: "#f43f5e", orange: "#f97316", amber: "#f59e0b", emerald: "#10b981",
+  sky: "#0ea5e9", indigo: "#6366f1", violet: "#8b5cf6", slate: "#64748b",
+} as const
+export type KindColor = keyof typeof KIND_COLORS
+
+export type EventKind = { id: string; name: string; color: KindColor; builtin?: boolean }
+
+export const BUILTIN_KINDS: EventKind[] = [
+  { id: "examen", name: "Examen", color: "rose", builtin: true },
+  { id: "presentacion", name: "Presentación", color: "violet", builtin: true },
+  { id: "tarea", name: "Tarea", color: "amber", builtin: true },
+  { id: "entrega", name: "Entrega", color: "orange", builtin: true },
+  { id: "reunion", name: "Reunión", color: "sky", builtin: true },
+  { id: "actividad", name: "Actividad", color: "emerald", builtin: true },
+]
+
+export const kindsFromConfigs = (c: Record<string, SubjectConfig>): EventKind[] => c[KINDS_KEY]?.kinds ?? []
+export const withKinds = (c: Record<string, SubjectConfig>, kinds: EventKind[]): Record<string, SubjectConfig> => ({ ...c, [KINDS_KEY]: { kinds } })
+
+/** Todas las categorías: las de fábrica primero, luego las propias. */
+export const allKinds = (custom: EventKind[]): EventKind[] => [...BUILTIN_KINDS, ...custom]
+
+/** Busca una categoría por id; si ya no existe (se borró), se muestra como un evento neutro. */
+export const findKind = (custom: EventKind[], id: string): EventKind =>
+  allKinds(custom).find((k) => k.id === id) ?? { id, name: "Evento", color: "slate" }
 
 export type Absence = {
   id: string
@@ -156,6 +188,7 @@ export const GLOBAL_CONFIG_KEY = "__global"
 export type SubjectConfig = {
   teachers?: Teacher[]  // solo en la entrada reservada TEACHERS_KEY: el directorio de profesores
   semesters?: SemestersMeta // solo en la entrada reservada SEMESTERS_KEY: la lista de semestres y los archivados
+  kinds?: EventKind[]    // solo en la entrada reservada KINDS_KEY: las categorías propias de la agenda
   custom?: boolean       // true = la materia tiene regla propia (mode/percent/maxAbsences); si no, usa la global
   mode?: AbsenceMode     // regla: "calc" | "manual" | "none"
   percent?: number       // regla "calc": % de las HD que se puede faltar (20 por defecto)

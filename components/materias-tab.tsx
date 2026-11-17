@@ -230,7 +230,7 @@ export function MateriasTab({
         key={s.id}
         type="button"
         onClick={() => open({ subjectId: s.id, view: "detail" })}
-        className="group animate-pop flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-left shadow-(--card-shadow) transition duration-200 hover:-translate-y-0.5 hover:border-foreground/25 active:scale-[0.99]"
+        className="group animate-pop flex w-full items-center gap-3 rounded-xl border bg-card p-4 text-left shadow-(--card-shadow) transition duration-200 hover:-translate-y-0.5 hover:border-foreground/25 active:scale-[0.99]"
       >
         <span className="h-11 w-1.5 shrink-0 rounded-full" style={{ background: s.border }} />
         <span className="min-w-0 flex-1">
@@ -294,7 +294,7 @@ export function MateriasTab({
         </DialogHeader>
 
         {dlg.fresh && (
-          <p className="rounded-xl bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">
+          <p className="rounded-lg bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">
             ¡Materia creada! Ahora agrega sus clases.
           </p>
         )}
@@ -320,7 +320,7 @@ export function MateriasTab({
         <section className="space-y-2">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Clases</h3>
           {cl.length > 0 && (
-            <ul className="divide-y overflow-hidden rounded-xl border bg-card">
+            <ul className="divide-y overflow-hidden rounded-lg border bg-card">
               {cl.map((c) => {
                 const t = own.find((x) => x.id === c.teacherId)
                 return (
@@ -340,7 +340,7 @@ export function MateriasTab({
             </ul>
           )}
           <button type="button" onClick={() => { close(); onAddClass(s.id) }}
-            className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-dashed px-3 text-sm text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
+            className="flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed px-3 text-sm text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
             <Plus className="size-4" />{cl.length === 0 ? "Agregar la primera clase" : "Agregar clase"}
           </button>
         </section>
@@ -348,7 +348,7 @@ export function MateriasTab({
         {/* Eliminar */}
         <div className="border-t pt-3">
           {confirmDelete ? (
-            <div className="space-y-2.5 rounded-xl bg-destructive/10 p-3 text-sm">
+            <div className="space-y-2.5 rounded-lg bg-destructive/10 p-3 text-sm">
               <p>Se eliminarán <b>{s.name}</b> y todo lo suyo: {cl.length} clase{cl.length === 1 ? "" : "s"}, notas, exámenes y faltas. Los profesores se conservan. No se puede deshacer.</p>
               <div className="flex justify-end gap-2">
                 <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)}>Cancelar</Button>
@@ -368,8 +368,8 @@ export function MateriasTab({
   return (
     <div className="space-y-5 animate-fade-in">
       {subjects.length === 0 ? (
-        <div className="animate-scale-in rounded-3xl border-2 border-dashed bg-card px-6 py-14 text-center">
-          <div className="mx-auto mb-4 grid size-14 place-items-center rounded-2xl bg-foreground/10"><GraduationCap className="size-6" /></div>
+        <div className="animate-scale-in rounded-xl border-2 border-dashed bg-card px-6 py-14 text-center">
+          <div className="mx-auto mb-4 grid size-14 place-items-center rounded-xl bg-foreground/10"><GraduationCap className="size-6" /></div>
           <h3 className="text-lg font-semibold">Aún no tienes materias</h3>
           <p className="mx-auto mt-1 mb-5 max-w-xs text-sm text-muted-foreground">Crea una materia, ponle un color y asígnale su profesor. Después ubicas sus clases en la semana.</p>
           <Button onClick={() => open({ subjectId: null, view: "subject" })}><Plus className="size-4" />Crear primera materia</Button>

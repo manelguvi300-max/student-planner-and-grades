@@ -232,7 +232,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
         aria-label={`${subject.name}, ${timeLabel(c.startTime)} a ${timeLabel(c.endTime)}`}
         title={[subject.name, `${timeLabel(c.startTime)}–${timeLabel(c.endTime)}`, c.room, c.group && `Grupo ${c.group}`, teacherOf(c)].filter(Boolean).join(" · ")}
         className={cn(
-          "absolute left-1.5 right-1.5 cursor-pointer overflow-hidden rounded-xl py-1.5 pl-3 pr-2 text-left text-[11px] leading-tight text-neutral-900 transition duration-300 ease-out",
+          "absolute left-1.5 right-1.5 cursor-pointer overflow-hidden rounded-lg py-1.5 pl-3 pr-2 text-left text-[11px] leading-tight text-neutral-900 transition duration-300 ease-out",
           "shadow-[inset_3px_0_0_var(--c),0_10px_22px_-14px_var(--c)] hover:z-20 hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-[inset_3px_0_0_var(--c),0_18px_30px_-12px_var(--c)] active:scale-[0.98]",
           !mobile && "animate-pop",
           st === "done" && "opacity-50",
@@ -283,7 +283,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
         {view === "semana" && (
           <div className="flex items-center gap-2">
             {classes.length > 0 && (
-              <Button onClick={exportPdf} variant="outline" size="sm" className="rounded-full" aria-label="Exportar horario en PDF" title="Exportar horario en PDF">
+              <Button onClick={exportPdf} variant="outline" size="sm" aria-label="Exportar horario en PDF" title="Exportar horario en PDF">
                 <Download className="size-4 sm:mr-1" />
                 <span className="hidden sm:inline">PDF</span>
               </Button>
@@ -296,11 +296,11 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
       </header>
 
       {/* Semana | Materias */}
-      <div className={cn("relative grid rounded-2xl bg-muted p-1 text-sm font-medium sm:inline-grid", "grid-cols-3 sm:w-[26rem]")} role="tablist" aria-label="Sección del horario">
-        <span aria-hidden className="absolute inset-y-1 left-1 rounded-xl bg-background shadow-sm ring-1 ring-border/60" style={{ width: `calc((100% - 0.5rem) / ${tabs.length})`, transform: `translateX(${Math.max(0, tabs.findIndex((t) => t[0] === view)) * 100}%)`, transition: `transform .4s ${spring}` }} />
+      <div className={cn("relative grid rounded-xl bg-muted p-1 text-sm font-medium sm:inline-grid", "grid-cols-3 sm:w-[26rem]")} role="tablist" aria-label="Sección del horario">
+        <span aria-hidden className="absolute inset-y-1 left-1 rounded-lg bg-background shadow-sm ring-1 ring-border/60" style={{ width: `calc((100% - 0.5rem) / ${tabs.length})`, transform: `translateX(${Math.max(0, tabs.findIndex((t) => t[0] === view)) * 100}%)`, transition: `transform .4s ${spring}` }} />
         {tabs.map(([v, label, Icon]) => (
           <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => { setRequest(null); setTeacherRequest(null); setView(v) }}
-            className={cn("relative flex items-center justify-center gap-1.5 rounded-xl py-2 transition-colors active:scale-95", view === v ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
+            className={cn("relative flex items-center justify-center gap-1.5 rounded-lg py-2 transition-colors active:scale-95", view === v ? "text-foreground" : "text-muted-foreground hover:text-foreground")}>
             <Icon className="size-4 max-[350px]:hidden" />{label}
           </button>
         ))}
@@ -343,8 +343,8 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
       ) : (
         <>
       {classes.length === 0 && (
-        <div className="animate-scale-in rounded-3xl border-2 border-dashed bg-card px-6 py-14 text-center">
-          <div className="mx-auto mb-4 grid size-14 place-items-center rounded-2xl bg-foreground/10">
+        <div className="animate-scale-in rounded-xl border-2 border-dashed bg-card px-6 py-14 text-center">
+          <div className="mx-auto mb-4 grid size-14 place-items-center rounded-xl bg-foreground/10">
             <CalendarDays className="size-6" />
           </div>
           <h3 className="text-lg font-semibold">Tu horario está vacío</h3>
@@ -366,10 +366,10 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
           {/* ───────── Móvil ───────── */}
           <div className="space-y-4 sm:hidden">
             {/* Selector de día con fecha y puntos de "hay clases" */}
-            <div className="relative grid grid-cols-5 rounded-2xl bg-muted p-1">
+            <div className="relative grid grid-cols-5 rounded-xl bg-muted p-1">
               <span
                 aria-hidden
-                className="absolute inset-y-1 left-1 rounded-xl bg-background shadow-sm ring-1 ring-border/60"
+                className="absolute inset-y-1 left-1 rounded-lg bg-background shadow-sm ring-1 ring-border/60"
                 style={{ width: "calc((100% - 0.5rem) / 5)", transform: `translateX(${selectedMobileDay * 100}%)`, transition: `transform .45s ${spring}` }}
               />
               {DAYS.map((d, i) => (
@@ -379,7 +379,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                   onClick={() => setSelectedMobileDay(i)}
                   aria-label={d}
                   aria-pressed={selectedMobileDay === i}
-                  className="relative flex select-none flex-col items-center gap-0.5 rounded-xl py-2 active:scale-95"
+                  className="relative flex select-none flex-col items-center gap-0.5 rounded-lg py-2 active:scale-95"
                 >
                   <span className={cn("text-[10px] font-semibold uppercase tracking-wider transition-colors", selectedMobileDay === i ? "text-foreground" : "text-muted-foreground")}>{SHORT[i]}</span>
                   <span className={cn("num grid size-7 place-items-center rounded-full text-sm font-semibold transition-colors", i === todayIdx && "bg-foreground text-background")}>
@@ -413,7 +413,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
             <div key={selectedMobileDay} className="animate-rise touch-pan-y" onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
               {mobileView === "lista" ? (
                 dayList.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed bg-card/60 px-4 py-10 text-center text-sm text-muted-foreground">
+                  <div className="rounded-xl border border-dashed bg-card/60 px-4 py-10 text-center text-sm text-muted-foreground">
                     Sin clases este día.
                     {subjects.length > 0 && (
                       <button type="button" onClick={() => openNew()} className="mt-3 block w-full text-foreground underline underline-offset-4">Agregar una clase</button>
@@ -441,7 +441,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                             type="button"
                             onClick={() => openEdit(c)}
                             className={cn(
-                              "flex w-full items-stretch gap-3 rounded-2xl border bg-card p-3 text-left transition duration-300 active:scale-[0.99]",
+                              "flex w-full items-stretch gap-3 rounded-xl border bg-card p-3 text-left transition duration-300 active:scale-[0.99]",
                               st === "done" && "opacity-55",
                               st === "live" && "border-foreground/40 shadow-(--card-shadow)",
                             )}
@@ -470,7 +470,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                   </ol>
                 )
               ) : (
-                <div className="overflow-hidden rounded-2xl border bg-card">
+                <div className="overflow-hidden rounded-xl border bg-card">
                   <div className="flex overflow-hidden">
                     <div className="relative w-12 shrink-0 border-r bg-muted/20" style={{ height: gridHeight }}>
                       {hours.map((h) => (
@@ -497,7 +497,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
           </div>
 
           {/* ───────── Tablet / escritorio: semana completa ───────── */}
-          <div className="relative hidden animate-slide-up overflow-x-auto rounded-3xl border bg-card shadow-(--card-shadow) sm:block">
+          <div className="relative hidden animate-slide-up overflow-x-auto rounded-xl border bg-card shadow-(--card-shadow) sm:block">
             <div className="relative min-w-[700px]">
               {/* Días */}
               <div className="flex px-1 pt-2 pb-1.5">
@@ -507,7 +507,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                     key={d}
                     type="button"
                     onClick={() => setSelectedMobileDay(i)}
-                    className="group mx-0.5 flex flex-1 items-center justify-center gap-2 rounded-xl py-1.5 transition duration-300 hover:bg-foreground/[0.06] active:scale-[0.97]"
+                    className="group mx-0.5 flex flex-1 items-center justify-center gap-2 rounded-lg py-1.5 transition duration-300 hover:bg-foreground/[0.06] active:scale-[0.97]"
                   >
                     <span className={cn("text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors", i === todayIdx ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")}>{SHORT[i]}</span>
                     <span className={cn("num grid size-7 place-items-center rounded-full text-sm font-semibold transition-transform duration-300 group-hover:scale-110", i === todayIdx && "bg-foreground text-background")}>
@@ -545,7 +545,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                     onClick={(e) => clickSlot(e, dayIndex)}
                   >
                     {dayIndex === todayIdx && (
-                      <div aria-hidden className="pointer-events-none absolute inset-x-1 inset-y-0 rounded-2xl bg-foreground/[0.04]" />
+                      <div aria-hidden className="pointer-events-none absolute inset-x-1 inset-y-0 rounded-xl bg-foreground/[0.04]" />
                     )}
                     {hours.map((h) => (
                       <div key={h} className="absolute left-0 right-0 border-t border-dashed border-border/40" style={{ top: minutesToPx(h * 60) }} />
@@ -554,7 +554,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                     {ghost?.day === dayIndex && (
                       <div
                         aria-hidden
-                        className="pointer-events-none absolute right-1.5 left-1.5 z-[5] grid animate-fade-in place-items-center rounded-xl border border-dashed border-foreground/30 bg-foreground/[0.04] text-xs text-muted-foreground"
+                        className="pointer-events-none absolute right-1.5 left-1.5 z-[5] grid animate-fade-in place-items-center rounded-lg border border-dashed border-foreground/30 bg-foreground/[0.04] text-xs text-muted-foreground"
                         style={{ top: minutesToPx(ghost.min) + 1, height: PX_PER_HOUR * 2 - 3 }}
                       >
                         <span className="num flex items-center gap-1"><Plus className="size-3.5" />{timeLabel(ghost.min)}</span>

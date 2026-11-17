@@ -74,7 +74,7 @@ export function MultiPicker({ items, value, onChange, noun, onCreate, variant = 
   return (
     <div ref={rootRef} className={cn("relative", rows_ && "space-y-2")} onBlur={(e) => { if (!rootRef.current?.contains(e.relatedTarget as Node | null)) setOpen(false) }}>
       {rows_ && selected.length > 0 && (
-        <ul className="divide-y overflow-hidden rounded-xl border bg-card">
+        <ul className="divide-y overflow-hidden rounded-lg border bg-card">
           {selected.map((i) => (
             <li key={i.id} className="animate-scale-in flex items-center pr-1">
               <button type="button" onClick={() => onOpen?.(i.id)} disabled={!onOpen}
@@ -95,7 +95,7 @@ export function MultiPicker({ items, value, onChange, noun, onCreate, variant = 
         </ul>
       )}
       <div onClick={() => inputRef.current?.focus()}
-        className={cn("flex min-h-11 cursor-text flex-wrap items-center gap-1.5 rounded-xl border bg-transparent px-2 py-1.5 transition", open ? "border-ring ring-3 ring-ring/30" : "hover:border-foreground/30")}>
+        className={cn("flex min-h-11 cursor-text flex-wrap items-center gap-1.5 rounded-lg border bg-transparent px-2 py-1.5 transition", open ? "border-ring ring-3 ring-ring/30" : "hover:border-foreground/30")}>
         {!rows_ && selected.map((i) => (
           <span key={i.id} className="animate-scale-in flex max-w-full items-center gap-1.5 rounded-full border py-0.5 pl-1 pr-1 text-xs font-medium text-neutral-900"
             style={{ backgroundColor: i.color.bg, borderColor: i.color.border }}>
@@ -119,7 +119,7 @@ export function MultiPicker({ items, value, onChange, noun, onCreate, variant = 
       </div>
 
       {open && rows > 0 && (
-        <ul role="listbox" aria-label={noun} className="animate-rise mt-1.5 max-h-44 overflow-y-auto rounded-xl border bg-card p-1 shadow-(--card-shadow)">
+        <ul role="listbox" aria-label={noun} className="animate-rise mt-1.5 max-h-44 overflow-y-auto rounded-lg border bg-card p-1 shadow-(--card-shadow)">
           {options.map((i, n) => (
             <li key={i.id}>
               <button type="button" role="option" aria-selected={n === idx} onMouseDown={keepFocus} onClick={() => add(i.id)} onMouseEnter={() => setActive(n)}
@@ -145,7 +145,7 @@ export function MultiPicker({ items, value, onChange, noun, onCreate, variant = 
         </ul>
       )}
       {open && rows === 0 && (
-        <p className="animate-rise mt-1.5 rounded-xl border bg-card px-3 py-2.5 text-xs text-muted-foreground">
+        <p className="animate-rise mt-1.5 rounded-lg border bg-card px-3 py-2.5 text-xs text-muted-foreground">
           {items.length === 0 ? `Aún no hay ${noun}s.` : q ? `Ningún ${noun} coincide con «${query.trim()}».` : `Ya agregaste todos los ${noun}s.`}
         </p>
       )}

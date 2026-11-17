@@ -12,7 +12,7 @@ type Opt<T extends string> = { value: T; label: string; icon?: typeof Sun }
 /** Selector segmentado compacto: la opción activa se rellena. */
 function Seg<T extends string>({ value, onChange, options, label }: { value: T; onChange: (v: T) => void; options: Opt<T>[]; label: string }) {
   return (
-    <div role="radiogroup" aria-label={label} className="flex w-fit gap-0.5 rounded-xl bg-muted p-0.5">
+    <div role="radiogroup" aria-label={label} className="flex w-fit gap-0.5 rounded-lg bg-muted p-0.5">
       {options.map((o) => {
         const on = o.value === value
         return (
@@ -53,7 +53,7 @@ function Group({ title, delay, children }: { title: string; delay: number; child
   return (
     <section className="animate-rise" style={{ animationDelay: `${delay}ms` }}>
       <h2 className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">{title}</h2>
-      <div className="divide-y overflow-hidden rounded-2xl border bg-card shadow-(--card-shadow)">{children}</div>
+      <div className="divide-y overflow-hidden rounded-xl border bg-card shadow-(--card-shadow)">{children}</div>
     </section>
   )
 }
@@ -87,13 +87,13 @@ export function SettingsTab({ userName, userEmail, userImage, hiddenCount, onSho
   return (
     <div className="mx-auto grid max-w-4xl gap-6 lg:grid-cols-[17rem_1fr] lg:items-start">
       {/* Cuenta */}
-      <section className="rounded-2xl border bg-card p-5 text-center lg:sticky lg:top-10">
+      <section className="rounded-xl border bg-card p-5 text-center lg:sticky lg:top-10">
         <div>
           {userImage && !imgFailed ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={userImage} alt="" referrerPolicy="no-referrer" onError={() => setImgFailed(true)} className="mx-auto size-16 rounded-2xl object-cover shadow-lg shadow-black/20" />
+            <img src={userImage} alt="" referrerPolicy="no-referrer" onError={() => setImgFailed(true)} className="mx-auto size-16 rounded-xl object-cover shadow-lg shadow-black/20" />
           ) : (
-            <span className="grad mx-auto grid size-16 place-items-center rounded-2xl text-2xl font-semibold shadow-lg shadow-black/20">{initial}</span>
+            <span className="grad mx-auto grid size-16 place-items-center rounded-xl text-2xl font-semibold shadow-lg shadow-black/20">{initial}</span>
           )}
           <p className="mt-3 truncate font-semibold">{userName || "Tu cuenta"}</p>
           <p className="truncate text-xs text-muted-foreground">{userEmail || "Sin correo"}</p>
@@ -101,7 +101,7 @@ export function SettingsTab({ userName, userEmail, userImage, hiddenCount, onSho
             type="button"
             onClick={logout}
             disabled={leaving}
-            className="mt-5 flex h-10 w-full items-center justify-center gap-2 rounded-xl border text-sm font-medium transition hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive active:scale-[0.97] disabled:opacity-60"
+            className="mt-5 flex h-10 w-full items-center justify-center gap-2 rounded-lg border text-sm font-medium transition hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive active:scale-[0.97] disabled:opacity-60"
           >
             {leaving ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
             {leaving ? "Saliendo…" : "Cerrar sesión"}
@@ -149,12 +149,12 @@ export function SettingsTab({ userName, userEmail, userImage, hiddenCount, onSho
         </Group>
 
         <Group title="Más" delay={180}>
-          <Row title="Materias ocultas" note={hiddenCount ? `${hiddenCount} en Notas, Exámenes o Faltas` : "Ninguna"}>
+          <Row title="Materias ocultas" note={hiddenCount ? `${hiddenCount} en Notas, Agenda o Faltas` : "Ninguna"}>
             <button
               type="button"
               onClick={onShowHidden}
               disabled={!hiddenCount}
-              className="h-8 rounded-xl border px-3 text-[13px] font-medium transition hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-40"
+              className="h-8 rounded-lg border px-3 text-[13px] font-medium transition hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-40"
             >
               Mostrar todas
             </button>
@@ -164,7 +164,7 @@ export function SettingsTab({ userName, userEmail, userImage, hiddenCount, onSho
               type="button"
               onClick={reset}
               disabled={!changed}
-              className="h-8 rounded-xl border px-3 text-[13px] font-medium transition hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-40"
+              className="h-8 rounded-lg border px-3 text-[13px] font-medium transition hover:bg-accent active:scale-95 disabled:pointer-events-none disabled:opacity-40"
             >
               Restablecer
             </button>

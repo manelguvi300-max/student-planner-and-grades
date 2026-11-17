@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { getPlannerData, migrateFromLocal, savePlannerData, type PlannerState } from "@/app/actions/planner"
-import { DEFAULT_CLASSES, NO_HIDDEN, normalizeHidden, migrateTeachers, teachersFromConfigs, withDirectory, semestersFromConfigs, withSemesters, SEMESTERS_KEY, type SemesterData, type Teacher, type ClassSession, type Exam, type Grade, type Absence, type SubjectConfig, type HiddenMap } from "@/lib/horario-data"
+import { DEFAULT_CLASSES, NO_HIDDEN, normalizeHidden, migrateTeachers, teachersFromConfigs, withDirectory, kindsFromConfigs, withKinds, semestersFromConfigs, withSemesters, SEMESTERS_KEY, type SemesterData, type Teacher, type EventKind, type ClassSession, type Exam, type Grade, type Absence, type SubjectConfig, type HiddenMap } from "@/lib/horario-data"
 import type { Subject } from "@/lib/horario-data"
 
 const LOCAL_KEYS = {
@@ -122,6 +122,11 @@ export function usePlanner() {
   const setTeachers = (u: Teacher[] | ((prev: Teacher[]) => Teacher[])) =>
     setSubjectConfigs((prev) => withDirectory(prev, typeof u === "function" ? u(teachersFromConfigs(prev)) : u))
 
+  // categorías propias de la agenda (también dentro de subjectConfigs)
+  const kinds = kindsFromConfigs(subjectConfigs)
+  const setKinds = (u: EventKind[] | ((prev: EventKind[]) => EventKind[])) =>
+    setSubjectConfigs((prev) => withKinds(prev, typeof u === "function" ? u(kindsFromConfigs(prev)) : u))
+
   // semestres: el activo vive en el estado de siempre; los demás, archivados dentro de subjectConfigs (ver horario-data)
   const semesters = semestersFromConfigs(subjectConfigs)
 
@@ -175,6 +180,7 @@ export function usePlanner() {
   return {
     semesters, switchSemester, createSemester, renameSemester, deleteSemester,
     teachers, setTeachers,
+    kinds, setKinds,
     subjects, setSubjects,
     classes, setClasses,
     grades, setGrades,

@@ -66,7 +66,7 @@ export function NotasTab({ subjects, grades, setGrades, hiddenSubjects, onToggle
 
   return (
     <div className="space-y-6">
-      <section className="flex items-center gap-4 rounded-2xl border bg-card p-4 sm:gap-5 sm:p-5">
+      <section className="flex items-center gap-4 rounded-xl border bg-card p-4 sm:gap-5 sm:p-5">
         {avg !== null && (
           // el anillo cambia de color según vayas: verde si el acumulado ya alcanza para aprobar, ámbar si no
           <Ring value={avg / 5} size={88} stroke={7} className={avg >= PASSING_GRADE ? "text-emerald-500" : "text-amber-500"}>
@@ -92,7 +92,7 @@ export function NotasTab({ subjects, grades, setGrades, hiddenSubjects, onToggle
       </section>
 
       {subjects.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed rounded-xl bg-card animate-scale-in">
+        <div className="flex flex-col items-center justify-center py-12 px-4 text-center border-2 border-dashed rounded-lg bg-card animate-scale-in">
           <p className="text-sm text-muted-foreground">
             No tienes materias creadas. Ve al horario y crea tus materias para poder agregar notas.
           </p>
@@ -403,7 +403,7 @@ function SubjectGrades({
                       </div>
                     ) : (
                       /* Modo visualización */
-                      <div className="flex animate-fade-in items-center gap-3 rounded-xl bg-muted/50 px-2.5 py-2 text-sm">
+                      <div className="flex animate-fade-in items-center gap-3 rounded-lg bg-muted/50 px-2.5 py-2 text-sm">
                         <span className={cn("num grid h-8 w-11 shrink-0 place-items-center rounded-lg text-sm font-semibold", g.score >= PASSING_GRADE ? "bg-foreground/10" : "bg-destructive/15 text-destructive")}>
                           {g.score.toFixed(1)}
                         </span>
@@ -502,14 +502,14 @@ function SubjectGrades({
 
             {/* Resumen */}
             <div className="grid grid-cols-2 gap-2 border-t pt-3 text-sm">
-              <div className="rounded-xl bg-muted/50 p-3">
+              <div className="rounded-lg bg-muted/50 p-3">
                 <p className="text-xs text-muted-foreground">Acumulado actual</p>
                 <p className="num mt-1 text-2xl font-semibold">{points.toFixed(2)}</p>
                 <p className="num text-[11px] text-muted-foreground">{covered}% calificado</p>
               </div>
               <div
                 className={cn(
-                  "rounded-xl p-3",
+                  "rounded-lg p-3",
                   alreadyPassed
                     ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
                     : impossible

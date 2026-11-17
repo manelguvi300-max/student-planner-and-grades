@@ -193,7 +193,7 @@ export function FaltasTab({ subjects, absences, classes, setAbsences, subjectCon
 
   if (subjects.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed rounded-xl bg-card animate-scale-in">
+      <div className="flex flex-col items-center justify-center py-16 px-4 text-center border-2 border-dashed rounded-lg bg-card animate-scale-in">
         <div className="bg-primary/10 p-3 rounded-full mb-4">
           <UserX className="size-6 text-primary" />
         </div>
@@ -255,7 +255,7 @@ export function FaltasTab({ subjects, absences, classes, setAbsences, subjectCon
       : "Solo conteo"
 
     return (
-      <div key={subject.id} className="animate-pop overflow-hidden rounded-2xl border bg-card shadow-(--card-shadow)">
+      <div key={subject.id} className="animate-pop overflow-hidden rounded-xl border bg-card shadow-(--card-shadow)">
         {/* Header de la materia (clic para contraer/expandir) */}
         <div
           onClick={() => toggleExpanded(subject.id)}
@@ -322,12 +322,12 @@ export function FaltasTab({ subjects, absences, classes, setAbsences, subjectCon
 
               {/* Estado: anillo + mensaje + una marca por cada falta permitida */}
               {st.needsHours ? (
-                <div className="flex items-center gap-3 rounded-xl bg-muted/50 px-3 py-3 text-sm text-muted-foreground">
+                <div className="flex items-center gap-3 rounded-lg bg-muted/50 px-3 py-3 text-sm text-muted-foreground">
                   <AlertTriangle className="size-4 shrink-0 text-amber-500" />
                   <span>Ingresa las horas HD de esta materia para calcular su límite de faltas.</span>
                 </div>
               ) : limit === null || remaining === null ? (
-                <div className="flex items-center gap-4 rounded-xl bg-muted/50 px-4 py-3">
+                <div className="flex items-center gap-4 rounded-lg bg-muted/50 px-4 py-3">
                   <CountUp value={count} className="num text-4xl font-light" />
                   <p className="text-sm text-muted-foreground">{count === 1 ? "falta registrada" : "faltas registradas"}<span className="block text-xs">Sin máximo: solo conteo.</span></p>
                 </div>
@@ -408,7 +408,7 @@ export function FaltasTab({ subjects, absences, classes, setAbsences, subjectCon
                 {subjectAbsences.length > 0 ? (
                   <ul className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
                     {subjectAbsences.map((absence, index) => (
-                      <li key={absence.id} className="flex animate-fade-in items-center justify-between gap-2 rounded-xl bg-muted/50 px-3 py-2 text-sm">
+                      <li key={absence.id} className="flex animate-fade-in items-center justify-between gap-2 rounded-lg bg-muted/50 px-3 py-2 text-sm">
                         <div className="flex items-center gap-2.5">
                           <span className="num grid size-6 shrink-0 place-items-center rounded-md bg-foreground/10 text-[11px] font-semibold">{index + 1}</span>
                           <span className="num">{formatDate(absence.date)}</span>
@@ -462,7 +462,7 @@ export function FaltasTab({ subjects, absences, classes, setAbsences, subjectCon
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Asistencia de hoy: cruza el horario con tus faltas: es lo único que las tarjetas de abajo no cuentan */}
-      <section className="flex overflow-hidden rounded-2xl border bg-card">
+      <section className="flex overflow-hidden rounded-xl border bg-card">
         <span aria-hidden className={cn("w-1.5 shrink-0 transition-colors", now ? verdict.bar : "bg-foreground/15")} />
         <div className="min-w-0 flex-1 p-4 sm:p-5">
           <div className="flex items-start justify-between gap-3">
@@ -548,7 +548,7 @@ export function FaltasTab({ subjects, absences, classes, setAbsences, subjectCon
                   aria-checked={draftMode === m.value}
                   onClick={() => setDraftMode(m.value)}
                   className={cn(
-                    "flex items-start gap-3 rounded-xl border p-3 text-left transition",
+                    "flex items-start gap-3 rounded-lg border p-3 text-left transition",
                     draftMode === m.value ? "border-foreground/40 bg-foreground/[0.06]" : "hover:bg-foreground/[0.03]"
                   )}
                 >
@@ -565,7 +565,7 @@ export function FaltasTab({ subjects, absences, classes, setAbsences, subjectCon
             {draftMode !== "none" && (
               <div className="space-y-1.5">
                 <Label>Contar las faltas en</Label>
-                <div role="radiogroup" aria-label="Unidad de las faltas" className="grid grid-cols-2 gap-1 rounded-xl border bg-muted/30 p-1">
+                <div role="radiogroup" aria-label="Unidad de las faltas" className="grid grid-cols-2 gap-1 rounded-lg border bg-muted/30 p-1">
                   {([["classes", "Clases enteras"], ["hours", "Horas"]] as const).map(([v, label]) => (
                     <button key={v} type="button" role="radio" aria-checked={draftUnit === v} onClick={() => setDraftUnit(v)}
                       className={cn("h-8 rounded-lg text-xs font-medium transition", draftUnit === v ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
@@ -650,7 +650,7 @@ export function FaltasTab({ subjects, absences, classes, setAbsences, subjectCon
             )}
           </div>
           <DialogFooter>
-            <Button onClick={saveRule} className="w-full rounded-full" disabled={!canSave}>Guardar</Button>
+            <Button onClick={saveRule} className="w-full" disabled={!canSave}>Guardar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

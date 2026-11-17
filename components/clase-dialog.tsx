@@ -141,7 +141,7 @@ function ClaseForm({ state, onClose, teachers: directory, subjects, setSubjects,
 
       {/* Vista previa en vivo */}
       <div
-        className="animate-fade-in rounded-2xl p-3 text-neutral-900 shadow-[inset_4px_0_0_var(--c)]"
+        className="animate-fade-in rounded-xl p-3 text-neutral-900 shadow-[inset_4px_0_0_var(--c)]"
         style={{ "--c": subject?.border ?? "var(--border)", backgroundColor: subject?.bg ?? "var(--muted)" } as React.CSSProperties}
       >
         <p className="truncate pl-1.5 text-sm font-semibold">{subject?.name ?? "Elige una materia"}</p>
@@ -158,14 +158,14 @@ function ClaseForm({ state, onClose, teachers: directory, subjects, setSubjects,
         <div className="space-y-2.5">
           {subject && (
             <button type="button" onClick={() => setPicking((v) => !v)} aria-expanded={picking}
-              className="flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition hover:border-foreground/30 active:scale-[0.99]">
+              className="flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition hover:border-foreground/30 active:scale-[0.99]">
               <span className="size-3.5 shrink-0 rounded-full" style={{ backgroundColor: subject.bg, boxShadow: `0 0 0 1.5px ${subject.border}` }} />
               <span className="min-w-0 flex-1 truncate text-sm font-medium">{subject.name}</span>
               <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
             </button>
           )}
           {(picking || !subject) && !creating && (
-            <div className="animate-rise overflow-hidden rounded-xl border bg-card">
+            <div className="animate-rise overflow-hidden rounded-lg border bg-card">
               <div className="flex items-center gap-2 border-b px-3">
                 <Search className="size-4 shrink-0 text-muted-foreground" />
                 <input autoFocus={!!subject} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar materia…" aria-label="Buscar materia"
@@ -196,7 +196,7 @@ function ClaseForm({ state, onClose, teachers: directory, subjects, setSubjects,
             </div>
           )}
           {creating && (
-            <div className="animate-rise space-y-3 rounded-2xl border bg-muted/30 p-3">
+            <div className="animate-rise space-y-3 rounded-xl border bg-muted/30 p-3">
               <Input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nombre de la nueva materia" maxLength={60}
                 onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); createSubject() } }} />
               <ColorPicker value={newColor} onChange={setNewColor} />
@@ -216,7 +216,7 @@ function ClaseForm({ state, onClose, teachers: directory, subjects, setSubjects,
             const on = days.includes(i)
             return (
               <button key={name} type="button" onClick={() => toggleDay(i)} aria-pressed={on} aria-label={name} title={name}
-                className={cn("grid h-11 flex-1 place-items-center rounded-xl border text-sm font-semibold transition active:scale-95", on ? "border-foreground bg-foreground text-background shadow-sm" : "text-muted-foreground hover:border-foreground/30 hover:text-foreground")}>
+                className={cn("grid h-11 flex-1 place-items-center rounded-lg border text-sm font-semibold transition active:scale-95", on ? "border-foreground bg-foreground text-background shadow-sm" : "text-muted-foreground hover:border-foreground/30 hover:text-foreground")}>
                 {DAY_SHORT[i]}
               </button>
             )
@@ -255,7 +255,7 @@ function ClaseForm({ state, onClose, teachers: directory, subjects, setSubjects,
           </div>
           {!timeOk && <p className="text-xs text-destructive">La clase debe terminar después de empezar y antes de medianoche.</p>}
           {clashes.length > 0 && (
-            <p className="flex animate-rise items-start gap-2 rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+            <p className="flex animate-rise items-start gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
               <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
               <span>Se cruza con {clashes.map(({ c, name }) => `${name} (${SHORT[c.day]} ${timeLabel(c.startTime)}–${timeLabel(c.endTime)})`).join(", ")}. Puedes guardarla igual.</span>
             </p>
@@ -322,7 +322,7 @@ function ClaseForm({ state, onClose, teachers: directory, subjects, setSubjects,
             </Button>
           )
         ) : <span />}
-        <Button type="submit" className="rounded-full px-6" disabled={!canSave}>
+        <Button type="submit" className="px-6" disabled={!canSave}>
           {editing ? "Guardar" : days.length > 1 ? `Crear ${days.length} clases` : "Crear clase"}
         </Button>
       </div>

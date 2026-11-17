@@ -209,7 +209,7 @@ export function SignInCard() {
           </h2>
           <div className="mt-8"><Week /></div>
         </div>
-        <p className="text-xs text-muted-foreground">Horario · Notas · Exámenes · Faltas</p>
+        <p className="text-xs text-muted-foreground">Horario · Notas · Agenda · Faltas</p>
       </section>
 
       {/* Acceso */}

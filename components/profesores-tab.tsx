@@ -67,7 +67,7 @@ export function ProfesoresTab({ teachers, setTeachers, subjects, setSubjects, cl
     const own = subjectsOf(t.id, subjects)
     return (
       <button key={t.id} type="button" onClick={() => open({ view: "detail", teacherId: t.id })}
-        className="group animate-pop flex w-full items-center gap-3 rounded-2xl border bg-card p-3 text-left shadow-(--card-shadow) transition duration-200 hover:-translate-y-0.5 hover:border-foreground/25 active:scale-[0.99]">
+        className="group animate-pop flex w-full items-center gap-3 rounded-xl border bg-card p-3 text-left shadow-(--card-shadow) transition duration-200 hover:-translate-y-0.5 hover:border-foreground/25 active:scale-[0.99]">
         <Avatar name={t.name} color={teacherColor(t, subjects)} size="size-11" />
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">
@@ -126,9 +126,9 @@ export function ProfesoresTab({ teachers, setTeachers, subjects, setSubjects, cl
           <DialogDescription className="sr-only">Datos de contacto, asesorías y materias de {t.name}</DialogDescription>
         </DialogHeader>
 
-        {dlg.fresh && <p className="rounded-xl bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">¡Profesor guardado!</p>}
+        {dlg.fresh && <p className="rounded-lg bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700 dark:text-emerald-300">¡Profesor guardado!</p>}
 
-        <section className="space-y-1 rounded-2xl border bg-card p-3">
+        <section className="space-y-1 rounded-xl border bg-card p-3">
           {hasContact ? (
             <>
               {t.email && row(<Mail className="size-4" />, <a href={`mailto:${t.email}`} className="underline-offset-4 hover:underline">{t.email}</a>, { text: t.email, label: "Copiar correo" })}
@@ -136,7 +136,7 @@ export function ProfesoresTab({ teachers, setTeachers, subjects, setSubjects, cl
               {t.office && row(<MapPin className="size-4" />, t.office)}
             </>
           ) : (
-            <button type="button" onClick={() => open({ view: "form", teacherId: t.id, focus: "contact" })} className="w-full rounded-xl border border-dashed py-2.5 text-xs text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
+            <button type="button" onClick={() => open({ view: "form", teacherId: t.id, focus: "contact" })} className="w-full rounded-lg border border-dashed py-2.5 text-xs text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
               Agregar correo, teléfono u oficina
             </button>
           )}
@@ -152,7 +152,7 @@ export function ProfesoresTab({ teachers, setTeachers, subjects, setSubjects, cl
             </div>
           ) : (
             <button type="button" onClick={() => open({ view: "form", teacherId: t.id, focus: "slots" })}
-              className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-dashed px-3 text-sm text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
+              className="flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed px-3 text-sm text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
               <Plus className="size-4" />Agregar horario de asesoría
             </button>
           )}
@@ -180,7 +180,7 @@ export function ProfesoresTab({ teachers, setTeachers, subjects, setSubjects, cl
 
         <div className="border-t pt-3">
           {confirmDelete ? (
-            <div className="space-y-2.5 rounded-xl bg-destructive/10 p-3 text-sm">
+            <div className="space-y-2.5 rounded-lg bg-destructive/10 p-3 text-sm">
               <p>Se eliminará a <b>{t.name}</b> de tus profesores y de las clases donde estaba asignado. No se puede deshacer.</p>
               <div className="flex justify-end gap-2">
                 <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)}>Cancelar</Button>
@@ -200,8 +200,8 @@ export function ProfesoresTab({ teachers, setTeachers, subjects, setSubjects, cl
   return (
     <div className="space-y-5 animate-fade-in">
       {teachers.length === 0 ? (
-        <div className="animate-scale-in rounded-3xl border-2 border-dashed bg-card px-6 py-14 text-center">
-          <div className="mx-auto mb-4 grid size-14 place-items-center rounded-2xl bg-foreground/10"><Users className="size-6" /></div>
+        <div className="animate-scale-in rounded-xl border-2 border-dashed bg-card px-6 py-14 text-center">
+          <div className="mx-auto mb-4 grid size-14 place-items-center rounded-xl bg-foreground/10"><Users className="size-6" /></div>
           <h3 className="text-lg font-semibold">Aún no tienes profesores</h3>
           <p className="mx-auto mt-1 mb-5 max-w-xs text-sm text-muted-foreground">Guarda su correo, teléfono y horario de asesorías para tenerlos a un toque. Después los asignas a sus materias.</p>
           <Button onClick={() => open({ view: "form" })}><UserPlus className="size-4" />Agregar primer profesor</Button>
@@ -220,21 +220,21 @@ export function ProfesoresTab({ teachers, setTeachers, subjects, setSubjects, cl
               {(teachers.length > 5 || hasOfficeHours) && (
                 <div className="flex items-center gap-2">
                   {teachers.length > 5 && (
-                    <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border bg-card px-3">
+                    <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border bg-card px-3">
                       <Search className="size-4 shrink-0 text-muted-foreground" />
                       <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar profesor o materia…" aria-label="Buscar profesor"
                         className="h-10 w-full min-w-0 bg-transparent text-base outline-none md:text-sm placeholder:text-muted-foreground" />
                     </div>
                   )}
                   {hasOfficeHours && (
-                    <Button type="button" variant="outline" onClick={() => setMode("asesorias")} className="ml-auto h-10 shrink-0 gap-1.5 rounded-xl">
+                    <Button type="button" variant="outline" onClick={() => setMode("asesorias")} className="ml-auto h-10 shrink-0 gap-1.5 rounded-lg">
                       <Clock className="size-4" />Asesorías
                     </Button>
                   )}
                 </div>
               )}
               {shown.length === 0 ? (
-                <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">Ningún profesor coincide con «{query.trim()}».</p>
+                <p className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">Ningún profesor coincide con «{query.trim()}».</p>
               ) : (
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">{shown.map(card)}</div>
               )}

@@ -52,7 +52,7 @@ function WeekGrid({ entries, nowMin, todayIdx, timeLabel, onOpen }: Omit<Props, 
   const height = ((to - from) / 60) * PX_HOUR
 
   return (
-    <div className="animate-fade-in overflow-hidden rounded-2xl border bg-card">
+    <div className="animate-fade-in overflow-hidden rounded-xl border bg-card">
       <div className="flex border-b py-2 pl-11 pr-1">
         {DAYS.map((d, i) => (
           <span key={d} className={cn("flex-1 text-center text-[11px] font-semibold uppercase tracking-wider", i === todayIdx ? "text-foreground" : "text-muted-foreground")}>
@@ -149,7 +149,7 @@ export function AsesoriasView({ teachers, subjects, nowMin, todayIdx, timeLabel,
         <button
           type="button"
           onClick={() => onOpen(next.e.teacherId)}
-          className="flex w-full animate-pop items-center gap-3 rounded-2xl p-4 text-left text-neutral-900 shadow-(--card-shadow) transition active:scale-[0.99]"
+          className="flex w-full animate-pop items-center gap-3 rounded-xl p-4 text-left text-neutral-900 shadow-(--card-shadow) transition active:scale-[0.99]"
           style={{ backgroundColor: next.e.color.bg, boxShadow: `inset 0 0 0 1.5px ${next.e.color.border}` }}
         >
           <span className="grid size-11 shrink-0 place-items-center rounded-full bg-black/10 text-sm font-bold">{initials(next.e.name)}</span>
@@ -191,7 +191,7 @@ export function AsesoriasView({ teachers, subjects, nowMin, todayIdx, timeLabel,
                     <button
                       type="button"
                       onClick={() => onOpen(e.teacherId)}
-                      className={cn("flex w-full items-center gap-3 rounded-xl border bg-card px-3 py-2.5 text-left transition hover:border-foreground/25 active:scale-[0.99]", past && "opacity-50")}
+                      className={cn("flex w-full items-center gap-3 rounded-lg border bg-card px-3 py-2.5 text-left transition hover:border-foreground/25 active:scale-[0.99]", past && "opacity-50")}
                     >
                       <span className="w-1 self-stretch shrink-0 rounded-full" style={{ background: e.color.border }} />
                       <span className="num w-[6.5rem] shrink-0 text-sm font-medium">{timeLabel(e.start)} – {timeLabel(e.end)}</span>

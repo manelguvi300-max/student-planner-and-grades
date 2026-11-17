@@ -138,7 +138,7 @@ function OfficeHoursEditor({ slots, setSlots, note, setNote, timeLabel, pendingR
         </div>
       )}
       {open ? (
-        <div className="animate-rise space-y-3 rounded-2xl border bg-muted/30 p-3">
+        <div className="animate-rise space-y-3 rounded-xl border bg-muted/30 p-3">
           <div className="flex gap-1.5" role="group" aria-label="Días de la asesoría">
             {DAYS.map((name, i) => {
               const on = days.includes(i)
@@ -166,7 +166,7 @@ function OfficeHoursEditor({ slots, setSlots, note, setNote, timeLabel, pendingR
           </div>
         </div>
       ) : (
-        <button type="button" onClick={() => setOpen(true)} className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-dashed px-3 text-sm text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
+        <button type="button" onClick={() => setOpen(true)} className="flex min-h-11 w-full items-center gap-2 rounded-lg border border-dashed px-3 text-sm text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
           <Plus className="size-4" />Agregar horario de asesoría
         </button>
       )}
@@ -240,7 +240,7 @@ export function TeacherForm({ teacher, subjects, presetSubjectIds, timeLabel, fo
         </div>
       </div>
 
-      <section className="space-y-2.5 rounded-2xl border bg-card p-3">
+      <section className="space-y-2.5 rounded-xl border bg-card p-3">
         {field(<Mail className="size-4" />, <Input id="t-email" type="email" inputMode="email" aria-label="Correo" autoFocus={focus === "contact"} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Correo" aria-invalid={tried && !emailOk} />)}
         {tried && !emailOk && <p className="pl-7 text-xs text-destructive">Revisa el correo.</p>}
         {field(<Phone className="size-4" />, <Input id="t-phone" type="tel" inputMode="tel" aria-label="Teléfono" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Teléfono" />)}

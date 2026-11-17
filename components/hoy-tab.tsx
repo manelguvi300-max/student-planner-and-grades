@@ -6,6 +6,9 @@ import { cn } from "@/lib/utils"
 import { useSettings } from "@/lib/settings"
 import {
   DAYS,
+  findKind,
+  kindsFromConfigs,
+  KIND_COLORS,
   FINAL_WEIGHT,
   absenceStatus,
   fmtHours,
@@ -91,11 +94,11 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
     }
   }
 
-  // exámenes próximos
+  // próximos eventos de la agenda
   const today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
   const daysUntil = (s: string) => Math.round((dateOf(s).getTime() - today0) / 86_400_000)
   const upcoming = exams
-    .filter((e) => !e.done && daysUntil(e.date) >= 0 && getSubject(subjects, e.subjectId))
+    .filter((e) => !e.done && daysUntil(e.date) >= 0 && (e.subjectId === "" || getSubject(subjects, e.subjectId)))
     .sort((a, b) => a.date.localeCompare(b.date))
   const dueLabel = (n: number) => (n === 0 ? "Hoy" : n === 1 ? "Mañana" : `En ${n} días`)
 
@@ -130,7 +133,7 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
     return (
       <div className="animate-fade-in rounded-2xl border border-dashed px-6 py-14 text-center">
         <h2 className="text-lg font-semibold">Empecemos tu semestre</h2>
-        <p className="mx-auto mt-1.5 max-w-sm text-sm text-muted-foreground">Crea tus materias y clases en el horario; aquí verás qué sigue cada día, tus exámenes y los avisos importantes.</p>
+        <p className="mx-auto mt-1.5 max-w-sm text-sm text-muted-foreground">Crea tus materias y clases en el horario; aquí verás qué sigue cada día, tu agenda y los avisos importantes.</p>
         <button
           type="button"
           onClick={() => onNavigate("horario")}
@@ -150,7 +153,7 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
 
   const stats = [
     { tab: "horario", label: "Clases hoy", value: String(todays.length), sub: todays.length ? `${remaining} por ver` : "Día libre", warn: false },
-    { tab: "examenes", label: "Próximo examen", value: upcoming[0] ? dueLabel(daysUntil(upcoming[0].date)) : "Ninguno", sub: upcoming[0] ? getSubject(subjects, upcoming[0].subjectId)?.name ?? "" : "Sin exámenes a la vista", warn: false },
+    { tab: "examenes", label: "Próximo en agenda", value: upcoming[0] ? dueLabel(daysUntil(upcoming[0].date)) : "Ninguno", sub: upcoming[0] ? getSubject(subjects, upcoming[0].subjectId)?.name ?? findKind(kindsFromConfigs(subjectConfigs), upcoming[0].kind).name : "Nada a la vista", warn: false },
     { tab: "notas", label: "Promedio", value: avg === null ? "—" : avg.toFixed(2).replace(".", ","), sub: avg === null ? "Aún sin notas" : "Acumulado", warn: false },
     { tab: "faltas", label: "Faltas", value: String(absences.length), sub: atRisk ? `${atRisk} materia${atRisk > 1 ? "s" : ""} en riesgo` : "Todo en orden", warn: atRisk > 0 },
   ]
@@ -253,13 +256,14 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
           )}
 
           <section>
-            <Heading title="Próximos exámenes" action="Ver todos" onAction={() => onNavigate("examenes")} />
+            <Heading title="Tu agenda" action="Ver todos" onAction={() => onNavigate("examenes")} />
             {upcoming.length === 0 ? (
               <p className="rounded-2xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">Nada programado.</p>
             ) : (
               <ul className={cn(card, "divide-y")}>
                 {upcoming.slice(0, 4).map((e) => {
-                  const s = getSubject(subjects, e.subjectId)!
+                  const s = getSubject(subjects, e.subjectId)
+                  const k = findKind(kindsFromConfigs(subjectConfigs), e.kind)
                   const n = daysUntil(e.date)
                   const d = dateOf(e.date)
                   return (
@@ -269,10 +273,10 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
                           <span className="num block text-lg font-semibold">{d.getDate()}</span>
                           <span className="block text-[11px] text-muted-foreground">{d.toLocaleDateString("es", { month: "short" }).replace(".", "")}</span>
                         </span>
-                        <span className="h-9 w-1 shrink-0 rounded-full" style={{ background: s.border }} />
+                        <span className="h-9 w-1 shrink-0 rounded-full" style={{ background: s ? s.border : KIND_COLORS[k.color] }} />
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium">{e.title || s.name}</span>
-                          <span className="block truncate text-xs text-muted-foreground">{e.title ? `${s.name} · ` : ""}{e.kind === "examen" ? "Examen" : "Presentación"}{e.weight > 0 ? ` · ${e.weight}%` : ""}</span>
+                          <span className="block truncate text-sm font-medium">{e.title || s?.name || k.name}</span>
+                          <span className="block truncate text-xs text-muted-foreground">{e.title && s ? `${s.name} · ` : ""}{k.name}{e.weight > 0 ? ` · ${e.weight}%` : ""}</span>
                         </span>
                         <span className={cn("shrink-0 text-xs", n <= 3 ? "font-medium text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>{dueLabel(n)}</span>
                       </button>

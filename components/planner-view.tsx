@@ -20,7 +20,7 @@ const NAV_ITEMS = [
   { value: "hoy", label: "Hoy", icon: House },
   { value: "horario", label: "Horario", icon: CalendarDays },
   { value: "notas", label: "Notas", icon: GraduationCap },
-  { value: "examenes", label: "Exámenes", icon: ClipboardList },
+  { value: "examenes", label: "Agenda", icon: ClipboardList },
   { value: "faltas", label: "Faltas", icon: UserX },
   { value: "ajustes", label: "Ajustes", icon: Settings },
 ] as const
@@ -39,6 +39,7 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
     absences, setAbsences,
     subjectConfigs, setSubjectConfigs,
     teachers, setTeachers,
+    kinds, setKinds,
     hidden: hiddenSubjectsByTab, setHidden: setHiddenSubjectsByTab,
   } = usePlanner()
 
@@ -110,7 +111,7 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
       {/* Escritorio: barra lateral con resaltado deslizante */}
       <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col gap-2 border-r p-5 lg:flex">
         <div className="mb-4 flex items-center gap-3 px-2">
-          <div className="grad grid size-10 place-items-center rounded-2xl shadow-lg shadow-black/20">
+          <div className="grad grid size-10 place-items-center rounded-xl shadow-lg shadow-black/20">
             <GraduationCap className="size-5" />
           </div>
           <div>
@@ -123,7 +124,7 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
           {/* los ítems miden h-11 + gap-2 = 3.25rem */}
           <span
             aria-hidden
-            className="absolute inset-x-0 top-0 h-11 rounded-2xl bg-foreground/[0.07] ring-1 ring-foreground/10"
+            className="absolute inset-x-0 top-0 h-11 rounded-xl bg-foreground/[0.07] ring-1 ring-foreground/10"
             style={{ transform: `translateY(${idx * 3.25}rem)`, transition: `transform .5s ${spring}` }}
           >
             <span key={idx} className="absolute left-0 top-2.5 h-6 w-1 rounded-full bg-brand" style={{ animation: `grow .45s ${spring} both` }} />
@@ -135,7 +136,7 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
               onClick={() => setTab(item.value)}
               aria-current={i === idx ? "page" : undefined}
               className={cn(
-                "group relative flex h-11 items-center gap-3 rounded-2xl px-4 text-sm font-medium transition-colors duration-300",
+                "group relative flex h-11 items-center gap-3 rounded-xl px-4 text-sm font-medium transition-colors duration-300",
                 i === idx ? "text-foreground" : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground"
               )}
             >
@@ -150,7 +151,7 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
       <main className="pb-nav mx-auto w-full max-w-6xl px-4 pt-[max(1rem,env(safe-area-inset-top))] sm:px-6 lg:px-10 lg:pt-10">
         {/* Header móvil común a las 3 apps: marca a la izquierda, selector de apps fijo en el borde derecho (120×42) */}
         <div className="mb-5 flex h-[42px] items-center gap-3 lg:hidden">
-          <div className="grad grid size-9 shrink-0 place-items-center rounded-xl shadow-lg shadow-black/20">
+          <div className="grad grid size-9 shrink-0 place-items-center rounded-lg shadow-lg shadow-black/20">
             <GraduationCap className="size-[18px]" />
           </div>
           <div className="min-w-0 flex-1 leading-tight">
@@ -164,7 +165,7 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
             aria-label={inSettings ? "Volver" : "Ajustes"}
             aria-pressed={inSettings}
             className={cn(
-              "grid size-10 shrink-0 place-items-center rounded-xl transition duration-300 active:scale-90",
+              "grid size-10 shrink-0 place-items-center rounded-lg transition duration-300 active:scale-90",
               inSettings ? "bg-foreground text-background" : "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
             )}
           >
@@ -223,6 +224,8 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
               subjects={subjects}
               exams={exams}
               setExams={setExams}
+              kinds={kinds}
+              setKinds={setKinds}
               hiddenSubjects={hiddenSubjectsByTab.examenes}
               onToggleHidden={(id) => toggleHidden("examenes", id)}
             />
@@ -256,10 +259,10 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
       </main>
 
       {/* Móvil / tablet: barra inferior flotante de cristal con píldora deslizante */}
-      <nav className="glass fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-md rounded-[1.75rem] p-1.5 shadow-2xl shadow-black/30 lg:hidden">
+      <nav className="glass fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 mx-auto flex max-w-md rounded-2xl p-1.5 shadow-2xl shadow-black/30 lg:hidden">
         <span
           aria-hidden
-          className="absolute inset-y-1.5 left-1.5 rounded-[1.4rem] bg-foreground/10 ring-1 ring-foreground/10"
+          className="absolute inset-y-1.5 left-1.5 rounded-xl bg-foreground/10 ring-1 ring-foreground/10"
           style={{
             width: `calc((100% - 0.75rem) / ${MOBILE_ITEMS.length})`,
             transform: `translateX(${Math.min(idx, MOBILE_ITEMS.length - 1) * 100}%)`,
@@ -277,7 +280,7 @@ export function PlannerView({ userName, userEmail, userImage }: { userName: stri
               aria-current={active ? "page" : undefined}
               aria-label={item.label}
               className={cn(
-                "relative flex flex-1 flex-col items-center gap-1 rounded-[1.4rem] py-2.5 text-[11px] font-medium transition-all duration-300",
+                "relative flex flex-1 flex-col items-center gap-1 rounded-xl py-2.5 text-[11px] font-medium transition-all duration-300",
                 active ? "text-foreground" : "text-muted-foreground active:scale-95"
               )}
             >

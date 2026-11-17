@@ -12,7 +12,7 @@ export function OtherApps() {
       <ul className="space-y-0.5">
         {OTHERS.map((a) => (
           <li key={a.name}>
-            <a href={dev ? a.dev : a.prod} target="_blank" rel="noreferrer" className="flex items-center gap-2.5 rounded-xl px-2 py-2 text-sm transition hover:bg-foreground/[0.05]">
+            <a href={dev ? a.dev : a.prod} target="_blank" rel="noreferrer" className="flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm transition hover:bg-foreground/[0.05]">
               <span className="size-2 shrink-0 rounded-full" style={{ background: a.accent }} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium">{a.name}</span>

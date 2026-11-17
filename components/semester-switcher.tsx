@@ -66,7 +66,7 @@ export function SemesterSwitcher({ semesters, activeSubjectCount, onSwitch, onCr
             <DialogDescription>Notas, materias, horarios, exámenes y faltas se guardan por semestre.</DialogDescription>
           </DialogHeader>
 
-          <ul className="divide-y overflow-hidden rounded-xl border bg-card">
+          <ul className="divide-y overflow-hidden rounded-lg border bg-card">
             {semesters.list.map((s) => {
               const isActive = s.id === semesters.activeId
               const n = count(s.id)
@@ -115,7 +115,7 @@ export function SemesterSwitcher({ semesters, activeSubjectCount, onSwitch, onCr
           </ul>
 
           {creating ? (
-            <form onSubmit={(e) => { e.preventDefault(); create() }} className="animate-rise space-y-3 rounded-2xl border bg-muted/30 p-3">
+            <form onSubmit={(e) => { e.preventDefault(); create() }} className="animate-rise space-y-3 rounded-xl border bg-muted/30 p-3">
               <div className="space-y-1.5">
                 <label htmlFor="new-semester" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nombre del nuevo semestre</label>
                 <Input id="new-semester" autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ej. 2027-1" maxLength={24} />
