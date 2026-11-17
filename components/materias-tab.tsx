@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import {
-  Plus, Pencil, Trash2, Mail, Phone, X, ArrowLeft, UserPlus, CalendarPlus, GraduationCap, ChevronRight, Check, Search,
+  Plus, Pencil, Trash2, X, ArrowLeft, GraduationCap, ChevronRight, Users,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,7 +14,7 @@ import {
   type Absence, type ClassSession, type ColorSwatch, type Exam, type Grade, type Subject, type SubjectConfig, type Teacher,
 } from "@/lib/horario-data"
 import { MultiPicker } from "./multi-picker"
-import { Avatar, TeacherForm, saveTeacher, teacherColor, toggleAssign, type TeacherOps } from "./teacher-parts"
+import { Avatar, saveTeacher, teacherColor, toggleAssign, type TeacherOps } from "./teacher-parts"
 
 const DAY_SHORT = ["L", "M", "Mi", "J", "V"]
 const SHORT = ["Lun", "Mar", "Mié", "Jue", "Vie"]
@@ -128,7 +128,6 @@ function SubjectForm({ subject, subjects, teachers, onCreateTeacher, onSave, onC
       <div className="space-y-2">
         <Label>Color</Label>
         <ColorPicker value={color} onChange={setColor} />
-        <p className="text-xs text-muted-foreground">Es el color de sus clases en el horario, las notas y los exámenes.</p>
       </div>
 
       <div className="space-y-2">
@@ -173,7 +172,7 @@ type Props = {
   onRequestHandled: () => void
 }
 
-type Dlg = { subjectId: string | null; view: "detail" | "subject" | "assign" | "teacher"; fresh?: boolean }
+type Dlg = { subjectId: string | null; view: "detail" | "subject"; fresh?: boolean }
 
 export function MateriasTab({
   subjects, setSubjects, classes, setClasses, setGrades, setExams, setAbsences, setSubjectConfigs, teachers, setTeachers,
@@ -182,7 +181,6 @@ export function MateriasTab({
   const ops: TeacherOps = { subjects, setSubjects, setTeachers, setClasses }
   const [dlg, setDlg] = useState<Dlg | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [query, setQuery] = useState("")
 
   // peticiones de fuera (botón del horario vacío, tocar una materia en Profesores): se atienden una vez y se avisa
   useEffect(() => {
@@ -193,8 +191,8 @@ export function MateriasTab({
   }, [request, onRequestHandled])
 
   const current = dlg?.subjectId ? subjects.find((s) => s.id === dlg.subjectId) : undefined
-  const close = () => { setDlg(null); setConfirmDelete(false); setQuery("") }
-  const open = (next: Dlg) => { setConfirmDelete(false); setQuery(""); setDlg(next) }
+  const close = () => { setDlg(null); setConfirmDelete(false) }
+  const open = (next: Dlg) => { setConfirmDelete(false); setDlg(next) }
 
   const classesOf = (id: string) => classes.filter((c) => c.subjectId === id).sort((a, b) => a.day - b.day || a.startTime - b.startTime)
 
@@ -231,47 +229,26 @@ export function MateriasTab({
     const cl = classesOf(s.id)
     const own = teachersOf(s, teachers)
     const weekMin = cl.reduce((n, c) => n + (c.endTime - c.startTime), 0)
-    const days = new Set(cl.map((c) => c.day))
+    const days = SHORT.filter((_, i) => cl.some((c) => c.day === i))
     return (
       <button
         key={s.id}
         type="button"
         onClick={() => open({ subjectId: s.id, view: "detail" })}
-        className="group animate-pop flex w-full flex-col gap-3 rounded-2xl border bg-card p-4 text-left shadow-(--card-shadow) transition duration-200 hover:-translate-y-0.5 hover:border-foreground/25 active:scale-[0.99]"
+        className="group animate-pop flex w-full items-center gap-3 rounded-2xl border bg-card p-4 text-left shadow-(--card-shadow) transition duration-200 hover:-translate-y-0.5 hover:border-foreground/25 active:scale-[0.99]"
       >
-        <span className="flex items-start gap-3">
-          <span className="mt-0.5 h-10 w-1.5 shrink-0 rounded-full" style={{ background: s.border }} />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate font-semibold leading-tight">{s.name}</span>
-            <span className="num mt-0.5 block text-xs text-muted-foreground">
-              {cl.length === 0 ? "Sin clases aún" : `${cl.length} clase${cl.length === 1 ? "" : "s"} · ${hoursText(weekMin)} por semana`}
-            </span>
+        <span className="h-11 w-1.5 shrink-0 rounded-full" style={{ background: s.border }} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-semibold leading-tight">{s.name}</span>
+          <span className="num mt-0.5 block truncate text-xs text-muted-foreground">
+            {cl.length === 0 ? "Sin clases aún" : `${days.join(" · ")} · ${hoursText(weekMin)} por semana`}
           </span>
-          <ChevronRight className="mt-1 size-4 shrink-0 text-muted-foreground/50 transition group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
-        </span>
-
-        <span className="flex items-center justify-between gap-3">
-          {own.length > 0 ? (
-            <span className="flex min-w-0 items-center gap-2">
-              <span className="flex -space-x-2">
-                {own.slice(0, 3).map((t) => <Avatar key={t.id} name={t.name} color={s} size="size-7 ring-2 ring-card" />)}
-              </span>
-              <span className="truncate text-xs text-muted-foreground">
-                {own[0].name || "Profesor"}{own.length > 1 ? ` +${own.length - 1}` : ""}
-              </span>
-            </span>
-          ) : (
-            <span className="flex items-center gap-1.5 text-xs italic text-muted-foreground/70"><UserPlus className="size-3.5" />Asignar profesor</span>
-          )}
-          <span className="flex shrink-0 gap-1" aria-label="Días con clase">
-            {DAY_SHORT.map((d, i) => (
-              <span key={d} className={cn("grid size-5 place-items-center rounded-full text-[9px] font-semibold", days.has(i) ? "text-neutral-900" : "bg-foreground/[0.06] text-muted-foreground/60")}
-                style={days.has(i) ? { backgroundColor: s.bg, boxShadow: `inset 0 0 0 1px ${s.border}` } : undefined}>
-                {d}
-              </span>
-            ))}
+          <span className={cn("mt-1.5 flex items-center gap-1.5 text-xs", own.length ? "text-foreground/80" : "text-muted-foreground/60")}>
+            <Users className="size-3.5 shrink-0" />
+            <span className="truncate">{own.length ? `${own[0].name || "Profesor"}${own.length > 1 ? ` +${own.length - 1}` : ""}` : "Sin profesor"}</span>
           </span>
         </span>
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground/50 transition group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
       </button>
     )
   }
@@ -302,59 +279,6 @@ export function MateriasTab({
           onSave={saveSubject} onCancel={() => (back ? back() : close())} />
       </>
     )
-  } else if (dlg?.view === "teacher" && current) {
-    body = (
-      <>
-        {header("Nuevo profesor", current.name, () => open({ subjectId: current.id, view: "assign" }))}
-        <TeacherForm subjects={subjects} presetSubjectIds={[current.id]} timeLabel={timeLabel}
-          onSave={(data, subjectIds) => { saveTeacher(ops, undefined, data, subjectIds); open({ subjectId: current.id, view: "detail" }) }}
-          onCancel={() => open({ subjectId: current.id, view: "assign" })} />
-      </>
-    )
-  } else if (dlg?.view === "assign" && current) {
-    const list = query.trim() ? teachers.filter((t) => norm(`${t.name} ${t.role ?? ""}`).includes(norm(query.trim()))) : teachers
-    const assigned = new Set(current.teacherIds ?? [])
-    body = (
-      <>
-        {header("Profesores de la materia", current.name, () => open({ subjectId: current.id, view: "detail" }))}
-        {teachers.length > 5 && (
-          <div className="flex items-center gap-2 rounded-xl border bg-card px-3">
-            <Search className="size-4 shrink-0 text-muted-foreground" />
-            <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar profesor…" aria-label="Buscar profesor"
-              className="h-10 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
-          </div>
-        )}
-        {teachers.length === 0 ? (
-          <p className="rounded-2xl border border-dashed p-5 text-center text-sm text-muted-foreground">Aún no tienes profesores guardados. Crea el primero.</p>
-        ) : (
-          <ul className="max-h-64 space-y-1.5 overflow-y-auto" role="listbox" aria-multiselectable aria-label="Profesores">
-            {list.map((t) => {
-              const on = assigned.has(t.id)
-              return (
-                <li key={t.id}>
-                  <button type="button" role="option" aria-selected={on} onClick={() => toggleAssign(ops, t.id, current.id, !on)}
-                    className={cn("flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition active:scale-[0.99]", on ? "border-foreground/40 bg-foreground/[0.05]" : "hover:border-foreground/25")}>
-                    <Avatar name={t.name} color={teacherColor(t, subjects)} size="size-9" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium">{t.name || "Sin nombre"}</span>
-                      {t.role && <span className="block truncate text-xs text-muted-foreground">{t.role}</span>}
-                    </span>
-                    <span className={cn("grid size-6 shrink-0 place-items-center rounded-full border", on ? "border-foreground bg-foreground text-background" : "border-muted-foreground/40")}>
-                      {on && <Check className="size-3.5" />}
-                    </span>
-                  </button>
-                </li>
-              )
-            })}
-            {list.length === 0 && <li className="px-3 py-4 text-center text-sm text-muted-foreground">Nadie coincide con «{query.trim()}».</li>}
-          </ul>
-        )}
-        <div className="flex items-center justify-between gap-2">
-          <Button type="button" variant="ghost" onClick={() => open({ subjectId: current.id, view: "teacher" })}><UserPlus className="size-4" />Crear profesor nuevo</Button>
-          <Button type="button" onClick={() => open({ subjectId: current.id, view: "detail" })}>Listo</Button>
-        </div>
-      </>
-    )
   } else if (dlg?.view === "detail" && current) {
     const s = current
     const own = teachersOf(s, teachers)
@@ -380,75 +304,49 @@ export function MateriasTab({
         )}
 
         {/* Profesores */}
-        <section className="space-y-2.5">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Profesores <span className="font-normal normal-case tracking-normal">{own.length || ""}</span></h3>
-            {own.length > 0 && <Button size="sm" variant="secondary" onClick={() => open({ subjectId: s.id, view: "assign" })}><Plus className="size-3.5" />Asignar</Button>}
-          </div>
-          {own.length === 0 ? (
-            <button type="button" onClick={() => open({ subjectId: s.id, view: "assign" })}
-              className="flex w-full flex-col items-center gap-1.5 rounded-2xl border border-dashed px-4 py-6 text-center transition hover:border-foreground/40 hover:bg-foreground/[0.03]">
-              <UserPlus className="size-5 text-muted-foreground" />
-              <span className="text-sm font-medium">Asignar profesor</span>
-              <span className="max-w-[17rem] text-xs text-muted-foreground">Elige uno de tus profesores o crea uno nuevo. Puedes asignar varios (teoría, laboratorio…).</span>
-            </button>
-          ) : (
-            <ul className="space-y-1.5">
-              {own.map((t) => {
-                const n = cl.filter((c) => c.teacherId === t.id).length
-                return (
-                  <li key={t.id} className="flex items-center gap-2 rounded-xl border bg-card p-2 pl-3">
-                    <button type="button" onClick={() => { close(); onOpenTeacher(t.id) }} className="flex min-w-0 flex-1 items-center gap-3 text-left active:scale-[0.99]">
-                      <Avatar name={t.name} color={s} size="size-9" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">{t.name || "Sin nombre"}</span>
-                        <span className="block truncate text-xs text-muted-foreground">{[t.role, n > 0 && `Da ${n} clase${n === 1 ? "" : "s"}`].filter(Boolean).join(" · ") || "Ver datos"}</span>
-                      </span>
-                    </button>
-                    {t.email && <a href={`mailto:${t.email}`} aria-label={`Escribir a ${t.name}`} className="tap grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition hover:bg-foreground/[0.07] hover:text-foreground"><Mail className="size-4" /></a>}
-                    {t.phone && <a href={`tel:${t.phone.replace(/\s/g, "")}`} aria-label={`Llamar a ${t.name}`} className="tap grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition hover:bg-foreground/[0.07] hover:text-foreground"><Phone className="size-4" /></a>}
-                    <button type="button" onClick={() => toggleAssign(ops, t.id, s.id, false)} aria-label={`Quitar a ${t.name} de esta materia`} title="Quitar de esta materia"
-                      className="tap grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"><X className="size-4" /></button>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
+        <section className="space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Profesores</h3>
+          <MultiPicker variant="rows" noun="profesor" value={s.teacherIds ?? []} onCreate={(name) => toggleAssign(ops, createTeacherByName(name), s.id, true)}
+            onChange={(ids) => {
+              const cur = s.teacherIds ?? []
+              ids.filter((id) => !cur.includes(id)).forEach((id) => toggleAssign(ops, id, s.id, true))
+              cur.filter((id) => !ids.includes(id)).forEach((id) => toggleAssign(ops, id, s.id, false))
+            }}
+            onOpen={(id) => { close(); onOpenTeacher(id) }}
+            items={teachers.map((t) => ({
+              id: t.id, label: t.name || "Profesor", color: teacherColor(t, subjects),
+              sub: t.role || undefined,
+              lead: <Avatar name={t.name || "?"} color={teacherColor(t, subjects)} size="size-8 text-[11px]" />,
+            }))} />
         </section>
 
         {/* Clases */}
-        <section className="space-y-2.5">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Clases <span className="font-normal normal-case tracking-normal">{cl.length || ""}</span></h3>
-            {cl.length > 0 && <Button size="sm" variant="secondary" onClick={() => { close(); onAddClass(s.id) }}><Plus className="size-3.5" />Agregar</Button>}
-          </div>
-          {cl.length === 0 ? (
-            <button type="button" onClick={() => { close(); onAddClass(s.id) }}
-              className="flex w-full flex-col items-center gap-1.5 rounded-2xl border border-dashed px-4 py-6 text-center transition hover:border-foreground/40 hover:bg-foreground/[0.03]">
-              <CalendarPlus className="size-5 text-muted-foreground" />
-              <span className="text-sm font-medium">Agregar clase al horario</span>
-              <span className="text-xs text-muted-foreground">Elige los días y la hora en que se dicta.</span>
-            </button>
-          ) : (
-            <ul className="space-y-1.5">
+        <section className="space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Clases</h3>
+          {cl.length > 0 && (
+            <ul className="divide-y overflow-hidden rounded-xl border bg-card">
               {cl.map((c) => {
                 const t = own.find((x) => x.id === c.teacherId)
                 return (
                   <li key={c.id}>
                     <button type="button" onClick={() => { close(); onEditClass(c) }}
-                      className="flex w-full items-center gap-3 rounded-xl border bg-card px-3 py-2.5 text-left transition hover:border-foreground/25 active:scale-[0.99]">
+                      className="flex min-h-12 w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-foreground/[0.05] active:scale-[0.99]">
                       <span className="grid h-7 w-11 shrink-0 place-items-center rounded-lg text-[11px] font-semibold text-neutral-900" style={{ backgroundColor: s.bg, boxShadow: `inset 0 0 0 1px ${s.border}` }}>{SHORT[c.day]}</span>
                       <span className="min-w-0 flex-1">
                         <span className="num block text-sm font-medium">{timeLabel(c.startTime)} – {timeLabel(c.endTime)}</span>
                         <span className="block truncate text-xs text-muted-foreground">{[c.room, c.group && `Grupo ${c.group}`, t?.name].filter(Boolean).join(" · ") || "Sin salón asignado"}</span>
                       </span>
-                      <Pencil className="size-3.5 shrink-0 text-muted-foreground/60" />
+                      <ChevronRight className="size-4 shrink-0 text-muted-foreground/60" />
                     </button>
                   </li>
                 )
               })}
             </ul>
           )}
+          <button type="button" onClick={() => { close(); onAddClass(s.id) }}
+            className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-dashed px-3 text-sm text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
+            <Plus className="size-4" />{cl.length === 0 ? "Agregar la primera clase" : "Agregar clase"}
+          </button>
         </section>
 
         {/* Eliminar */}
@@ -482,10 +380,6 @@ export function MateriasTab({
         </div>
       ) : (
         <>
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm text-muted-foreground">Toca una materia para ver sus clases y asignar profesores.</p>
-            <Button size="sm" onClick={() => open({ subjectId: null, view: "subject" })} className="shrink-0 rounded-full"><Plus className="size-4" />Materia</Button>
-          </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">{subjects.map(card)}</div>
         </>
       )}

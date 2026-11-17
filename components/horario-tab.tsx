@@ -274,6 +274,12 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
               : classes.length === 0 ? "Toca una clase para editarla." : `${classes.length} clase${classes.length === 1 ? "" : "s"} · ${Number.isInteger(totalHours) ? totalHours : totalHours.toFixed(1)} h por semana`}
           </p>
         </div>
+        {view === "materias" && subjects.length > 0 && (
+          <Button onClick={() => setRequest({ kind: "new" })} size="sm" className="rounded-full shrink-0"><Plus className="mr-1 size-4" /> Materia</Button>
+        )}
+        {view === "profesores" && teachers.length > 0 && (
+          <Button onClick={() => setTeacherRequest({ kind: "new" })} size="sm" className="rounded-full shrink-0"><Plus className="mr-1 size-4" /> Profesor</Button>
+        )}
         {view === "semana" && (
           <div className="flex items-center gap-2">
             {classes.length > 0 && (

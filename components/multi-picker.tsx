@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useState, type ReactNode } from "react"
-import { Check, Plus, X } from "lucide-react"
+import { Check, ChevronRight, Plus, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const norm = (t: string) => t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase()
@@ -20,7 +20,7 @@ export type PickItem = {
  * Campo de etiquetas con buscador integrado: lo elegido vive como chips dentro del propio campo
  * y las sugerencias solo se abren al tocarlo (sin lista ni cuadro de búsqueda siempre a la vista).
  */
-export function MultiPicker({ items, value, onChange, noun, onCreate }: {
+export function MultiPicker({ items, value, onChange, noun, onCreate, variant = "chips", onOpen }: {
   items: PickItem[]
   value: string[]
   onChange: (ids: string[]) => void
@@ -28,6 +28,10 @@ export function MultiPicker({ items, value, onChange, noun, onCreate }: {
   noun: string
   /** Si se pasa, aparece «Crear …» cuando lo escrito no existe */
   onCreate?: (name: string) => void
+  /** "chips": lo elegido va dentro del campo. "rows": lo elegido es una lista de filas y el campo solo agrega. */
+  variant?: "chips" | "rows"
+  /** Variante "rows": al tocar una fila (p. ej. para ver su ficha) */
+  onOpen?: (id: string) => void
 }) {
   const [query, setQuery] = useState("")
   const [open, setOpen] = useState(false)
@@ -41,6 +45,7 @@ export function MultiPicker({ items, value, onChange, noun, onCreate }: {
   const options = items.filter((i) => !value.includes(i.id) && (!q || norm(i.label).includes(q) || norm(i.sub ?? "").includes(q)))
   const canCreate = !!onCreate && q.length > 0 && !items.some((i) => norm(i.label) === q)
   const rows = options.length + (canCreate ? 1 : 0)
+  const rows_ = variant === "rows"
   const idx = Math.min(active, Math.max(rows - 1, 0))
 
   const add = (id: string) => { onChange([...value, id]); setQuery(""); setActive(0) }
@@ -59,7 +64,7 @@ export function MultiPicker({ items, value, onChange, noun, onCreate }: {
     } else if (e.key === "Escape" && open) {
       e.preventDefault(); e.stopPropagation(); e.nativeEvent.stopImmediatePropagation()
       setOpen(false)
-    } else if (e.key === "Backspace" && !query && value.length) {
+    } else if (e.key === "Backspace" && !query && value.length && variant === "chips") {
       remove(value[value.length - 1])
     }
   }
@@ -67,10 +72,31 @@ export function MultiPicker({ items, value, onChange, noun, onCreate }: {
   const keepFocus = (e: React.MouseEvent) => e.preventDefault()
 
   return (
-    <div ref={rootRef} className="relative" onBlur={(e) => { if (!rootRef.current?.contains(e.relatedTarget as Node | null)) setOpen(false) }}>
+    <div ref={rootRef} className={cn("relative", rows_ && "space-y-2")} onBlur={(e) => { if (!rootRef.current?.contains(e.relatedTarget as Node | null)) setOpen(false) }}>
+      {rows_ && selected.length > 0 && (
+        <ul className="divide-y overflow-hidden rounded-xl border bg-card">
+          {selected.map((i) => (
+            <li key={i.id} className="animate-scale-in flex items-center pr-1">
+              <button type="button" onClick={() => onOpen?.(i.id)} disabled={!onOpen}
+                className="flex min-h-12 min-w-0 flex-1 items-center gap-3 px-3 py-2 text-left transition enabled:hover:bg-foreground/[0.05] enabled:active:scale-[0.99]">
+                {i.lead}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{i.label}</span>
+                  {i.sub && <span className="block truncate text-xs text-muted-foreground">{i.sub}</span>}
+                </span>
+                {onOpen && <ChevronRight className="size-4 shrink-0 text-muted-foreground/60" />}
+              </button>
+              <button type="button" onClick={() => remove(i.id)} aria-label={`Quitar ${i.label}`} title="Quitar"
+                className="tap grid size-9 shrink-0 place-items-center rounded-lg text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive">
+                <X className="size-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       <div onClick={() => inputRef.current?.focus()}
         className={cn("flex min-h-11 cursor-text flex-wrap items-center gap-1.5 rounded-xl border bg-transparent px-2 py-1.5 transition", open ? "border-ring ring-3 ring-ring/30" : "hover:border-foreground/30")}>
-        {selected.map((i) => (
+        {!rows_ && selected.map((i) => (
           <span key={i.id} className="animate-scale-in flex max-w-full items-center gap-1.5 rounded-full border py-0.5 pl-1 pr-1 text-xs font-medium text-neutral-900"
             style={{ backgroundColor: i.color.bg, borderColor: i.color.border }}>
             {i.lead}
@@ -81,9 +107,10 @@ export function MultiPicker({ items, value, onChange, noun, onCreate }: {
             </button>
           </span>
         ))}
+        {rows_ && <Plus className="ml-1.5 size-4 shrink-0 text-muted-foreground" />}
         <input ref={inputRef} value={query} onChange={(e) => { setQuery(e.target.value); setActive(0); setOpen(true) }}
           onFocus={() => setOpen(true)} onKeyDown={onKeyDown} role="combobox" aria-expanded={open} aria-autocomplete="list" aria-label={`Agregar ${noun}`}
-          placeholder={selected.length ? `Agregar otro…` : `Buscar o agregar ${noun}…`} enterKeyHint="done"
+          placeholder={rows_ ? `Agregar ${noun}…` : selected.length ? `Agregar otro…` : onCreate ? `Buscar o crear ${noun}…` : `Buscar ${noun}…`} enterKeyHint="done"
           className="h-7 min-w-28 flex-1 bg-transparent px-1.5 text-sm outline-none placeholder:text-muted-foreground" />
       </div>
 

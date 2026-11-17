@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Plus, Pencil, Trash2, Mail, Phone, MapPin, Clock, Search, UserPlus, Check, Users, BookOpen } from "lucide-react"
+import { Plus, Pencil, Trash2, Mail, Phone, MapPin, Clock, Search, UserPlus, Users, ChevronRight, ArrowLeft } from "lucide-react"
 import { MultiPicker } from "./multi-picker"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -64,24 +64,20 @@ export function ProfesoresTab({ teachers, setTeachers, subjects, setSubjects, cl
   const card = (t: Teacher) => {
     const own = subjectsOf(t.id, subjects)
     return (
-      <div key={t.id} className="animate-pop flex items-center gap-2 rounded-2xl border bg-card p-3 shadow-(--card-shadow) transition duration-200 hover:border-foreground/25">
-        <button type="button" onClick={() => open({ view: "detail", teacherId: t.id })} className="flex min-w-0 flex-1 items-center gap-3 text-left active:scale-[0.99]">
-          <Avatar name={t.name} color={teacherColor(t, subjects)} size="size-11" />
-          <span className="min-w-0 flex-1">
-            <span className="flex items-center gap-1.5">
-              <span className="truncate font-semibold leading-tight">{t.name || "Sin nombre"}</span>
-              {t.slots && t.slots.length > 0 && <Clock className="size-3.5 shrink-0 text-muted-foreground" aria-label="Tiene asesorías" />}
-            </span>
-            <span className={cn("block truncate text-xs", own.length ? "text-muted-foreground" : "italic text-muted-foreground/70")}>
-              {[t.role, own.map((s) => s.name).join(", ") || "Sin materia asignada"].filter(Boolean).join(" · ")}
-            </span>
+      <button key={t.id} type="button" onClick={() => open({ view: "detail", teacherId: t.id })}
+        className="group animate-pop flex w-full items-center gap-3 rounded-2xl border bg-card p-3 text-left shadow-(--card-shadow) transition duration-200 hover:-translate-y-0.5 hover:border-foreground/25 active:scale-[0.99]">
+        <Avatar name={t.name} color={teacherColor(t, subjects)} size="size-11" />
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1.5">
+            <span className="truncate font-semibold leading-tight">{t.name || "Sin nombre"}</span>
+            {t.slots && t.slots.length > 0 && <Clock className="size-3.5 shrink-0 text-muted-foreground" aria-label="Tiene asesorías" />}
           </span>
-        </button>
-        <div className="flex shrink-0 gap-1.5">
-          {t.email && <a href={`mailto:${t.email}`} aria-label={`Escribir a ${t.name}`} title={t.email} className="tap grid size-9 place-items-center rounded-xl bg-foreground/[0.06] text-muted-foreground transition hover:bg-foreground/[0.12] hover:text-foreground"><Mail className="size-4" /></a>}
-          {t.phone && <a href={`tel:${t.phone.replace(/\s/g, "")}`} aria-label={`Llamar a ${t.name}`} title={t.phone} className="tap grid size-9 place-items-center rounded-xl bg-foreground/[0.06] text-muted-foreground transition hover:bg-foreground/[0.12] hover:text-foreground"><Phone className="size-4" /></a>}
-        </div>
-      </div>
+          <span className={cn("block truncate text-xs", own.length ? "text-muted-foreground" : "text-muted-foreground/60")}>
+            {[t.role, own.map((s) => s.name).join(", ") || "Sin materia"].filter(Boolean).join(" · ")}
+          </span>
+        </span>
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground/50 transition group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
+      </button>
     )
   }
 
@@ -152,8 +148,9 @@ export function ProfesoresTab({ teachers, setTeachers, subjects, setSubjects, cl
               ))}
             </div>
           ) : (
-            <button type="button" onClick={() => open({ view: "form", teacherId: t.id })} className="flex items-center gap-1.5 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
-              <Plus className="size-3.5" />Agregar horario de asesoría
+            <button type="button" onClick={() => open({ view: "form", teacherId: t.id })}
+              className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-dashed px-3 text-sm text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
+              <Plus className="size-4" />Agregar horario de asesoría
             </button>
           )}
           {t.hours && <p className="text-xs text-muted-foreground">{t.hours}</p>}
@@ -164,23 +161,17 @@ export function ProfesoresTab({ teachers, setTeachers, subjects, setSubjects, cl
           {subjects.length === 0 ? (
             <p className="text-xs text-muted-foreground">Aún no tienes materias. Créalas en la pestaña Materias.</p>
           ) : (
-            <>
-              <MultiPicker noun="materia" value={own.map((x) => x.id)}
-                onChange={(ids) => {
-                  const cur = own.map((x) => x.id)
-                  ids.filter((id) => !cur.includes(id)).forEach((id) => toggleAssign(ops, t.id, id, true))
-                  cur.filter((id) => !ids.includes(id)).forEach((id) => toggleAssign(ops, t.id, id, false))
-                }}
-                items={subjects.map((s) => ({
-                  id: s.id, label: s.name, color: { bg: s.bg, border: s.border },
-                  lead: <span className="size-3.5 shrink-0 rounded-full" style={{ backgroundColor: s.bg, boxShadow: `0 0 0 1.5px ${s.border}` }} />,
-                }))} />
-              {own.length > 0 && (
-                <button type="button" onClick={() => { close(); onOpenSubject(own[0].id) }} className="flex items-center gap-1.5 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
-                  <BookOpen className="size-3.5" />Ver {own[0].name}
-                </button>
-              )}
-            </>
+            <MultiPicker variant="rows" noun="materia" value={own.map((x) => x.id)}
+              onChange={(ids) => {
+                const cur = own.map((x) => x.id)
+                ids.filter((id) => !cur.includes(id)).forEach((id) => toggleAssign(ops, t.id, id, true))
+                cur.filter((id) => !ids.includes(id)).forEach((id) => toggleAssign(ops, t.id, id, false))
+              }}
+              onOpen={(id) => { close(); onOpenSubject(id) }}
+              items={subjects.map((s) => ({
+                id: s.id, label: s.name, color: { bg: s.bg, border: s.border },
+                lead: <span className="mx-1 size-4 shrink-0 rounded-full" style={{ backgroundColor: s.bg, boxShadow: `0 0 0 2px ${s.border}` }} />,
+              }))} />
           )}
         </section>
 
@@ -214,27 +205,29 @@ export function ProfesoresTab({ teachers, setTeachers, subjects, setSubjects, cl
         </div>
       ) : (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            {hasOfficeHours ? (
-              <div className="flex gap-0.5 rounded-lg bg-muted p-0.5 text-xs font-medium" role="group" aria-label="Vista de profesores">
-                {([["directorio", "Directorio"], ["asesorias", "Asesorías"]] as const).map(([m, label]) => (
-                  <button key={m} type="button" aria-pressed={view === m} onClick={() => setMode(m)}
-                    className={cn("rounded-md px-3 py-1.5 transition", view === m ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>{label}</button>
-                ))}
-              </div>
-            ) : <p className="text-sm text-muted-foreground">Tus profesores y sus datos, a un toque.</p>}
-            <Button size="sm" onClick={() => open({ view: "form" })} className="shrink-0 rounded-full"><Plus className="size-4" />Profesor</Button>
-          </div>
-
           {view === "asesorias" ? (
-            <AsesoriasView teachers={teachers} subjects={subjects} nowMin={nowMin} todayIdx={todayIdx} timeLabel={timeLabel} onOpen={(id) => open({ view: "detail", teacherId: id })} />
+            <>
+              <button type="button" onClick={() => setMode("directorio")} className="tap -ml-1 flex min-h-9 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-muted-foreground transition hover:bg-foreground/[0.06] hover:text-foreground">
+                <ArrowLeft className="size-4" />Profesores
+              </button>
+              <AsesoriasView teachers={teachers} subjects={subjects} nowMin={nowMin} todayIdx={todayIdx} timeLabel={timeLabel} onOpen={(id) => open({ view: "detail", teacherId: id })} />
+            </>
           ) : (
             <>
-              {teachers.length > 5 && (
-                <div className="flex items-center gap-2 rounded-xl border bg-card px-3">
-                  <Search className="size-4 shrink-0 text-muted-foreground" />
-                  <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar profesor o materia…" aria-label="Buscar profesor"
-                    className="h-10 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
+              {(teachers.length > 5 || hasOfficeHours) && (
+                <div className="flex items-center gap-2">
+                  {teachers.length > 5 && (
+                    <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border bg-card px-3">
+                      <Search className="size-4 shrink-0 text-muted-foreground" />
+                      <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar profesor o materia…" aria-label="Buscar profesor"
+                        className="h-10 w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
+                    </div>
+                  )}
+                  {hasOfficeHours && (
+                    <Button type="button" variant="outline" onClick={() => setMode("asesorias")} className="ml-auto h-10 shrink-0 gap-1.5 rounded-xl">
+                      <Clock className="size-4" />Asesorías
+                    </Button>
+                  )}
                 </div>
               )}
               {shown.length === 0 ? (

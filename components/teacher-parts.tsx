@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef } from "react"
-import { Plus, Mail, Phone, MapPin, Clock, Copy, Check, X } from "lucide-react"
+import { Plus, Mail, Phone, MapPin, Clock, Copy, Check, X, ChevronDown } from "lucide-react"
 import { MultiPicker } from "./multi-picker"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -189,6 +189,9 @@ export function TeacherForm({ teacher, subjects, presetSubjectIds, timeLabel, on
   const pendingRef = useRef<(() => OfficeSlot[]) | null>(null)
   const [subjectIds, setSubjectIds] = useState<string[]>(() => (teacher ? subjectsOf(teacher.id, subjects).map((s) => s.id) : presetSubjectIds ?? []))
   const [tried, setTried] = useState(false)
+  const [customRole, setCustomRole] = useState(() => !!teacher?.role && !TEACHER_ROLES.includes(teacher.role))
+  // contacto y asesorías: plegados al crear, abiertos si ya hay datos
+  const [more, setMore] = useState(() => !!(teacher?.email || teacher?.phone || teacher?.office || teacher?.hours || teacher?.slots?.length))
 
   const nameOk = name.trim().length > 0
   const emailOk = email.trim() === "" || /^\S+@\S+\.\S+$/.test(email.trim())
@@ -196,7 +199,8 @@ export function TeacherForm({ teacher, subjects, presetSubjectIds, timeLabel, on
   function submit(e: React.FormEvent) {
     e.preventDefault()
     setTried(true)
-    if (!nameOk || !emailOk) return
+    if (!nameOk) return
+    if (!emailOk) { setMore(true); return }
     const clean = (v: string) => v.trim() || undefined
     const all = [...slots, ...(pendingRef.current?.() ?? [])].sort(slotSort)
     onSave({ name: name.trim(), role: clean(role), email: clean(email), phone: clean(phone), office: clean(office), hours: clean(hours), slots: all.length ? all : undefined }, subjectIds)
@@ -213,19 +217,43 @@ export function TeacherForm({ teacher, subjects, presetSubjectIds, timeLabel, on
       </div>
       {tried && !nameOk && <p className="-mt-2 text-xs text-destructive">Escribe el nombre del profesor.</p>}
 
-      <div className="space-y-1.5">
-        <Label htmlFor="t-role">Rol <span className="font-normal text-muted-foreground">(opcional)</span></Label>
-        <Input id="t-role" value={role} onChange={(e) => setRole(e.target.value)} placeholder="Teoría, laboratorio, monitor…" maxLength={30} />
+      <div className="space-y-2">
+        <Label>Rol <span className="font-normal text-muted-foreground">(opcional)</span></Label>
         <div className="flex flex-wrap gap-1.5">
           {TEACHER_ROLES.map((r) => (
-            <button key={r} type="button" onClick={() => setRole(role === r ? "" : r)} aria-pressed={role === r}
-              className={cn("rounded-full border px-2.5 py-1 text-xs font-medium transition", role === r ? "border-foreground bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}>
+            <button key={r} type="button" onClick={() => { setRole(role === r ? "" : r); setCustomRole(false) }} aria-pressed={role === r && !customRole}
+              className={cn("min-h-8 rounded-full border px-3 py-1 text-xs font-medium transition", role === r && !customRole ? "border-foreground bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}>
               {r}
             </button>
           ))}
+          <button type="button" onClick={() => { setCustomRole((v) => !v); if (!customRole && TEACHER_ROLES.includes(role)) setRole("") }} aria-pressed={customRole}
+            className={cn("min-h-8 rounded-full border px-3 py-1 text-xs font-medium transition", customRole ? "border-foreground bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}>
+            Otro…
+          </button>
         </div>
+        {customRole && <Input autoFocus value={role} onChange={(e) => setRole(e.target.value)} placeholder="Ej: Asistente, Invitado…" maxLength={30} aria-label="Rol" />}
       </div>
 
+      <div className="space-y-2">
+        <Label>Materias <span className="font-normal text-muted-foreground">(opcional)</span></Label>
+        {subjects.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Aún no tienes materias. Podrás asignarlas después.</p>
+        ) : (
+          <MultiPicker noun="materia" value={subjectIds} onChange={setSubjectIds}
+            items={subjects.map((sb) => ({
+              id: sb.id, label: sb.name, color: { bg: sb.bg, border: sb.border },
+              lead: <span className="size-3.5 shrink-0 rounded-full" style={{ backgroundColor: sb.bg, boxShadow: `0 0 0 1.5px ${sb.border}` }} />,
+            }))} />
+        )}
+      </div>
+
+      <div className="space-y-3">
+        <button type="button" onClick={() => setMore((v) => !v)} aria-expanded={more}
+          className="flex min-h-11 w-full items-center gap-2 rounded-xl border border-dashed px-3 text-sm text-muted-foreground transition hover:border-foreground/40 hover:text-foreground">
+          <ChevronDown className={cn("size-4 transition-transform", more && "rotate-180")} />
+          Contacto y asesorías <span className="text-xs">(opcional)</span>
+        </button>
+        {more && (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="t-email" className="flex items-center gap-1.5"><Mail className="size-3.5" />Correo</Label>
@@ -244,17 +272,6 @@ export function TeacherForm({ teacher, subjects, presetSubjectIds, timeLabel, on
           <OfficeHoursEditor slots={slots} setSlots={setSlots} note={hours} setNote={setHours} timeLabel={timeLabel} pendingRef={pendingRef} />
         </div>
       </div>
-
-      <div className="space-y-2">
-        <Label>Materias <span className="font-normal text-muted-foreground">(opcional)</span></Label>
-        {subjects.length === 0 ? (
-          <p className="text-xs text-muted-foreground">Aún no tienes materias. Podrás asignarlas después.</p>
-        ) : (
-          <MultiPicker noun="materia" value={subjectIds} onChange={setSubjectIds}
-            items={subjects.map((sb) => ({
-              id: sb.id, label: sb.name, color: { bg: sb.bg, border: sb.border },
-              lead: <span className="size-3.5 shrink-0 rounded-full" style={{ backgroundColor: sb.bg, boxShadow: `0 0 0 1.5px ${sb.border}` }} />,
-            }))} />
         )}
       </div>
 
