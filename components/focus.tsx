@@ -213,10 +213,8 @@ export function FocusTab({ focus, subjects, subjectConfigs, onGoal }: {
       </header>
 
       <div className="grid gap-6 md:grid-cols-2 md:items-start lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_24rem]">
-        {/* Sesión: nueva o en curso (con un leve tinte del color de la materia) */}
+        {/* Sesión: nueva o en curso */}
         <section className={cn(card, "relative md:sticky md:top-20 lg:top-10")}>
-          <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-40 transition-[background] duration-500"
-            style={{ background: `linear-gradient(to bottom, color-mix(in oklab, ${accent} 16%, transparent), transparent)` }} />
           {run ? (
             <div className="relative flex flex-col items-center gap-4 p-5 text-center">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{run.kind === "break" ? "Descanso en curso" : run.pausedAt ? "En pausa" : "Sesión en curso"}</p>
@@ -228,7 +226,7 @@ export function FocusTab({ focus, subjects, subjectConfigs, onGoal }: {
                   </span>
                 </Ring>
               </span>
-              <Button onClick={() => focus.setOpen(true)} className="h-14 w-full rounded-2xl text-lg font-semibold sm:h-14" style={{ boxShadow: `0 12px 28px -14px ${accent}` }}>Abrir la sesión</Button>
+              <Button onClick={() => focus.setOpen(true)} className="h-14 w-full rounded-2xl bg-brand text-lg font-semibold text-background shadow-none sm:h-14">Abrir la sesión</Button>
             </div>
           ) : (
             <div className="relative space-y-5 p-4 sm:p-5 lg:p-6">
@@ -236,7 +234,7 @@ export function FocusTab({ focus, subjects, subjectConfigs, onGoal }: {
 
               {/* Duración: − / número (toca para escribir) / + */}
               <div className="flex items-center justify-center gap-5">
-                <Button variant="outline" size="icon" onClick={() => setMinutes((m) => clampMin(m - 5))} aria-label="Restar 5 minutos" disabled={minutes <= 1} className="size-11 rounded-full sm:size-11"><Minus className="size-5" /></Button>
+                <Button variant="outline" size="icon" onClick={() => setMinutes((m) => clampMin(m - 5))} aria-label="Restar 5 minutos" disabled={minutes <= 1} className="size-11 rounded-full border-transparent bg-brand/15 text-brand hover:bg-brand/25 hover:text-brand sm:size-11"><Minus className="size-5" /></Button>
                 <div className="w-32 text-center">
                   {draft !== null ? (
                     <input autoFocus value={draft} inputMode="numeric" maxLength={3} aria-label="Minutos de la sesión"
@@ -248,21 +246,20 @@ export function FocusTab({ focus, subjects, subjectConfigs, onGoal }: {
                   )}
                   <p className="mt-1.5 text-xs text-muted-foreground">{draft !== null ? "escribe los minutos" : "minutos · toca para editar"}</p>
                 </div>
-                <Button variant="outline" size="icon" onClick={() => setMinutes((m) => clampMin(m + 5))} aria-label="Sumar 5 minutos" disabled={minutes >= MAX_MIN} className="size-11 rounded-full sm:size-11"><Plus className="size-5" /></Button>
+                <Button variant="outline" size="icon" onClick={() => setMinutes((m) => clampMin(m + 5))} aria-label="Sumar 5 minutos" disabled={minutes >= MAX_MIN} className="size-11 rounded-full border-transparent bg-brand/15 text-brand hover:bg-brand/25 hover:text-brand sm:size-11"><Plus className="size-5" /></Button>
               </div>
 
               {/* Atajos con el mismo selector segmentado de Horario (Lista / Horas) */}
               <div className="grid grid-cols-5 rounded-xl bg-muted p-1 text-sm font-medium" role="radiogroup" aria-label="Duraciones rápidas">
                 {PRESETS.map((m) => (
                   <button key={m} type="button" role="radio" aria-checked={minutes === m} onClick={() => { setMinutes(m); setDraft(null) }}
-                    className={cn("num rounded-lg py-1.5 transition active:scale-95", minutes === m ? "bg-background text-brand shadow-sm ring-1 ring-border/60" : "text-muted-foreground hover:text-foreground")}>{m}</button>
+                    className={cn("num rounded-lg py-1.5 transition active:scale-95", minutes === m ? "bg-brand/15 text-brand" : "text-muted-foreground hover:text-foreground")}>{m}</button>
                 ))}
               </div>
 
               <SubjectPicker subjects={subjects} value={valid} onChange={setSubjectId} noneLabel="Sin materia" />
 
-              <Button onClick={() => focus.start(valid, minutes)} className="h-14 w-full rounded-2xl text-lg font-semibold sm:h-14 transition-shadow duration-500"
-                style={{ boxShadow: `0 12px 28px -14px ${accent}` }}>
+              <Button onClick={() => focus.start(valid, minutes)} className="h-14 w-full rounded-2xl bg-brand text-lg font-semibold text-background shadow-none sm:h-14">
                 <Play className="size-5 fill-current" />Empezar · {fmtMin(minutes)}
               </Button>
             </div>
