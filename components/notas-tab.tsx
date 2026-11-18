@@ -1,11 +1,13 @@
 "use client"
 
 import { useEffect, useId, useRef, useState } from "react"
-import { ChevronDown, Plus, Trash2, Pencil, Check, X, EyeOff, Eye, Target, RotateCcw } from "lucide-react"
+import { ChevronDown, ChevronRight, Plus, Trash2, EyeOff, Eye, Target, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { Ring } from "@/components/ui/ring"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useSheetBack } from "@/lib/use-sheet-back"
 import { CountUp } from "@/components/ui/count-up"
 import { cn } from "@/lib/utils"
 import {
@@ -223,88 +225,28 @@ function SubjectGrades({
   goal: number
   onGoal: (goal: number) => void
 }) {
-  const [gName, setGName] = useState("")
-  const [gScore, setGScore] = useState("")
-  const [gWeight, setGWeight] = useState("")
-  const [error, setError] = useState("")
-
-  // Estado de edición inline
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editDraft, setEditDraft] = useState<{ name: string; score: string; weight: string }>({
-    name: "",
-    score: "",
-    weight: "",
-  })
+  // La hoja de agregar/editar se mantiene montada: al cerrarse solo cambia `open`, así no parpadea al salir.
+  const [sheet, setSheet] = useState<{ open: boolean; id: string | null }>({ open: false, id: null })
+  const editing = sheet.id ? grades.find((g) => g.id === sheet.id) ?? null : null
 
   const usedWeight = coveredWeight(grades)
   const remainingWeight = 100 - usedWeight
-
-  function add() {
-    const score = Number(gScore)
-    const weight = Number(gWeight)
-    if (!gName.trim() || Number.isNaN(score) || Number.isNaN(weight)) return
-    if (weight <= 0) {
-      setError("El porcentaje debe ser mayor a 0.")
-      return
-    }
-    if (usedWeight + weight > 100) {
-      setError(
-        `Te queda ${remainingWeight}% por asignar. No puedes superar el 100%.`,
-      )
-      return
-    }
-    const grade: Grade = {
-      id: crypto.randomUUID(),
-      name: gName.trim(),
-      score,
-      weight,
-    }
-    setGrades((prev) => ({ ...prev, [subjectId]: [...(prev[subjectId] ?? []), grade] }))
-    setGName("")
-    setGScore("")
-    setGWeight("")
-    setError("")
-  }
-
-  function remove(id: string) {
-    setGrades((prev) => ({
-      ...prev,
-      [subjectId]: (prev[subjectId] ?? []).filter((g) => g.id !== id),
-    }))
-    if (editingId === id) setEditingId(null)
-  }
-
-  function startEdit(g: Grade) {
-    setEditingId(g.id)
-    setEditDraft({ name: g.name, score: String(g.score), weight: String(g.weight) })
-  }
-
-  function cancelEdit() {
-    setEditingId(null)
-    setEditDraft({ name: "", score: "", weight: "" })
-  }
-
-  function saveEdit(id: string) {
-    const score = Number(editDraft.score)
-    const weight = Number(editDraft.weight)
-    if (!editDraft.name.trim() || Number.isNaN(score) || Number.isNaN(weight) || weight <= 0) return
-
-    // Verificar que el peso no supere el 100% (excluyendo el peso actual de esta nota)
-    const currentGrade = grades.find((g) => g.id === id)
-    const otherWeight = usedWeight - (currentGrade?.weight ?? 0)
-    if (otherWeight + weight > 100) return
-
-    setGrades((prev) => ({
-      ...prev,
-      [subjectId]: (prev[subjectId] ?? []).map((g) =>
-        g.id === id ? { ...g, name: editDraft.name.trim(), score, weight } : g
-      ),
-    }))
-    setEditingId(null)
-  }
-
   const points = accumulatedPoints(grades)
-  const covered = coveredWeight(grades)
+
+  function save(v: { name: string; score: number; weight: number }) {
+    if (editing) {
+      setGrades((prev) => ({ ...prev, [subjectId]: (prev[subjectId] ?? []).map((g) => (g.id === editing.id ? { ...g, ...v } : g)) }))
+    } else {
+      setGrades((prev) => ({ ...prev, [subjectId]: [...(prev[subjectId] ?? []), { id: crypto.randomUUID(), ...v }] }))
+    }
+    setSheet((s) => ({ ...s, open: false }))
+  }
+
+  function remove() {
+    if (!editing) return
+    setGrades((prev) => ({ ...prev, [subjectId]: (prev[subjectId] ?? []).filter((g) => g.id !== editing.id) }))
+    setSheet((s) => ({ ...s, open: false }))
+  }
 
   return (
     <Card className="gap-0 overflow-hidden p-0 animate-pop">
@@ -325,10 +267,10 @@ function SubjectGrades({
         <span className="h-9 w-1.5 shrink-0 rounded-full" style={{ background: border }} />
         <div className="min-w-0 flex-1">
           <h3 className="truncate font-semibold leading-tight">{name}</h3>
-          <p className="num text-xs text-muted-foreground">{grades.length > 0 ? `${covered}% calificado` : "Sin notas"}</p>
+          <p className="num text-xs text-muted-foreground">{grades.length > 0 ? `${usedWeight}% calificado` : "Sin notas"}</p>
         </div>
         {grades.length > 0 && (
-          <Ring value={covered / 100} size={42} stroke={4}>
+          <Ring value={usedWeight / 100} size={42} stroke={4}>
             <span className="num text-[10px] font-semibold">{points.toFixed(1)}</span>
           </Ring>
         )}
@@ -352,169 +294,183 @@ function SubjectGrades({
         )}
       >
         <div className="overflow-hidden">
-          <div className="space-y-3 p-4">
-            {grades.length > 0 ? (
-              <ul className="space-y-1.5">
-                {grades.map((g) => (
-                  <li key={g.id}>
-                    {editingId === g.id ? (
-                      /* Modo edición inline */
-                      <div className="flex flex-col gap-2 rounded-md bg-muted/60 px-3 py-2 animate-in fade-in duration-150">
-                        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:gap-2">
-                          <div className="flex-1 space-y-1">
-                            <label className="text-xs text-muted-foreground">Nombre</label>
-                            <Input
-                              value={editDraft.name}
-                              onChange={(e) => setEditDraft((d) => ({ ...d, name: e.target.value }))}
-                              className="h-8 text-sm"
-                              autoFocus
-                            />
-                          </div>
-                          <div className="flex items-end gap-2">
-                            <div className="w-20 space-y-1">
-                              <label className="text-xs text-muted-foreground">Nota</label>
-                              <Input
-                                value={editDraft.score}
-                                onChange={(e) => setEditDraft((d) => ({ ...d, score: e.target.value }))}
-                                inputMode="decimal"
-                                className="h-8 text-sm"
-                              />
-                            </div>
-                            <div className="w-20 space-y-1">
-                              <label className="text-xs text-muted-foreground">Vale %</label>
-                              <Input
-                                value={editDraft.weight}
-                                onChange={(e) => setEditDraft((d) => ({ ...d, weight: e.target.value }))}
-                                inputMode="numeric"
-                                className="h-8 text-sm"
-                              />
-                            </div>
-                            <div className="flex gap-1 pb-0.5">
-                              <Button
-                                size="icon"
-                                className="h-8 w-8 shrink-0"
-                                onClick={() => saveEdit(g.id)}
-                                aria-label="Guardar cambios"
-                              >
-                                <Check className="size-3.5" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-8 w-8 shrink-0"
-                                onClick={cancelEdit}
-                                aria-label="Cancelar edición"
-                              >
-                                <X className="size-3.5" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      /* Modo visualización */
-                      <div className="flex animate-fade-in items-center gap-3 rounded-lg bg-muted/50 px-2.5 py-2 text-sm">
-                        <span className={cn("num grid h-8 w-11 shrink-0 place-items-center rounded-lg text-sm font-semibold", g.score >= PASSING_GRADE ? "bg-foreground/10" : "bg-destructive/15 text-destructive")}>
+          <div className="space-y-5 border-t px-4 pb-4 pt-5">
+            {/* Lo importante primero: cuánto necesitas y qué pasaría si… */}
+            {grades.length > 0 && <GoalPanel grades={grades} goal={goal} onGoal={onGoal} />}
+
+            {/* Evaluaciones: tocar una fila la edita; agregar abre la misma hoja */}
+            <section className={cn(grades.length > 0 && "border-t pt-4")}>
+              <h4 className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Evaluaciones</h4>
+              {grades.length > 0 && (
+                <ul className="stagger divide-y divide-border/60">
+                  {grades.map((g) => (
+                    <li key={g.id}>
+                      <button
+                        type="button"
+                        onClick={() => setSheet({ open: true, id: g.id })}
+                        aria-label={`Editar ${g.name}`}
+                        className="group -mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-xl px-2 py-2.5 text-left transition active:scale-[0.99] active:bg-foreground/[0.05] hover:bg-foreground/[0.03]"
+                      >
+                        <span className={cn("num grid h-9 w-12 shrink-0 place-items-center rounded-xl text-base font-semibold", g.score >= PASSING_GRADE ? "bg-foreground/10" : "bg-destructive/15 text-destructive")}>
                           {g.score.toFixed(1)}
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate">{g.name}</span>
-                          <span className="mt-1 block h-1 overflow-hidden rounded-full bg-foreground/10">
-                            <span className="block h-full rounded-full bg-foreground/50" style={{ width: `${Math.min(g.weight, 100)}%` }} />
-                          </span>
+                          <span className="block truncate text-sm font-medium">{g.name}</span>
+                          <span className="num block text-xs text-muted-foreground">vale {g.weight}% · aporta {fmt((g.score * g.weight) / 100)}</span>
                         </span>
-                        <span className="flex items-center gap-4 whitespace-nowrap text-muted-foreground shrink-0 sm:gap-2">
-                          <span className="num text-xs">{g.weight}%</span>
-                          <button
-                            type="button"
-                            onClick={() => startEdit(g)}
-                            aria-label={`Editar ${g.name}`}
-                            className="tap text-muted-foreground transition hover:text-foreground"
-                          >
-                            <Pencil className="size-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => remove(g.id)}
-                            aria-label={`Eliminar ${g.name}`}
-                            className="tap text-muted-foreground transition hover:text-destructive"
-                          >
-                            <Trash2 className="size-4" />
-                          </button>
-                        </span>
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground">Aún no hay notas registradas.</p>
-            )}
+                        <ChevronRight className="size-4 shrink-0 text-muted-foreground/50 transition group-hover:translate-x-0.5 group-hover:text-muted-foreground" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
 
-            {/* Form para agregar */}
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-              <div className="flex-1 space-y-1">
-                <label className="text-xs text-muted-foreground">Nombre</label>
-                <Input
-                  value={gName}
-                  onChange={(e) => setGName(e.target.value)}
-                  placeholder="Parcial 1"
-                  className="h-9"
-                />
-              </div>
-              <div className="flex items-end gap-2">
-                <div className="w-20 space-y-1">
-                  <label className="text-xs text-muted-foreground">Nota</label>
-                  <Input
-                    value={gScore}
-                    onChange={(e) => setGScore(e.target.value)}
-                    placeholder="3.5"
-                    inputMode="decimal"
-                    className="h-9"
-                  />
+              {grades.length === 0 ? (
+                <div className="space-y-3 py-3 text-center">
+                  <p className="text-sm text-muted-foreground">Aún no hay notas. Agrega la primera para ver cuánto necesitas.</p>
+                  <Button onClick={() => setSheet({ open: true, id: null })} className="min-h-11 w-full"><Plus className="size-4" />Agregar la primera nota</Button>
                 </div>
-                <div className="w-20 space-y-1">
-                  <label className="text-xs text-muted-foreground">Vale %</label>
-                  <Input
-                    value={gWeight}
-                    onChange={(e) => setGWeight(e.target.value)}
-                    placeholder="20"
-                    inputMode="numeric"
-                    className="h-9"
-                  />
-                </div>
-                <Button
-                  onClick={add}
-                  size="icon"
-                  className="h-9 w-10 shrink-0"
-                  aria-label="Agregar nota"
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setSheet({ open: true, id: null })}
                   disabled={remainingWeight <= 0}
+                  className="-mx-2 mt-1 flex w-[calc(100%+1rem)] items-center gap-3 rounded-xl px-2 py-2.5 text-left text-sm font-medium transition active:scale-[0.99] active:bg-foreground/[0.05] enabled:hover:bg-foreground/[0.03] disabled:opacity-60"
                 >
-                  <Plus className="size-4" />
-                </Button>
-              </div>
-            </div>
-
-            {error ? (
-              <p className="text-xs font-medium text-destructive">{error}</p>
-            ) : (
-              <div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-foreground/10">
-                  <div className="h-full rounded-full bg-foreground/60 transition-[width] duration-700" style={{ width: `${usedWeight}%` }} />
-                </div>
-                <p className="num mt-1.5 text-xs text-muted-foreground">
-                  {remainingWeight > 0
-                    ? `Queda ${remainingWeight}% por asignar.`
-                    : "Ya asignaste el 100%"}
-                </p>
-              </div>
-            )}
-
-            <GoalPanel grades={grades} goal={goal} onGoal={onGoal} />
+                  <span className="grid h-9 w-12 shrink-0 place-items-center rounded-xl border border-dashed border-foreground/30 text-brand"><Plus className="size-4" /></span>
+                  <span className="flex-1">Agregar nota</span>
+                  <span className="num text-xs font-normal text-muted-foreground">{remainingWeight > 0 ? `queda ${remainingWeight}%` : "100% asignado"}</span>
+                </button>
+              )}
+            </section>
           </div>
         </div>
       </div>
+
+      <GradeSheet
+        open={sheet.open}
+        isNew={sheet.id === null}
+        grade={editing}
+        subjectName={name}
+        maxWeight={remainingWeight + (editing?.weight ?? 0)}
+        fallbackName={`Nota ${grades.length + 1}`}
+        onClose={() => setSheet((s) => ({ ...s, open: false }))}
+        onSave={save}
+        onDelete={remove}
+      />
     </Card>
+  )
+}
+
+/** Hoja para agregar o editar una nota: dos números grandes, un atajo para «el resto» y cuánto aporta a la nota final. */
+function GradeSheet({ open, isNew, grade, subjectName, maxWeight, fallbackName, onClose, onSave, onDelete }: {
+  open: boolean
+  isNew: boolean
+  grade: Grade | null
+  subjectName: string
+  maxWeight: number
+  fallbackName: string
+  onClose: () => void
+  onSave: (v: { name: string; score: number; weight: number }) => void
+  onDelete: () => void
+}) {
+  const [gName, setGName] = useState("")
+  const [score, setScore] = useState("")
+  const [weight, setWeight] = useState("")
+  const [error, setError] = useState("")
+  const [confirm, setConfirm] = useState(false)
+  useSheetBack(open, onClose)
+
+  // Cada vez que se abre arranca con los datos de la nota (o vacío si es nueva)
+  useEffect(() => {
+    if (!open) return
+    setGName(grade?.name ?? ""); setScore(grade ? String(grade.score).replace(".", ",") : ""); setWeight(grade ? String(grade.weight) : "")
+    setError(""); setConfirm(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, grade?.id])
+
+  const s = Number(score.replace(",", "."))
+  const w = Number(weight.replace(",", "."))
+  const scoreOk = score.trim() !== "" && Number.isFinite(s) && s >= 0 && s <= 5
+  const weightOk = weight.trim() !== "" && Number.isFinite(w) && w > 0 && w <= maxWeight
+  const quick = [10, 20, 25, 30].filter((n) => n < maxWeight)
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!scoreOk) return setError("La nota va de 0 a 5.")
+    if (!(Number.isFinite(w) && w > 0)) return setError("Indica cuánto vale (mayor a 0%).")
+    if (w > maxWeight) return setError(`Solo queda ${maxWeight}% por asignar.`)
+    onSave({ name: gName.trim() || fallbackName, score: Math.round(s * 100) / 100, weight: Math.round(w * 100) / 100 })
+  }
+
+  const field = "num h-14 rounded-xl text-center text-2xl font-semibold"
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
+      <DialogContent className="gap-5 sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{isNew ? "Nueva nota" : "Editar nota"}</DialogTitle>
+          <DialogDescription>{subjectName}</DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={submit} className="space-y-5">
+          <div className="space-y-1.5">
+            <label htmlFor="grade-name" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nombre</label>
+            <Input id="grade-name" value={gName} onChange={(e) => setGName(e.target.value)} placeholder={fallbackName} maxLength={40} className="h-11 text-base" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label htmlFor="grade-score" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nota (0–5)</label>
+              <Input id="grade-score" value={score} onChange={(e) => { setScore(e.target.value); setError("") }} placeholder="3,5" inputMode="decimal" enterKeyHint="next" maxLength={4} className={field} />
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="grade-weight" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vale (%)</label>
+              <Input id="grade-weight" value={weight} onChange={(e) => { setWeight(e.target.value); setError("") }} placeholder="20" inputMode="decimal" enterKeyHint="done" maxLength={5} className={field} />
+            </div>
+          </div>
+
+          {/* Atajos para el porcentaje */}
+          <div className="-mt-2 flex flex-wrap items-center gap-1.5" aria-label="Atajos de porcentaje">
+            {quick.map((n) => (
+              <button key={n} type="button" onClick={() => { setWeight(String(n)); setError("") }}
+                className={cn("num h-8 rounded-full border px-3 text-xs font-semibold transition active:scale-95", w === n ? "border-transparent bg-foreground text-background" : "text-muted-foreground hover:border-foreground/30 hover:text-foreground")}>{n}%</button>
+            ))}
+            {maxWeight > 0 && (
+              <button type="button" onClick={() => { setWeight(String(maxWeight)); setError("") }}
+                className={cn("num h-8 rounded-full border px-3 text-xs font-semibold transition active:scale-95", w === maxWeight ? "border-transparent bg-foreground text-background" : "text-muted-foreground hover:border-foreground/30 hover:text-foreground")}>
+                El resto · {maxWeight}%
+              </button>
+            )}
+          </div>
+
+          <p aria-live="polite" className={cn("num min-h-5 text-sm", error ? "font-medium text-destructive" : "text-muted-foreground")}>
+            {error || (scoreOk && weightOk ? <>Aporta <b className="text-foreground">{fmt((s * w) / 100)}</b> a tu nota final.</> : `Queda ${maxWeight}% por asignar en esta materia.`)}
+          </p>
+
+          <div className="sheet-actions flex items-center gap-2">
+            {!isNew && (confirm ? (
+              <>
+                <span className="mr-auto text-sm text-muted-foreground">¿Eliminar esta nota?</span>
+                <Button type="button" variant="ghost" onClick={() => setConfirm(false)}>No</Button>
+                <Button type="button" variant="destructive" onClick={onDelete}>Eliminar</Button>
+              </>
+            ) : (
+              <>
+                <Button type="button" variant="ghost" onClick={() => setConfirm(true)} aria-label="Eliminar nota" className="mr-auto text-destructive hover:text-destructive"><Trash2 className="size-4" />Eliminar</Button>
+                <Button type="submit">Guardar</Button>
+              </>
+            ))}
+            {isNew && (
+              <>
+                <Button type="button" variant="ghost" onClick={onClose} className="ml-auto">Cancelar</Button>
+                <Button type="submit">Agregar nota</Button>
+              </>
+            )}
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -605,7 +561,7 @@ function GoalPanel({ grades, goal, onGoal }: { grades: Grade[]; goal: number; on
   const shown = useTween(value)
 
   return (
-    <section aria-label="Meta de nota" className="stagger space-y-4 rounded-2xl bg-muted/40 p-4">
+    <section aria-label="Meta de nota" className="stagger space-y-4">
       <div className="flex items-center justify-between gap-3">
         <label htmlFor={inputId} className="flex items-center gap-2 text-sm font-semibold"><Target className="size-4 text-brand" />Mi meta</label>
         <input id={inputId} type="text" inputMode="decimal" enterKeyHint="done" maxLength={4} placeholder="3,0" aria-label="Meta de nota (0,1 a 5)"
@@ -618,7 +574,7 @@ function GoalPanel({ grades, goal, onGoal }: { grades: Grade[]; goal: number; on
           }}
           onBlur={() => setDraft(null)}
           onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur() }}
-          className="num h-11 w-24 rounded-xl border bg-background text-center text-xl font-semibold outline-none transition focus-visible:border-brand focus-visible:ring-3 focus-visible:ring-brand/25" />
+          className="num h-10 w-20 rounded-xl border bg-muted/40 text-center text-lg font-semibold outline-none transition focus-visible:border-brand focus-visible:ring-3 focus-visible:ring-brand/25" />
       </div>
 
       {/* Cifra principal */}
@@ -633,7 +589,7 @@ function GoalPanel({ grades, goal, onGoal }: { grades: Grade[]; goal: number; on
             <span className="text-[11px] text-muted-foreground">Arrastra el punto para simular</span>
           ))}
         </div>
-        <p className={cn("num text-5xl font-semibold tracking-tight transition-colors duration-300", toneClass)}>{fmt(shown)}</p>
+        <p className={cn("num text-4xl font-semibold tracking-tight transition-colors duration-300", toneClass)}>{fmt(shown)}</p>
         <p key={simulating ? "sim" : plan.state} className="animate-fade-in min-h-10 text-sm text-muted-foreground">
           {sub}{verdict && <span className={cn("block font-medium first-letter:uppercase", toneClass)}>{verdict}</span>}
         </p>
