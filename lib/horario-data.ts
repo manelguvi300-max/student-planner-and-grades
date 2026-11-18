@@ -209,7 +209,9 @@ export const STUDY_KEY = "__study"
 export type StudyEntry = { d: string; s: string; m: number } // fecha YYYY-MM-DD, id de materia («» = sin materia), minutos
 
 export const studyFromConfigs = (c: Record<string, SubjectConfig>): StudyEntry[] => c[STUDY_KEY]?.study ?? []
-export const withStudy = (c: Record<string, SubjectConfig>, study: StudyEntry[]): Record<string, SubjectConfig> => ({ ...c, [STUDY_KEY]: { study } })
+export const withStudy = (c: Record<string, SubjectConfig>, study: StudyEntry[]): Record<string, SubjectConfig> => ({ ...c, [STUDY_KEY]: { ...c[STUDY_KEY], study } })
+/** Meta diaria de estudio en minutos (se guarda junto al registro, en `goal`). */
+export const withStudyGoal = (c: Record<string, SubjectConfig>, goal: number): Record<string, SubjectConfig> => ({ ...c, [STUDY_KEY]: { ...c[STUDY_KEY], goal } })
 
 /** Suma `minutes` al día y materia indicados; descarta lo de hace más de 180 días para que el registro no crezca sin límite. */
 export function addStudy(list: StudyEntry[], date: string, subjectId: string, minutes: number): StudyEntry[] {

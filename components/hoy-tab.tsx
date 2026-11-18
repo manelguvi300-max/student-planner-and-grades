@@ -1,7 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowRight, Play } from "lucide-react"
+import { ArrowRight, Timer } from "lucide-react"
+import { Ring } from "@/components/ui/ring"
+import { dailyGoalOf, focusStats, fmtMin } from "@/components/focus"
 import { cn } from "@/lib/utils"
 import { useSettings } from "@/lib/settings"
 import {
@@ -19,7 +21,6 @@ import {
   minutesToLabel,
   neededOnFinal,
   studyFromConfigs,
-  type StudyEntry,
   type Absence,
   type ClassSession,
   type Exam,
@@ -71,22 +72,7 @@ function Heading({ title, action, onAction }: { title: string; action?: string; 
 
 const card = "overflow-hidden rounded-2xl border bg-card"
 const row = "w-full px-4 py-3 text-left transition hover:bg-muted/60 active:bg-muted"
-
-const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
-const fmtStudy = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ""}`)
-
-/** Estudio de los últimos 7 días (con hoy al final): total, minutos por día y por materia. */
-function weekStudy(study: StudyEntry[], now: Date) {
-  const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (6 - i)); return { key: ymd(d), letter: d.toLocaleDateString("es", { weekday: "narrow" }), min: 0 } })
-  const bySubject = new Map<string, number>()
-  for (const e of study) {
-    const day = days.find((d) => d.key === e.d)
-    if (!day) continue
-    day.min += e.m
-    bySubject.set(e.s, (bySubject.get(e.s) ?? 0) + e.m)
-  }
-  return { days, total: days.reduce((n, d) => n + d.min, 0), bySubject: [...bySubject].sort((a, b) => b[1] - a[1]) }
-}
+const tile = "min-w-0 rounded-2xl border bg-card px-3 py-3 text-left transition hover:bg-muted/60 active:scale-[0.97]"
 
 export function HoyTab({ subjects, classes, grades, exams, absences, subjectConfigs, hiddenNotas, onNavigate, onFocus }: Props) {
   const { settings } = useSettings()
@@ -101,7 +87,6 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
   const todays = todayIdx >= 0 && todayIdx <= 4 ? classes.filter((c) => c.day === todayIdx && getSubject(subjects, c.subjectId)).sort(byStart) : []
   const current = todays.find((c) => c.startTime <= nowMin && nowMin < c.endTime)
   const next = todays.find((c) => c.startTime > nowMin)
-  const remaining = todays.filter((c) => c.endTime > nowMin).length
 
   // primera clase de los próximos días (cuando hoy ya no hay más)
   let later: { day: number; cls: ClassSession } | null = null
@@ -169,15 +154,10 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
   const pct = current ? Math.round(((nowMin - current.startTime) / (current.endTime - current.startTime)) * 100) : 0
   const heroLabel = current ? "Ahora" : next ? "Sigue" : later ? `Próxima clase · ${DAYS[later.day].toLowerCase()}` : todays.length ? "Por hoy ya terminaste" : "Hoy no tienes clases"
 
-  const week = weekStudy(studyFromConfigs(subjectConfigs), now)
-  const peak = Math.max(30, ...week.days.map((d) => d.min))
+  // estudio de hoy (modo enfoque)
+  const studied = focusStats(studyFromConfigs(subjectConfigs), now).today
+  const studyGoal = dailyGoalOf(subjectConfigs)
 
-  const stats = [
-    { tab: "horario", label: "Clases hoy", value: String(todays.length), sub: todays.length ? `${remaining} por ver` : "Día libre", warn: false },
-    { tab: "examenes", label: "Próximo en agenda", value: upcoming[0] ? dueLabel(daysUntil(upcoming[0].date)) : "Ninguno", sub: upcoming[0] ? getSubject(subjects, upcoming[0].subjectId)?.name ?? findKind(kindsFromConfigs(subjectConfigs), upcoming[0].kind).name : "Nada a la vista", warn: false },
-    { tab: "notas", label: "Promedio", value: avg === null ? "—" : avg.toFixed(2).replace(".", ","), sub: avg === null ? "Aún sin notas" : weighted ? "Ponderado" : "Acumulado", warn: false },
-    { tab: "faltas", label: "Faltas", value: String(absences.length), sub: atRisk ? `${atRisk} materia${atRisk > 1 ? "s" : ""} en riesgo` : "Todo en orden", warn: atRisk > 0 },
-  ]
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -212,16 +192,26 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
         </div>
       </section>
 
-      {/* Resumen en una sola tira */}
-      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border bg-border sm:grid-cols-4">
-        {stats.map((st) => (
-          <button key={st.tab} type="button" onClick={() => onNavigate(st.tab)}
-            className="min-w-0 bg-card px-4 py-3 text-left transition hover:bg-muted/60 active:bg-muted">
-            <span className="block text-xs text-muted-foreground">{st.label}</span>
-            <span className="num mt-0.5 block truncate text-xl font-semibold">{st.value}</span>
-            <span className={cn("block truncate text-xs", st.warn ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>{st.sub}</span>
-          </button>
-        ))}
+      {/* Resumen: promedio, estudio de hoy y faltas */}
+      <div className="grid grid-cols-3 gap-2">
+        <button type="button" onClick={() => onNavigate("notas")} className={tile}>
+          <span className="block text-xs text-muted-foreground">Promedio</span>
+          <span className="num mt-1 block text-xl font-semibold">{avg === null ? "—" : avg.toFixed(2).replace(".", ",")}</span>
+          <span className="block truncate text-[11px] text-muted-foreground">{avg === null ? "Sin notas" : weighted ? "Ponderado" : "Acumulado"}</span>
+        </button>
+        <button type="button" onClick={onFocus} className={cn(tile, "relative overflow-hidden")}>
+          <span className="flex items-center justify-between text-xs text-muted-foreground">Estudio <Timer className="size-3.5 text-brand" /></span>
+          <span className="mt-1 flex items-center gap-2">
+            <span className={studied >= studyGoal ? "text-emerald-500" : "text-brand"}><Ring value={studied / studyGoal} size={26} stroke={3.5} className="text-current" /></span>
+            <span className="num text-xl font-semibold">{studied}<span className="text-xs font-normal text-muted-foreground">m</span></span>
+          </span>
+          <span className="block truncate text-[11px] text-muted-foreground">{studied >= studyGoal ? "¡Meta cumplida!" : `meta ${fmtMin(studyGoal)}`}</span>
+        </button>
+        <button type="button" onClick={() => onNavigate("faltas")} className={tile}>
+          <span className="block text-xs text-muted-foreground">Faltas</span>
+          <span className="num mt-1 block text-xl font-semibold">{absences.length}</span>
+          <span className={cn("block truncate text-[11px]", atRisk ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>{atRisk ? `${atRisk} en riesgo` : "Todo en orden"}</span>
+        </button>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
@@ -256,49 +246,6 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
         </section>
 
         <div className="space-y-6">
-          {/* Modo enfoque: temporizador por materia y lo estudiado en la semana */}
-          <section>
-            <Heading title="Enfoque" />
-            <div className={cn(card, "p-4")}>
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs text-muted-foreground">Últimos 7 días</p>
-                  <p className="num text-xl font-semibold">{week.total ? fmtStudy(week.total) : "—"}</p>
-                </div>
-                <button type="button" onClick={onFocus}
-                  className="flex h-11 shrink-0 items-center gap-2 rounded-xl bg-foreground px-4 text-sm font-semibold text-background transition hover:opacity-90 active:scale-[0.97]">
-                  <Play className="size-4" />Empezar
-                </button>
-              </div>
-              <div className="mt-4 flex h-14 items-end gap-1.5" role="img" aria-label="Minutos estudiados por día en la última semana">
-                {week.days.map((d, i) => (
-                  <div key={d.key} className="flex h-full flex-1 flex-col justify-end gap-1">
-                    <div className={cn("w-full rounded-sm", i === 6 ? "bg-brand" : "bg-foreground/25")} style={{ height: `${Math.max(d.min ? 8 : 3, (d.min / peak) * 100)}%`, opacity: d.min ? 1 : 0.35 }} />
-                  </div>
-                ))}
-              </div>
-              <div className="mt-1 flex gap-1.5">
-                {week.days.map((d) => <span key={d.key} className="flex-1 text-center text-[10px] uppercase text-muted-foreground">{d.letter}</span>)}
-              </div>
-              {week.bySubject.length > 0 ? (
-                <ul className="mt-3 space-y-1.5 border-t pt-3">
-                  {week.bySubject.filter(([id]) => id === "" || getSubject(subjects, id)).slice(0, 3).map(([id, min]) => {
-                    const s = getSubject(subjects, id)
-                    return (
-                      <li key={id} className="flex items-center gap-2 text-sm">
-                        <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: s?.border ?? "var(--muted-foreground)" }} />
-                        <span className="min-w-0 flex-1 truncate">{s?.name ?? "Sin materia"}</span>
-                        <span className="num shrink-0 text-xs text-muted-foreground">{fmtStudy(min)}</span>
-                      </li>
-                    )
-                  })}
-                </ul>
-              ) : (
-                <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">Estudia con el temporizador y verás aquí cuánto dedicas a cada materia.</p>
-              )}
-            </div>
-          </section>
-
           {/* Avisos: solo aparecen si hay algo que atender */}
           {alerts.length > 0 && (
             <section>

@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { FocusSheet } from "@/components/focus"
-import { CalendarDays, GraduationCap, ClipboardList, UserX, House, Settings, WifiOff } from "lucide-react"
+import { useFocus, FocusTab, FocusOverlay, FocusNavBadge, clock } from "@/components/focus"
+import { CalendarDays, GraduationCap, ClipboardList, UserX, House, Settings, WifiOff, Timer } from "lucide-react"
 import { clearOfflineCache } from "@/components/sw-register"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { HoyTab } from "@/components/hoy-tab"
-import { NO_HIDDEN, addStudy, studyFromConfigs, withStudy, type HiddenMap } from "@/lib/horario-data"
+import { NO_HIDDEN, addStudy, studyFromConfigs, withStudy, withStudyGoal, type HiddenMap } from "@/lib/horario-data"
 import dynamic from "next/dynamic"
 import type { PlannerState } from "@/app/actions/planner"
 import { SemesterSwitcher } from "@/components/semester-switcher"
@@ -29,16 +29,19 @@ const ExamenesTab = dynamic(tabLoaders.examenes, { loading: TabSkeleton })
 const FaltasTab = dynamic(tabLoaders.faltas, { loading: TabSkeleton })
 const SettingsTab = dynamic(tabLoaders.ajustes, { loading: TabSkeleton })
 
-// "ajustes" va al final: en móvil se abre desde el engranaje del encabezado, no desde la barra inferior.
+// Escritorio: lista completa (atajos 1–7). "ajustes" va al final: en móvil se abre desde el engranaje del encabezado.
 const NAV_ITEMS = [
   { value: "hoy", label: "Hoy", icon: House },
+  { value: "enfoque", label: "Enfoque", icon: Timer },
   { value: "horario", label: "Horario", icon: CalendarDays },
   { value: "notas", label: "Notas", icon: GraduationCap },
   { value: "examenes", label: "Agenda", icon: ClipboardList },
   { value: "faltas", label: "Faltas", icon: UserX },
   { value: "ajustes", label: "Ajustes", icon: Settings },
 ] as const
-const MOBILE_ITEMS = NAV_ITEMS.slice(0, 5)
+// Móvil y tablet: cinco destinos con Enfoque al centro; Faltas vive junto a Notas (selector arriba de la vista).
+const MOBILE_ITEMS = (["hoy", "horario", "enfoque", "notas", "examenes"] as const).map((v) => NAV_ITEMS.find((n) => n.value === v)!)
+const NOTAS_GROUP = ["notas", "faltas"]
 
 
 export function PlannerView({ initial, userName, userEmail, userImage }: { initial: PlannerState; userName: string; userEmail: string; userImage: string }) {
@@ -58,12 +61,12 @@ export function PlannerView({ initial, userName, userEmail, userImage }: { initi
   } = usePlanner(initial)
 
   // Modo enfoque: cada sesión suma sus minutos al registro del día
-  const [focusOpen, setFocusOpen] = useState(false)
   const logStudy = useCallback((subjectId: string, minutes: number) => {
     const d = new Date()
     const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
     setSubjectConfigs((prev) => withStudy(prev, addStudy(studyFromConfigs(prev), day, subjectId, minutes)))
   }, [setSubjectConfigs])
+  const focus = useFocus(logStudy)
 
   // Precarga el resto de pestañas cuando el navegador está libre (salvo con ahorro de datos): al cambiar de pestaña ya están listas.
   useEffect(() => {
@@ -140,6 +143,8 @@ export function PlannerView({ initial, userName, userEmail, userImage }: { initi
 
   const idx = Math.max(0, NAV_ITEMS.findIndex((n) => n.value === tab))
   const inSettings = tab === "ajustes"
+  // en móvil/tablet «Notas» queda activo también al ver Faltas
+  const isActive = (value: string) => value === tab || (value === "notas" && tab === "faltas")
   const spring = "cubic-bezier(.34,1.4,.5,1)"
   const firstName = userName ? userName.split(" ")[0] : ""
   // se calcula tras montar para evitar diferencias servidor/cliente por zona horaria
@@ -189,7 +194,11 @@ export function PlannerView({ initial, userName, userEmail, userImage }: { initi
             >
               <item.icon className={cn("size-5 transition-transform duration-500", i === idx ? "scale-110 text-brand" : "group-hover:translate-x-0.5")} />
               <span className={cn("flex-1 text-left transition-transform duration-500", i === idx && "translate-x-1")}>{item.label}</span>
-              <kbd className="num hidden rounded border px-1.5 text-[10px] text-muted-foreground/60 xl:block">{i + 1}</kbd>
+              {item.value === "enfoque" && focus.run ? (
+                <span className={cn("num rounded-full bg-brand/15 px-2 py-0.5 text-[11px] font-semibold text-brand", focus.run.pausedAt && "animate-glow")}>{clock(focus.remaining)}</span>
+              ) : (
+                <kbd className="num hidden rounded border px-1.5 text-[10px] text-muted-foreground/60 xl:block">{i + 1}</kbd>
+              )}
             </button>
           ))}
         </nav>
@@ -242,6 +251,17 @@ export function PlannerView({ initial, userName, userEmail, userImage }: { initi
           </header>
         )}
 
+        {NOTAS_GROUP.includes(tab) && (
+          <div className="mb-4 grid grid-cols-2 gap-1 rounded-2xl bg-foreground/[0.06] p-1 lg:hidden" role="tablist" aria-label="Notas o faltas">
+            {[{ v: "notas", label: "Notas", Icon: GraduationCap }, { v: "faltas", label: "Faltas", Icon: UserX }].map(({ v, label, Icon }) => (
+              <button key={v} type="button" role="tab" aria-selected={tab === v} onClick={() => setTab(v)}
+                className={cn("flex h-10 items-center justify-center gap-2 rounded-xl text-sm font-semibold transition-all duration-300 active:scale-[0.98]", tab === v ? "bg-card text-foreground shadow-sm ring-1 ring-foreground/10" : "text-muted-foreground hover:text-foreground")}>
+                <Icon className={cn("size-4", tab === v && "text-brand")} />{label}
+              </button>
+            ))}
+          </div>
+        )}
+
         <Tabs value={tab} onValueChange={setTab} className="w-full">
           <TabsContent value="hoy" className="animate-rise">
             <HoyTab
@@ -253,8 +273,11 @@ export function PlannerView({ initial, userName, userEmail, userImage }: { initi
               subjectConfigs={subjectConfigs}
               hiddenNotas={hiddenSubjectsByTab.notas}
               onNavigate={setTab}
-              onFocus={() => setFocusOpen(true)}
+              onFocus={() => setTab("enfoque")}
             />
+          </TabsContent>
+          <TabsContent value="enfoque" className="animate-rise">
+            <FocusTab focus={focus} subjects={subjects} subjectConfigs={subjectConfigs} onGoal={(g) => setSubjectConfigs((prev) => withStudyGoal(prev, g))} />
           </TabsContent>
           <TabsContent value="horario" className="animate-rise">
             <HorarioTab
@@ -319,7 +342,7 @@ export function PlannerView({ initial, userName, userEmail, userImage }: { initi
           <p>Por Manuel Gutiérrez. Todos los derechos reservados.</p>
         </footer>
 
-        <FocusSheet open={focusOpen} onOpenChange={setFocusOpen} subjects={subjects} onLog={logStudy} />
+        <FocusOverlay focus={focus} subjects={subjects} subjectConfigs={subjectConfigs} />
       </main>
 
       {/* Tablet: riel lateral con icono y etiqueta */}
@@ -327,8 +350,17 @@ export function PlannerView({ initial, userName, userEmail, userImage }: { initi
         <div className="grad mb-4 grid size-10 place-items-center rounded-xl">
           <GraduationCap className="size-5" />
         </div>
-        {MOBILE_ITEMS.map((item, i) => {
-          const active = i === idx && !inSettings
+        {MOBILE_ITEMS.map((item) => {
+          const active = isActive(item.value)
+          if (item.value === "enfoque") return (
+            <button key={item.value} type="button" onClick={() => setTab("enfoque")} aria-current={active ? "page" : undefined} aria-label="Enfoque"
+              className="my-1 flex w-16 flex-col items-center gap-1 text-[11px] font-medium text-muted-foreground transition active:scale-95">
+              <span className={cn("grad grid size-12 place-items-center rounded-2xl shadow-lg shadow-black/25 transition", active && "ring-2 ring-brand ring-offset-2 ring-offset-background")}>
+                <FocusNavBadge focus={focus} size={44} />
+              </span>
+              <span className={cn(active && "text-foreground")}>Enfoque</span>
+            </button>
+          )
           return (
             <button
               key={item.value}
@@ -350,8 +382,17 @@ export function PlannerView({ initial, userName, userEmail, userImage }: { initi
       {/* Móvil: barra inferior anclada al borde (no tapa el contenido) */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden" aria-label="Secciones">
         <div className="mx-auto flex h-16 max-w-md px-2">
-          {MOBILE_ITEMS.map((item, i) => {
-            const active = i === idx && !inSettings
+          {MOBILE_ITEMS.map((item) => {
+            const active = isActive(item.value)
+            if (item.value === "enfoque") return (
+              <button key={item.value} type="button" onClick={() => setTab("enfoque")} aria-current={active ? "page" : undefined} aria-label={focus.run ? `Enfoque: quedan ${clock(focus.remaining)}` : "Enfoque"}
+                className="flex flex-1 flex-col items-center justify-end gap-0.5 pb-1.5 text-[11px] font-medium transition active:scale-95">
+                <span className={cn("grad -mt-6 grid size-14 place-items-center rounded-full shadow-lg shadow-black/30 ring-4 ring-background transition-transform duration-300", active && "scale-105")}>
+                  <FocusNavBadge focus={focus} />
+                </span>
+                <span className={active ? "text-foreground" : "text-muted-foreground"}>Enfoque</span>
+              </button>
+            )
             return (
               <button
                 key={item.value}

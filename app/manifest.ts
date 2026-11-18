@@ -22,6 +22,7 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     // Atajos al mantener pulsado el icono (Android)
     shortcuts: [
+      { name: 'Enfocarme', url: '/?tab=enfoque', icons: [{ src: '/icon-192.png', sizes: '192x192' }] },
       { name: 'Agenda', url: '/?tab=examenes', icons: [{ src: '/icon-192.png', sizes: '192x192' }] },
       { name: 'Horario', url: '/?tab=horario', icons: [{ src: '/icon-192.png', sizes: '192x192' }] },
       { name: 'Notas', url: '/?tab=notas', icons: [{ src: '/icon-192.png', sizes: '192x192' }] },
