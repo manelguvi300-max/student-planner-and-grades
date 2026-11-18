@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import { Check, ChevronDown, Coffee, Flame, Minus, Pause, Play, Plus, Square, Timer } from "lucide-react"
 import { Ring } from "@/components/ui/ring"
+import { Button } from "@/components/ui/button"
 import { SubjectPicker } from "@/components/subject-picker"
 import { useSheetBack } from "@/lib/use-sheet-back"
 import { cn } from "@/lib/utils"
@@ -189,8 +190,6 @@ export function FocusTab({ focus, subjects, subjectConfigs, onGoal }: {
   const stats = useMemo(() => (today ? focusStats(study, today) : null), [study, today])
   const goal = dailyGoalOf(subjectConfigs)
   const valid = subjects.some((s) => s.id === subjectId) ? subjectId : ""
-  const subject = subjects.find((s) => s.id === valid)
-  const accent = subject?.border ?? "var(--brand)"
   const run = focus.run
   const runSubject = run ? subjects.find((s) => s.id === run.subjectId) : undefined
 
@@ -198,161 +197,164 @@ export function FocusTab({ focus, subjects, subjectConfigs, onGoal }: {
   const peak = Math.max(goal, ...(stats?.days.map((d) => d.min) ?? [0]), 1)
   const maxSub = stats?.bySubject[0]?.[1] ?? 1
 
+  const subjectsShown = stats ? stats.bySubject.filter(([id]) => id === "" || subjects.some((s) => s.id === id)) : []
+  const reached = stats ? stats.today >= goal : false
+
   return (
-    <div className="space-y-5">
-      <header className="flex items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Enfoque</h1>
-          <p className="text-xs text-muted-foreground sm:text-sm">Estudia por bloques y mira cuánto le dedicas a cada materia.</p>
-        </div>
-        {stats && stats.streak > 0 && (
-          <span className="flex shrink-0 items-center gap-1 rounded-full bg-orange-500/15 px-2.5 py-1 text-xs font-semibold text-orange-600 dark:text-orange-400">
-            <Flame className="size-3.5" /><span className="num">{stats.streak}</span> {stats.streak === 1 ? "día" : "días"}
-          </span>
-        )}
+    <div className="space-y-5 animate-fade-in">
+      {/* Cabecera: mismo formato que Horario o Agenda (título + resumen en una línea) */}
+      <header className="min-w-0">
+        <h2 className="text-xl font-semibold tracking-tight">Enfoque</h2>
+        <p className="num flex items-center gap-1.5 text-sm text-muted-foreground">
+          {stats ? <>Hoy {fmtMin(stats.today)} de {fmtMin(goal)}</> : "Estudia por bloques"}
+          {stats && stats.streak > 0 && <><span aria-hidden>·</span><Flame className="size-3.5 text-orange-500" />{stats.streak} {stats.streak === 1 ? "día" : "días"} seguidos</>}
+        </p>
       </header>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
-      {/* Nueva sesión (o la que está en curso) */}
-      <section className="relative overflow-hidden rounded-3xl border bg-card px-5 pb-5 pt-6 lg:py-10">
-        <span aria-hidden className="pointer-events-none absolute -top-32 left-1/2 size-80 -translate-x-1/2 rounded-full opacity-40 transition-[background] duration-700"
-          style={{ background: `radial-gradient(circle, ${run ? runSubject?.border ?? "var(--brand)" : accent} 0%, transparent 65%)` }} />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+        {/* Sesión: nueva o en curso */}
+        <section className={card}>
+          {run ? (
+            <div className="flex flex-col items-center gap-4 p-5 text-center">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{run.kind === "break" ? "Descanso en curso" : run.pausedAt ? "En pausa" : "Sesión en curso"}</p>
+              <span style={{ color: runSubject?.border ?? "var(--brand)" }}>
+                <Ring value={focus.progress} size={168} stroke={9} className="text-current">
+                  <span className="text-foreground">
+                    <span className={cn("num block text-4xl font-semibold", run.pausedAt && "animate-glow")}>{clock(focus.remaining)}</span>
+                    <span className="mt-1 block max-w-32 truncate text-xs text-muted-foreground">{run.kind === "break" ? "Respira un poco" : runSubject?.name ?? "Sin materia"}</span>
+                  </span>
+                </Ring>
+              </span>
+              <Button onClick={() => focus.setOpen(true)} className="h-11 w-full rounded-xl text-sm">Abrir la sesión</Button>
+            </div>
+          ) : (
+            <div className="space-y-5 p-4 sm:p-5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nueva sesión</p>
 
-        {run ? (
-          <div className="relative flex flex-col items-center gap-4 text-center">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{run.kind === "break" ? "Descanso en curso" : run.pausedAt ? "En pausa" : "Sesión en curso"}</p>
-            <span style={{ color: runSubject?.border ?? "var(--brand)" }}>
-              <Ring value={focus.progress} size={168} stroke={9} className="text-current">
-                <span className="text-foreground">
-                  <span className={cn("num block text-4xl font-semibold", run.pausedAt && "animate-glow")}>{clock(focus.remaining)}</span>
-                  <span className="mt-1 block max-w-32 truncate text-xs text-muted-foreground">{run.kind === "break" ? "Respira un poco" : runSubject?.name ?? "Sin materia"}</span>
-                </span>
-              </Ring>
-            </span>
-            <button type="button" onClick={() => focus.setOpen(true)} className="h-12 w-full rounded-2xl bg-foreground text-sm font-semibold text-background transition active:scale-[0.98]">
-              Abrir la sesión
-            </button>
-          </div>
-        ) : (
-          <div className="relative space-y-5">
-            <p className="text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nueva sesión</p>
-
-            {/* Duración: − / número editable / + */}
-            <div className="flex items-center justify-center gap-4">
-              <button type="button" onClick={() => setMinutes((m) => clampMin(m - 5))} aria-label="Restar 5 minutos" disabled={minutes <= 1}
-                className="grid size-12 shrink-0 place-items-center rounded-full border bg-background/60 transition active:scale-90 disabled:opacity-40"><Minus className="size-5" /></button>
-              <div className="w-36 text-center">
-                {draft !== null ? (
-                  <input autoFocus value={draft} inputMode="numeric" maxLength={3} aria-label="Minutos de la sesión"
-                    onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, ""))} onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") commit() }}
-                    className="num w-full bg-transparent text-center text-7xl font-semibold leading-none outline-none" />
-                ) : (
-                  <button type="button" onClick={() => setDraft(String(minutes))} aria-label={`${minutes} minutos. Toca para escribir otra duración`}
-                    className="num w-full text-7xl font-semibold leading-none tracking-tight transition active:scale-95">{minutes}</button>
-                )}
-                <p className="mt-1 text-xs text-muted-foreground">{draft !== null ? "escribe los minutos" : "minutos · toca para cambiar"}</p>
+              {/* Duración: − / número (toca para escribir) / + */}
+              <div className="flex items-center justify-center gap-5">
+                <Button variant="outline" size="icon" onClick={() => setMinutes((m) => clampMin(m - 5))} aria-label="Restar 5 minutos" disabled={minutes <= 1} className="size-11 rounded-full"><Minus className="size-5" /></Button>
+                <div className="w-32 text-center">
+                  {draft !== null ? (
+                    <input autoFocus value={draft} inputMode="numeric" maxLength={3} aria-label="Minutos de la sesión"
+                      onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, ""))} onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") commit() }}
+                      className="num w-full bg-transparent text-center text-6xl font-semibold leading-none outline-none" />
+                  ) : (
+                    <button type="button" onClick={() => setDraft(String(minutes))} aria-label={`${minutes} minutos. Toca para escribir otra duración`}
+                      className="num w-full text-6xl font-semibold leading-none tracking-tight transition active:scale-95">{minutes}</button>
+                  )}
+                  <p className="mt-1.5 text-xs text-muted-foreground">{draft !== null ? "escribe los minutos" : "minutos · toca para editar"}</p>
+                </div>
+                <Button variant="outline" size="icon" onClick={() => setMinutes((m) => clampMin(m + 5))} aria-label="Sumar 5 minutos" disabled={minutes >= MAX_MIN} className="size-11 rounded-full"><Plus className="size-5" /></Button>
               </div>
-              <button type="button" onClick={() => setMinutes((m) => clampMin(m + 5))} aria-label="Sumar 5 minutos" disabled={minutes >= MAX_MIN}
-                className="grid size-12 shrink-0 place-items-center rounded-full border bg-background/60 transition active:scale-90 disabled:opacity-40"><Plus className="size-5" /></button>
-            </div>
 
-            <div className="flex justify-center gap-1.5" role="radiogroup" aria-label="Duraciones rápidas">
-              {PRESETS.map((m) => (
-                <button key={m} type="button" role="radio" aria-checked={minutes === m} onClick={() => { setMinutes(m); setDraft(null) }}
-                  className={cn("num h-8 min-w-11 rounded-full px-2.5 text-xs font-semibold transition active:scale-95", minutes === m ? "bg-foreground text-background" : "bg-foreground/[0.06] text-muted-foreground hover:text-foreground")}>{m}</button>
-              ))}
-            </div>
+              {/* Atajos con el mismo selector segmentado de Horario (Lista / Horas) */}
+              <div className="grid grid-cols-5 rounded-xl bg-muted p-1 text-sm font-medium" role="radiogroup" aria-label="Duraciones rápidas">
+                {PRESETS.map((m) => (
+                  <button key={m} type="button" role="radio" aria-checked={minutes === m} onClick={() => { setMinutes(m); setDraft(null) }}
+                    className={cn("num rounded-lg py-1.5 transition active:scale-95", minutes === m ? "bg-background text-foreground shadow-sm ring-1 ring-border/60" : "text-muted-foreground hover:text-foreground")}>{m}</button>
+                ))}
+              </div>
 
-            {/* Materia: el mismo selector (con búsqueda) que usa el resto de la app */}
-            <div className="mx-auto max-w-md">
               <SubjectPicker subjects={subjects} value={valid} onChange={setSubjectId} noneLabel="Sin materia" />
-            </div>
 
-            <button type="button" onClick={() => focus.start(valid, minutes)}
-              className="grad flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-semibold shadow-lg shadow-black/20 transition active:scale-[0.98]">
-              <Play className="size-5 fill-current" />Empezar · {fmtMin(minutes)}
-            </button>
+              <Button onClick={() => focus.start(valid, minutes)} className="h-12 w-full rounded-xl text-base">
+                <Play className="size-4 fill-current" />Empezar · {fmtMin(minutes)}
+              </Button>
+            </div>
+          )}
+        </section>
+
+        {stats && (
+          <div className="space-y-6">
+            {/* Hoy + meta diaria */}
+            <section>
+              <Heading title="Hoy" />
+              <div className={card}>
+                <div className="flex items-center gap-4 p-4">
+                  <span className={reached ? "text-emerald-500" : "text-brand"}>
+                    <Ring value={stats.today / goal} size={56} stroke={5} className="text-current">
+                      {reached ? <Check className="size-5 text-emerald-500" strokeWidth={3} /> : <span className="num text-[11px] font-semibold text-foreground">{Math.round((stats.today / goal) * 100)}%</span>}
+                    </Ring>
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="num text-xl font-semibold leading-tight">{fmtMin(stats.today)}</p>
+                    <p className={cn("text-xs", reached ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>{reached ? "¡Cumpliste tu meta diaria!" : `te faltan ${fmtMin(goal - stats.today)} para tu meta`}</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between border-t px-4 py-2">
+                  <span className="text-sm text-muted-foreground">Meta diaria</span>
+                  <span className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => onGoal(Math.max(15, goal - 15))} aria-label="Bajar meta 15 minutos" className="size-8 rounded-full"><Minus className="size-4" /></Button>
+                    <span className="num w-16 text-center text-sm font-semibold">{fmtMin(goal)}</span>
+                    <Button variant="ghost" size="icon" onClick={() => onGoal(Math.min(600, goal + 15))} aria-label="Subir meta 15 minutos" className="size-8 rounded-full"><Plus className="size-4" /></Button>
+                  </span>
+                </div>
+              </div>
+            </section>
+
+            {/* Semana */}
+            <section>
+              <Heading title="Últimos 7 días" note={fmtMin(stats.week)} />
+              <div className={cn(card, "p-4")}>
+                <div className="relative flex h-24 items-end gap-2" role="img" aria-label="Minutos estudiados por día en la última semana">
+                  <span aria-hidden className="absolute inset-x-0 border-t border-dashed border-foreground/20" style={{ bottom: `${(goal / peak) * 100}%` }} />
+                  {stats.days.map((d, i) => (
+                    <div key={d.key} className="flex h-full flex-1 flex-col justify-end">
+                      <div className={cn("bar-grow w-full rounded-md", d.min >= goal ? "bg-emerald-500" : i === 6 ? "bg-brand" : "bg-foreground/25")}
+                        style={{ height: `${Math.max(d.min ? 6 : 3, (d.min / peak) * 100)}%`, opacity: d.min ? 1 : 0.4, animationDelay: `${i * 40}ms` }} />
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-1.5 flex gap-2">
+                  {stats.days.map((d, i) => <span key={d.key} className={cn("flex-1 text-center text-[10px] uppercase", i === 6 ? "font-semibold text-foreground" : "text-muted-foreground")}>{d.letter}</span>)}
+                </div>
+              </div>
+            </section>
+
+            {/* Por materia */}
+            <section>
+              <Heading title="Por materia" note="esta semana" />
+              {subjectsShown.length === 0 ? (
+                <p className="rounded-2xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">Cuando termines una sesión verás aquí a qué le dedicas más tiempo.</p>
+              ) : (
+                <ul className={cn(card, "space-y-3 p-4")}>
+                  {subjectsShown.map(([id, min]) => {
+                    const s = subjects.find((x) => x.id === id)
+                    return (
+                      <li key={id || "none"}>
+                        <div className="mb-1 flex items-center gap-2 text-sm">
+                          <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: s?.border ?? "var(--muted-foreground)" }} />
+                          <span className="min-w-0 flex-1 truncate">{s?.name ?? "Sin materia"}</span>
+                          <span className="num shrink-0 text-xs text-muted-foreground">{fmtMin(min)}</span>
+                        </div>
+                        <div className="h-1.5 overflow-hidden rounded-full bg-foreground/10">
+                          <div className="bar-fill h-full rounded-full" style={{ width: `${(min / maxSub) * 100}%`, background: s?.border ?? "var(--muted-foreground)" }} />
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </section>
           </div>
         )}
-      </section>
-
-      {/* Progreso */}
-      {stats && (
-        <section className="rounded-3xl border bg-card p-5">
-          <div className="flex items-center gap-4">
-            <span className={stats.today >= goal ? "text-emerald-500" : "text-brand"}>
-              <Ring value={stats.today / goal} size={64} stroke={6} className="text-current">
-                {stats.today >= goal ? <Check className="size-6 text-emerald-500" strokeWidth={3} /> : <span className="num text-xs font-semibold text-foreground">{Math.round((stats.today / goal) * 100)}%</span>}
-              </Ring>
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs text-muted-foreground">Hoy</p>
-              <p className="num text-2xl font-semibold leading-tight">{fmtMin(stats.today)}</p>
-              <p className="text-xs text-muted-foreground">{stats.today >= goal ? "¡Cumpliste tu meta diaria!" : `te faltan ${fmtMin(goal - stats.today)} para tu meta`}</p>
-            </div>
-          </div>
-
-          {/* Meta diaria */}
-          <div className="mt-4 flex items-center justify-between rounded-2xl bg-foreground/[0.04] px-3 py-2">
-            <span className="text-sm text-muted-foreground">Meta diaria</span>
-            <span className="flex items-center gap-1">
-              <button type="button" onClick={() => onGoal(Math.max(15, goal - 15))} aria-label="Bajar meta 15 minutos" className="grid size-8 place-items-center rounded-full transition hover:bg-foreground/10 active:scale-90"><Minus className="size-4" /></button>
-              <span className="num w-20 text-center text-sm font-semibold">{fmtMin(goal)}</span>
-              <button type="button" onClick={() => onGoal(Math.min(600, goal + 15))} aria-label="Subir meta 15 minutos" className="grid size-8 place-items-center rounded-full transition hover:bg-foreground/10 active:scale-90"><Plus className="size-4" /></button>
-            </span>
-          </div>
-
-          {/* Semana */}
-          <div className="mt-5">
-            <div className="mb-2 flex items-baseline justify-between">
-              <p className="text-sm font-semibold">Últimos 7 días</p>
-              <p className="num text-xs text-muted-foreground">{fmtMin(stats.week)}</p>
-            </div>
-            <div className="relative flex h-24 items-end gap-2" role="img" aria-label="Minutos estudiados por día en la última semana">
-              <span aria-hidden className="absolute inset-x-0 border-t border-dashed border-foreground/20" style={{ bottom: `${(goal / peak) * 100}%` }} />
-              {stats.days.map((d, i) => (
-                <div key={d.key} className="flex h-full flex-1 flex-col justify-end">
-                  <div className={cn("bar-grow w-full rounded-md", d.min >= goal ? "bg-emerald-500" : i === 6 ? "bg-brand" : "bg-foreground/25")}
-                    style={{ height: `${Math.max(d.min ? 6 : 3, (d.min / peak) * 100)}%`, opacity: d.min ? 1 : 0.4, animationDelay: `${i * 40}ms` }} />
-                </div>
-              ))}
-            </div>
-            <div className="mt-1.5 flex gap-2">
-              {stats.days.map((d, i) => <span key={d.key} className={cn("flex-1 text-center text-[10px] uppercase", i === 6 ? "font-semibold text-foreground" : "text-muted-foreground")}>{d.letter}</span>)}
-            </div>
-          </div>
-
-          {/* Por materia */}
-          <div className="mt-5 border-t pt-4">
-            <p className="mb-2 text-sm font-semibold">Por materia</p>
-            {stats.bySubject.filter(([id]) => id === "" || subjects.some((s) => s.id === id)).length === 0 ? (
-              <p className="text-sm text-muted-foreground">Cuando termines una sesión verás aquí a qué le dedicas más tiempo.</p>
-            ) : (
-              <ul className="space-y-2.5">
-                {stats.bySubject.filter(([id]) => id === "" || subjects.some((s) => s.id === id)).map(([id, min]) => {
-                  const s = subjects.find((x) => x.id === id)
-                  return (
-                    <li key={id || "none"}>
-                      <div className="mb-1 flex items-center gap-2 text-sm">
-                        <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: s?.border ?? "var(--muted-foreground)" }} />
-                        <span className="min-w-0 flex-1 truncate">{s?.name ?? "Sin materia"}</span>
-                        <span className="num shrink-0 text-xs text-muted-foreground">{fmtMin(min)}</span>
-                      </div>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-foreground/10">
-                        <div className="bar-fill h-full rounded-full" style={{ width: `${(min / maxSub) * 100}%`, background: s?.border ?? "var(--muted-foreground)" }} />
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </div>
-        </section>
-      )}
       </div>
     </div>
   )
 }
+
+/** Título pequeño de cada bloque (el mismo de Hoy). */
+function Heading({ title, note }: { title: string; note?: string }) {
+  return (
+    <div className="mb-2 flex items-baseline justify-between px-1">
+      <h3 className="text-sm font-semibold">{title}</h3>
+      {note && <span className="num text-xs text-muted-foreground">{note}</span>}
+    </div>
+  )
+}
+
+const card = "overflow-hidden rounded-2xl border bg-card"
 
 /* ───────────── Pantalla inmersiva (sesión en curso y final) ───────────── */
 
