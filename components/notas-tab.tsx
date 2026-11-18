@@ -13,10 +13,12 @@ import {
   PASSING_GRADE,
   accumulatedPoints,
   averageOf,
+  goalPlan,
   coveredWeight,
   neededOnFinal,
   type Subject,
   type Grade,
+  type SubjectConfig,
 } from "@/lib/horario-data"
 
 type GradesMap = Record<string, Grade[]>
@@ -25,11 +27,13 @@ type Props = {
   subjects: Subject[]
   grades: GradesMap
   setGrades: React.Dispatch<React.SetStateAction<GradesMap>>
+  subjectConfigs: Record<string, SubjectConfig>
+  setSubjectConfigs: React.Dispatch<React.SetStateAction<Record<string, SubjectConfig>>>
   hiddenSubjects: string[]
   onToggleHidden: (subjectId: string) => void
 }
 
-export function NotasTab({ subjects, grades, setGrades, hiddenSubjects, onToggleHidden }: Props) {
+export function NotasTab({ subjects, grades, setGrades, subjectConfigs, setSubjectConfigs, hiddenSubjects, onToggleHidden }: Props) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
 
   // Todas las materias inician contraídas (en móvil y en escritorio).
@@ -117,6 +121,8 @@ export function NotasTab({ subjects, grades, setGrades, hiddenSubjects, onToggle
                   onToggle={() => toggleExpanded(s.id)}
                   onToggleHidden={() => onToggleHidden(s.id)}
                   isHidden={false}
+                  goal={subjectConfigs[s.id]?.goal ?? PASSING_GRADE}
+                  onGoal={(g) => setSubjectConfigs((prev) => ({ ...prev, [s.id]: { ...prev[s.id], goal: g } }))}
                 />
               ))}
             </div>
@@ -139,6 +145,8 @@ export function NotasTab({ subjects, grades, setGrades, hiddenSubjects, onToggle
                       onToggle={() => toggleExpanded(s.id)}
                       onToggleHidden={() => onToggleHidden(s.id)}
                       isHidden={false}
+                  goal={subjectConfigs[s.id]?.goal ?? PASSING_GRADE}
+                  onGoal={(g) => setSubjectConfigs((prev) => ({ ...prev, [s.id]: { ...prev[s.id], goal: g } }))}
                     />
                   ))}
               </div>
@@ -158,6 +166,8 @@ export function NotasTab({ subjects, grades, setGrades, hiddenSubjects, onToggle
                       onToggle={() => toggleExpanded(s.id)}
                       onToggleHidden={() => onToggleHidden(s.id)}
                       isHidden={false}
+                  goal={subjectConfigs[s.id]?.goal ?? PASSING_GRADE}
+                  onGoal={(g) => setSubjectConfigs((prev) => ({ ...prev, [s.id]: { ...prev[s.id], goal: g } }))}
                     />
                   ))}
               </div>
@@ -199,6 +209,8 @@ function SubjectGrades({
   expanded,
   onToggle,
   onToggleHidden,
+  goal,
+  onGoal,
 }: {
   subjectId: string
   name: string
@@ -210,6 +222,8 @@ function SubjectGrades({
   onToggle: () => void
   onToggleHidden: () => void
   isHidden: boolean
+  goal: number
+  onGoal: (goal: number) => void
 }) {
   const [gName, setGName] = useState("")
   const [gScore, setGScore] = useState("")
@@ -293,7 +307,7 @@ function SubjectGrades({
 
   const points = accumulatedPoints(grades)
   const covered = coveredWeight(grades)
-  const needed = neededOnFinal(grades)
+  const needed = neededOnFinal(grades, goal)
   const alreadyPassed = needed <= 0
   const impossible = needed > 5
 
@@ -501,6 +515,8 @@ function SubjectGrades({
               </div>
             )}
 
+            <GoalSimulator grades={grades} goal={goal} onGoal={onGoal} />
+
             {/* Resumen */}
             <div className="grid grid-cols-2 gap-2 border-t pt-3 text-sm">
               <div className="rounded-lg bg-muted/50 p-3">
@@ -524,12 +540,62 @@ function SubjectGrades({
                 ) : (
                   <p className="num mt-1 text-2xl font-semibold">{needed.toFixed(2)}{impossible && " 💀"}</p>
                 )}
-                <p className="text-[11px] opacity-80">para quedar en {PASSING_GRADE.toFixed(1)}</p>
+                <p className="text-[11px] opacity-80">para quedar en {goal.toFixed(1)}</p>
               </div>
             </div>
           </div>
         </div>
       </div>
     </Card>
+  )
+}
+
+const GOALS = [3, 3.5, 4, 4.5, 5]
+const fmt = (n: number) => n.toFixed(2).replace(".", ",")
+
+/** Meta de nota + simulador: «¿cuánto necesito?» y «¿qué pasa si saco X?» sobre lo que aún no se califica. */
+function GoalSimulator({ grades, goal, onGoal }: { grades: Grade[]; goal: number; onGoal: (g: number) => void }) {
+  const plan = goalPlan(grades, goal)
+  const [sim, setSim] = useState<number | null>(null)
+  const guess = sim ?? Math.round(Math.min(5, Math.max(0, plan.state === "open" ? plan.needed : PASSING_GRADE)) * 10) / 10
+  const result = plan.points + (plan.remaining / 100) * guess
+  const hit = result >= goal - 1e-9
+
+  return (
+    <div className="space-y-3 rounded-lg border p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h4 className="text-sm font-semibold">Mi meta</h4>
+        <div className="flex gap-1" role="radiogroup" aria-label="Meta de nota">
+          {GOALS.map((g) => (
+            <button key={g} type="button" role="radio" aria-checked={goal === g} onClick={() => { onGoal(g); setSim(null) }}
+              className={cn("num h-8 min-w-10 rounded-lg border px-2 text-xs font-semibold transition active:scale-95", goal === g ? "border-transparent bg-foreground text-background" : "text-muted-foreground hover:border-foreground/30 hover:text-foreground")}>
+              {g.toFixed(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <p className={cn("text-sm", plan.state === "out" || plan.state === "lost" ? "text-destructive" : plan.state === "open" ? "" : "text-emerald-600 dark:text-emerald-400")}>
+        {plan.state === "open" && <>Necesitas promediar <b className="num">{fmt(plan.needed)}</b> en el {plan.remaining}% que falta.</>}
+        {plan.state === "secured" && <>¡Meta asegurada! Aunque saques 0 en lo que falta, llegas a <b className="num">{fmt(plan.points)}</b>.</>}
+        {plan.state === "out" && <>Con esta meta ya no alcanza: lo máximo que puedes lograr es <b className="num">{fmt(plan.maxPossible)}</b>.</>}
+        {plan.state === "done" && <>Terminaste en <b className="num">{fmt(plan.points)}</b>: ¡meta alcanzada!</>}
+        {plan.state === "lost" && <>Terminaste en <b className="num">{fmt(plan.points)}</b>, por debajo de la meta.</>}
+      </p>
+
+      {plan.remaining > 0 && (
+        <div className="space-y-1.5">
+          <div className="flex items-baseline justify-between text-xs text-muted-foreground">
+            <label htmlFor={`sim-${goal}`}>Si saco en lo que falta…</label>
+            <span className="num text-sm font-semibold text-foreground">{guess.toFixed(1)}</span>
+          </div>
+          <input id={`sim-${goal}`} type="range" min={0} max={5} step={0.1} value={guess} onChange={(e) => setSim(Number(e.target.value))} className="w-full accent-brand" />
+          <p className="num text-xs text-muted-foreground">
+            quedarías en <b className={cn("text-sm", hit ? "text-emerald-600 dark:text-emerald-400" : "text-foreground")}>{fmt(result)}</b>
+            {hit ? " · cumples tu meta" : ` · te faltan ${fmt(goal - result)}`}
+          </p>
+        </div>
+      )}
+    </div>
   )
 }

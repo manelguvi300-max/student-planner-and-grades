@@ -198,6 +198,38 @@ export type SubjectConfig = {
   directHours?: number   // datos de la materia: HD, horas de trabajo directo
   blockHours?: number    // horas por clase (bloque) con que se divide para contar clases enteras; 2 por defecto
   weeklyHours?: number   // nombre anterior de blockHours (se sigue leyendo)
+  goal?: number          // meta de nota de la materia (3.0 por defecto)
+  study?: StudyEntry[]   // solo en la entrada reservada STUDY_KEY: el registro del modo enfoque
+}
+
+/* ───────────── Modo enfoque: registro de estudio ─────────────
+ * Una fila por día y materia con los minutos acumulados. Se guarda en subjectConfigs[STUDY_KEY]
+ * (se comparte entre semestres; las materias que ya no existen simplemente no se muestran). */
+export const STUDY_KEY = "__study"
+export type StudyEntry = { d: string; s: string; m: number } // fecha YYYY-MM-DD, id de materia («» = sin materia), minutos
+
+export const studyFromConfigs = (c: Record<string, SubjectConfig>): StudyEntry[] => c[STUDY_KEY]?.study ?? []
+export const withStudy = (c: Record<string, SubjectConfig>, study: StudyEntry[]): Record<string, SubjectConfig> => ({ ...c, [STUDY_KEY]: { study } })
+
+/** Suma `minutes` al día y materia indicados; descarta lo de hace más de 180 días para que el registro no crezca sin límite. */
+export function addStudy(list: StudyEntry[], date: string, subjectId: string, minutes: number): StudyEntry[] {
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 180)
+  const min = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, "0")}-${String(cutoff.getDate()).padStart(2, "0")}`
+  const kept = list.filter((e) => e.d >= min)
+  const i = kept.findIndex((e) => e.d === date && e.s === subjectId)
+  if (i < 0) return [...kept, { d: date, s: subjectId, m: minutes }]
+  return kept.map((e, j) => (j === i ? { ...e, m: e.m + minutes } : e))
+}
+
+/** Plan para llegar a una meta de nota: qué promedio hace falta en lo que aún no se califica. */
+export function goalPlan(grades: Grade[], goal: number) {
+  const points = accumulatedPoints(grades)
+  const remaining = 100 - coveredWeight(grades)
+  const maxPossible = points + (remaining / 100) * 5
+  if (remaining <= 0) return { state: points >= goal - 1e-9 ? ("done" as const) : ("lost" as const), needed: 0, points, remaining, maxPossible }
+  const needed = (goal - points) / (remaining / 100)
+  const state = needed <= 1e-9 ? ("secured" as const) : needed > 5 + 1e-9 ? ("out" as const) : ("open" as const)
+  return { state, needed, points, remaining, maxPossible }
 }
 
 export const DAYS = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"]
@@ -336,9 +368,9 @@ export function coveredWeight(grades: Grade[]) {
   return grades.reduce((acc, g) => acc + g.weight, 0)
 }
 
-export function neededOnFinal(grades: Grade[]) {
+export function neededOnFinal(grades: Grade[], goal = PASSING_GRADE) {
   const points = accumulatedPoints(grades)
-  return (PASSING_GRADE - points) / (FINAL_WEIGHT / 100)
+  return (goal - points) / (FINAL_WEIGHT / 100)
 }
 
 export const DEFAULT_PERCENT = 20

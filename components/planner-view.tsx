@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { FocusSheet } from "@/components/focus"
 import { CalendarDays, GraduationCap, ClipboardList, UserX, House, Settings, WifiOff } from "lucide-react"
 import { clearOfflineCache } from "@/components/sw-register"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { HoyTab } from "@/components/hoy-tab"
-import { NO_HIDDEN, type HiddenMap } from "@/lib/horario-data"
+import { NO_HIDDEN, addStudy, studyFromConfigs, withStudy, type HiddenMap } from "@/lib/horario-data"
 import dynamic from "next/dynamic"
 import type { PlannerState } from "@/app/actions/planner"
 import { SemesterSwitcher } from "@/components/semester-switcher"
@@ -55,6 +56,14 @@ export function PlannerView({ initial, userName, userEmail, userImage }: { initi
     kinds, setKinds,
     hidden: hiddenSubjectsByTab, setHidden: setHiddenSubjectsByTab,
   } = usePlanner(initial)
+
+  // Modo enfoque: cada sesión suma sus minutos al registro del día
+  const [focusOpen, setFocusOpen] = useState(false)
+  const logStudy = useCallback((subjectId: string, minutes: number) => {
+    const d = new Date()
+    const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+    setSubjectConfigs((prev) => withStudy(prev, addStudy(studyFromConfigs(prev), day, subjectId, minutes)))
+  }, [setSubjectConfigs])
 
   // Precarga el resto de pestañas cuando el navegador está libre (salvo con ahorro de datos): al cambiar de pestaña ya están listas.
   useEffect(() => {
@@ -244,6 +253,7 @@ export function PlannerView({ initial, userName, userEmail, userImage }: { initi
               subjectConfigs={subjectConfigs}
               hiddenNotas={hiddenSubjectsByTab.notas}
               onNavigate={setTab}
+              onFocus={() => setFocusOpen(true)}
             />
           </TabsContent>
           <TabsContent value="horario" className="animate-rise">
@@ -265,6 +275,8 @@ export function PlannerView({ initial, userName, userEmail, userImage }: { initi
               subjects={subjects}
               grades={grades}
               setGrades={setGrades}
+              subjectConfigs={subjectConfigs}
+              setSubjectConfigs={setSubjectConfigs}
               hiddenSubjects={hiddenSubjectsByTab.notas}
               onToggleHidden={(id) => toggleHidden("notas", id)}
             />
@@ -306,6 +318,8 @@ export function PlannerView({ initial, userName, userEmail, userImage }: { initi
         <footer className="mt-10 text-center text-xs text-muted-foreground">
           <p>Por Manuel Gutiérrez. Todos los derechos reservados.</p>
         </footer>
+
+        <FocusSheet open={focusOpen} onOpenChange={setFocusOpen} subjects={subjects} onLog={logStudy} />
       </main>
 
       {/* Tablet: riel lateral con icono y etiqueta */}

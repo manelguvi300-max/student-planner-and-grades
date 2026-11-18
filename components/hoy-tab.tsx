@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, Play } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useSettings } from "@/lib/settings"
 import {
@@ -18,6 +18,8 @@ import {
   getSubject,
   minutesToLabel,
   neededOnFinal,
+  studyFromConfigs,
+  type StudyEntry,
   type Absence,
   type ClassSession,
   type Exam,
@@ -35,6 +37,7 @@ type Props = {
   subjectConfigs: Record<string, SubjectConfig>
   hiddenNotas: string[]
   onNavigate: (tab: string) => void
+  onFocus: () => void
 }
 
 const fmtDur = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ""}`)
@@ -69,7 +72,23 @@ function Heading({ title, action, onAction }: { title: string; action?: string; 
 const card = "overflow-hidden rounded-2xl border bg-card"
 const row = "w-full px-4 py-3 text-left transition hover:bg-muted/60 active:bg-muted"
 
-export function HoyTab({ subjects, classes, grades, exams, absences, subjectConfigs, hiddenNotas, onNavigate }: Props) {
+const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+const fmtStudy = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ""}`)
+
+/** Estudio de los últimos 7 días (con hoy al final): total, minutos por día y por materia. */
+function weekStudy(study: StudyEntry[], now: Date) {
+  const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (6 - i)); return { key: ymd(d), letter: d.toLocaleDateString("es", { weekday: "narrow" }), min: 0 } })
+  const bySubject = new Map<string, number>()
+  for (const e of study) {
+    const day = days.find((d) => d.key === e.d)
+    if (!day) continue
+    day.min += e.m
+    bySubject.set(e.s, (bySubject.get(e.s) ?? 0) + e.m)
+  }
+  return { days, total: days.reduce((n, d) => n + d.min, 0), bySubject: [...bySubject].sort((a, b) => b[1] - a[1]) }
+}
+
+export function HoyTab({ subjects, classes, grades, exams, absences, subjectConfigs, hiddenNotas, onNavigate, onFocus }: Props) {
   const { settings } = useSettings()
   const now = useNow()
   const label = (m: number) => minutesToLabel(m, settings.timeFormat)
@@ -149,6 +168,9 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
   const heroSubject = heroCls ? getSubject(subjects, heroCls.subjectId) : undefined
   const pct = current ? Math.round(((nowMin - current.startTime) / (current.endTime - current.startTime)) * 100) : 0
   const heroLabel = current ? "Ahora" : next ? "Sigue" : later ? `Próxima clase · ${DAYS[later.day].toLowerCase()}` : todays.length ? "Por hoy ya terminaste" : "Hoy no tienes clases"
+
+  const week = weekStudy(studyFromConfigs(subjectConfigs), now)
+  const peak = Math.max(30, ...week.days.map((d) => d.min))
 
   const stats = [
     { tab: "horario", label: "Clases hoy", value: String(todays.length), sub: todays.length ? `${remaining} por ver` : "Día libre", warn: false },
@@ -234,6 +256,49 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
         </section>
 
         <div className="space-y-6">
+          {/* Modo enfoque: temporizador por materia y lo estudiado en la semana */}
+          <section>
+            <Heading title="Enfoque" />
+            <div className={cn(card, "p-4")}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">Últimos 7 días</p>
+                  <p className="num text-xl font-semibold">{week.total ? fmtStudy(week.total) : "—"}</p>
+                </div>
+                <button type="button" onClick={onFocus}
+                  className="flex h-11 shrink-0 items-center gap-2 rounded-xl bg-foreground px-4 text-sm font-semibold text-background transition hover:opacity-90 active:scale-[0.97]">
+                  <Play className="size-4" />Empezar
+                </button>
+              </div>
+              <div className="mt-4 flex h-14 items-end gap-1.5" role="img" aria-label="Minutos estudiados por día en la última semana">
+                {week.days.map((d, i) => (
+                  <div key={d.key} className="flex h-full flex-1 flex-col justify-end gap-1">
+                    <div className={cn("w-full rounded-sm", i === 6 ? "bg-brand" : "bg-foreground/25")} style={{ height: `${Math.max(d.min ? 8 : 3, (d.min / peak) * 100)}%`, opacity: d.min ? 1 : 0.35 }} />
+                  </div>
+                ))}
+              </div>
+              <div className="mt-1 flex gap-1.5">
+                {week.days.map((d) => <span key={d.key} className="flex-1 text-center text-[10px] uppercase text-muted-foreground">{d.letter}</span>)}
+              </div>
+              {week.bySubject.length > 0 ? (
+                <ul className="mt-3 space-y-1.5 border-t pt-3">
+                  {week.bySubject.filter(([id]) => id === "" || getSubject(subjects, id)).slice(0, 3).map(([id, min]) => {
+                    const s = getSubject(subjects, id)
+                    return (
+                      <li key={id} className="flex items-center gap-2 text-sm">
+                        <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: s?.border ?? "var(--muted-foreground)" }} />
+                        <span className="min-w-0 flex-1 truncate">{s?.name ?? "Sin materia"}</span>
+                        <span className="num shrink-0 text-xs text-muted-foreground">{fmtStudy(min)}</span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : (
+                <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">Estudia con el temporizador y verás aquí cuánto dedicas a cada materia.</p>
+              )}
+            </div>
+          </section>
+
           {/* Avisos: solo aparecen si hay algo que atender */}
           {alerts.length > 0 && (
             <section>
