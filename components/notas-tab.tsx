@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { ChevronDown, Plus, Trash2, Pencil, Check, X, EyeOff, Eye } from "lucide-react"
+import { useEffect, useId, useRef, useState } from "react"
+import { ChevronDown, Plus, Trash2, Pencil, Check, X, EyeOff, Eye, Target, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
@@ -9,13 +9,11 @@ import { Ring } from "@/components/ui/ring"
 import { CountUp } from "@/components/ui/count-up"
 import { cn } from "@/lib/utils"
 import {
-  FINAL_WEIGHT,
   PASSING_GRADE,
   accumulatedPoints,
   averageOf,
   goalPlan,
   coveredWeight,
-  neededOnFinal,
   type Subject,
   type Grade,
   type SubjectConfig,
@@ -307,9 +305,6 @@ function SubjectGrades({
 
   const points = accumulatedPoints(grades)
   const covered = coveredWeight(grades)
-  const needed = neededOnFinal(grades, goal)
-  const alreadyPassed = needed <= 0
-  const impossible = needed > 5
 
   return (
     <Card className="gap-0 overflow-hidden p-0 animate-pop">
@@ -515,34 +510,7 @@ function SubjectGrades({
               </div>
             )}
 
-            <GoalSimulator grades={grades} goal={goal} onGoal={onGoal} />
-
-            {/* Resumen */}
-            <div className="grid grid-cols-2 gap-2 border-t pt-3 text-sm">
-              <div className="rounded-lg bg-muted/50 p-3">
-                <p className="text-xs text-muted-foreground">Acumulado actual</p>
-                <p className="num mt-1 text-2xl font-semibold">{points.toFixed(2)}</p>
-                <p className="num text-[11px] text-muted-foreground">{covered}% calificado</p>
-              </div>
-              <div
-                className={cn(
-                  "rounded-lg p-3",
-                  alreadyPassed
-                    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-                    : impossible
-                      ? "bg-destructive/15 text-destructive"
-                      : "bg-foreground text-background"
-                )}
-              >
-                <p className="text-xs font-medium opacity-80">Necesitas en el final ({FINAL_WEIGHT}%)</p>
-                {alreadyPassed ? (
-                  <p className="mt-1 text-lg font-semibold leading-tight">Ya ganaste la materia 🎉</p>
-                ) : (
-                  <p className="num mt-1 text-2xl font-semibold">{needed.toFixed(2)}{impossible && " 💀"}</p>
-                )}
-                <p className="text-[11px] opacity-80">para quedar en {Number.isInteger(goal * 10) ? goal.toFixed(1) : goal.toFixed(2)}</p>
-              </div>
-            </div>
+            <GoalPanel grades={grades} goal={goal} onGoal={onGoal} />
           </div>
         </div>
       </div>
@@ -550,63 +518,191 @@ function SubjectGrades({
   )
 }
 
-const GOALS = [3, 3.5, 4, 4.5, 5]
 const fmt = (n: number) => n.toFixed(2).replace(".", ",")
+const fmtGoal = (n: number) => (Number.isInteger(n * 10) ? n.toFixed(1) : n.toFixed(2)).replace(".", ",")
+const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n))
 
-/** Meta de nota + simulador: «¿cuánto necesito?» y «¿qué pasa si saco X?» sobre lo que aún no se califica. */
-function GoalSimulator({ grades, goal, onGoal }: { grades: Grade[]; goal: number; onGoal: (g: number) => void }) {
+/** Número que se desliza hasta su nuevo valor (sin empezar de cero). */
+function useTween(target: number, ms = 240) {
+  const [v, setV] = useState(target)
+  const from = useRef(target)
+  useEffect(() => {
+    const a = from.current
+    if (a === target) return
+    const start = performance.now()
+    let raf = 0
+    const tick = (t: number) => {
+      const k = Math.min(1, (t - start) / ms)
+      const cur = a + (target - a) * (1 - Math.pow(1 - k, 3))
+      from.current = cur
+      setV(cur)
+      if (k < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [target, ms])
+  return v
+}
+
+const EASE = "ease-[cubic-bezier(0.22,1,0.36,1)]"
+
+/**
+ * Meta de nota y simulador en un solo panel: un campo para la meta, una cifra grande que responde
+ * («Necesitas…» o, al simular, «Quedarías en…») y una barra 0–5 donde se arrastra el punto para probar escenarios.
+ */
+function GoalPanel({ grades, goal, onGoal }: { grades: Grade[]; goal: number; onGoal: (g: number) => void }) {
+  const inputId = useId()
   const plan = goalPlan(grades, goal)
-  const [sim, setSim] = useState<number | null>(null)
+  const { points, remaining, maxPossible } = plan
+  const part = remaining / 100 // fracción de la nota que aún no se califica
+  const [sim, setSim] = useState<number | null>(null) // nota que se simula en lo que falta (0–5); null = lo necesario para la meta
   const [draft, setDraft] = useState<string | null>(null)
-  const guess = sim ?? Math.round(Math.min(5, Math.max(0, plan.state === "open" ? plan.needed : PASSING_GRADE)) * 10) / 10
-  const result = plan.points + (plan.remaining / 100) * guess
+  const [drag, setDrag] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  const trackRef = useRef<HTMLDivElement>(null)
+  useEffect(() => { const id = requestAnimationFrame(() => setMounted(true)); return () => cancelAnimationFrame(id) }, [])
+
+  const guess = sim ?? (part > 0 ? clamp((goal - points) / part, 0, 5) : 0)
+  const result = points + part * guess
   const hit = result >= goal - 1e-9
+  const simulating = sim !== null && part > 0
+  const pct = (v: number) => `${(clamp(v, 0, 5) / 5) * 100}%`
+
+  // Vibración corta al cruzar la meta arrastrando
+  const wasHit = useRef(hit)
+  useEffect(() => {
+    if (drag && hit && !wasHit.current) { try { navigator.vibrate?.(10) } catch {} }
+    wasHit.current = hit
+  }, [hit, drag])
+
+  const move = (x: number) => {
+    const r = trackRef.current?.getBoundingClientRect()
+    if (!r || part <= 0) return
+    const v = clamp(((x - r.left) / r.width) * 5, points, maxPossible)
+    setSim(clamp(Math.round(((v - points) / part) * 10) / 10, 0, 5))
+  }
+  const nudge = (d: number) => setSim(clamp(Math.round((guess + d) * 10) / 10, 0, 5))
+
+  // Qué dice la cifra grande
+  type Tone = "neutral" | "good" | "bad"
+  let tone: Tone = "neutral", label: string, value: number, sub: string, verdict = ""
+  if (simulating) {
+    label = "Quedarías en"; value = result
+    sub = `sacando ${guess.toFixed(1).replace(".", ",")} en lo que falta`
+    tone = hit ? "good" : "neutral"
+    verdict = hit ? "¡meta cumplida!" : `te faltan ${fmt(goal - result)}`
+  } else if (plan.state === "open") {
+    label = "Necesitas"; value = plan.needed; sub = `de promedio en el ${remaining}% que falta`
+  } else if (plan.state === "secured") {
+    label = "Meta asegurada"; value = points; tone = "good"; sub = `llegas aunque saques 0 en el ${remaining}% que falta`
+  } else if (plan.state === "out") {
+    label = "Ya no alcanza"; value = maxPossible; tone = "bad"; sub = "es lo máximo que puedes lograr"
+  } else {
+    label = "Terminaste en"; value = points
+    tone = plan.state === "done" ? "good" : "bad"; sub = plan.state === "done" ? "¡Meta alcanzada!" : "Por debajo de tu meta"
+  }
+  const toneClass = tone === "good" ? "text-emerald-600 dark:text-emerald-400" : tone === "bad" ? "text-destructive" : "text-foreground"
+  const shown = useTween(value)
 
   return (
-    <div className="space-y-3 rounded-lg border p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-sm font-semibold">Mi meta</h4>
-        <div className="flex gap-1" role="radiogroup" aria-label="Meta de nota">
-          {GOALS.map((g) => (
-            <button key={g} type="button" role="radio" aria-checked={goal === g} onClick={() => { onGoal(g); setSim(null); setDraft(null) }}
-              className={cn("num h-8 min-w-10 rounded-lg border px-2 text-xs font-semibold transition active:scale-95", goal === g ? "border-transparent bg-foreground text-background" : "text-muted-foreground hover:border-foreground/30 hover:text-foreground")}>
-              {g.toFixed(1)}
+    <section aria-label="Meta de nota" className="stagger space-y-4 rounded-2xl bg-muted/40 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <label htmlFor={inputId} className="flex items-center gap-2 text-sm font-semibold"><Target className="size-4 text-brand" />Mi meta</label>
+        <input id={inputId} type="text" inputMode="decimal" enterKeyHint="done" maxLength={4} placeholder="3,0" aria-label="Meta de nota (0,1 a 5)"
+          value={draft ?? fmtGoal(goal)}
+          onFocus={(e) => e.currentTarget.select()}
+          onChange={(e) => {
+            setDraft(e.target.value)
+            const n = Number(e.target.value.replace(",", "."))
+            if (e.target.value.trim() && Number.isFinite(n) && n > 0 && n <= 5) { onGoal(Math.round(n * 100) / 100); setSim(null) }
+          }}
+          onBlur={() => setDraft(null)}
+          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur() }}
+          className="num h-11 w-24 rounded-xl border bg-background text-center text-xl font-semibold outline-none transition focus-visible:border-brand focus-visible:ring-3 focus-visible:ring-brand/25" />
+      </div>
+
+      {/* Cifra principal */}
+      <div>
+        <div className="flex h-5 items-center justify-between gap-2">
+          <p key={label} className="animate-fade-in text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
+          {part > 0 && (simulating ? (
+            <button type="button" onClick={() => setSim(null)} className="tap -mr-1 flex items-center gap-1 rounded-md px-1 text-xs text-muted-foreground transition hover:text-foreground active:scale-95">
+              <RotateCcw className="size-3" />Restablecer
             </button>
+          ) : (
+            <span className="text-[11px] text-muted-foreground">Arrastra el punto para simular</span>
           ))}
-          {/* Meta personalizada: cualquier nota entre 0,1 y 5 (acepta coma o punto) */}
-          <input type="text" inputMode="decimal" aria-label="Otra meta" placeholder="Otra" maxLength={4}
-            value={draft ?? (GOALS.includes(goal) ? "" : String(goal).replace(".", ","))}
-            onChange={(e) => {
-              setDraft(e.target.value)
-              const n = Number(e.target.value.replace(",", "."))
-              if (e.target.value.trim() && Number.isFinite(n) && n > 0 && n <= 5) { onGoal(Math.round(n * 100) / 100); setSim(null) }
-            }}
-            onBlur={() => setDraft(null)}
-            className={cn("num h-8 w-14 rounded-lg border bg-transparent px-2 text-center text-xs font-semibold outline-none transition placeholder:font-normal placeholder:text-muted-foreground focus-visible:border-foreground/40", !GOALS.includes(goal) && "border-transparent bg-foreground text-background")} />
+        </div>
+        <p className={cn("num text-5xl font-semibold tracking-tight transition-colors duration-300", toneClass)}>{fmt(shown)}</p>
+        <p key={simulating ? "sim" : plan.state} className="animate-fade-in min-h-10 text-sm text-muted-foreground">
+          {sub}{verdict && <span className={cn("block font-medium first-letter:uppercase", toneClass)}>{verdict}</span>}
+        </p>
+      </div>
+
+      {/* Barra 0–5: lo que llevas, lo que aún puedes sumar, la meta y el punto de simulación */}
+      <div>
+        <div
+          ref={trackRef}
+          role={part > 0 ? "slider" : undefined}
+          tabIndex={part > 0 ? 0 : undefined}
+          aria-label="Simular la nota en lo que falta"
+          aria-valuemin={0} aria-valuemax={5} aria-valuenow={Number(guess.toFixed(1))}
+          aria-valuetext={`Sacando ${guess.toFixed(1)} quedarías en ${fmt(result)}`}
+          className={cn("group relative h-12 touch-pan-y select-none outline-none", part > 0 && (drag ? "cursor-grabbing" : "cursor-grab"))}
+          onPointerDown={(e) => { if (part <= 0) return; e.currentTarget.setPointerCapture(e.pointerId); setDrag(true); move(e.clientX) }}
+          onPointerMove={(e) => { if (drag) move(e.clientX) }}
+          onPointerUp={() => setDrag(false)}
+          onPointerCancel={() => setDrag(false)}
+          onKeyDown={(e) => {
+            if (part <= 0) return
+            const k = e.key
+            if (k === "ArrowRight" || k === "ArrowUp") nudge(0.1)
+            else if (k === "ArrowLeft" || k === "ArrowDown") nudge(-0.1)
+            else if (k === "Home") setSim(0)
+            else if (k === "End") setSim(5)
+            else return
+            e.preventDefault()
+          }}
+        >
+          <div className="absolute inset-x-0 top-1/2 h-3 -translate-y-1/2 overflow-hidden rounded-full bg-foreground/10">
+            {/* hasta dónde se puede llegar */}
+            <div aria-hidden className="absolute inset-y-0 text-foreground" style={{ left: pct(points), width: pct(maxPossible - points), backgroundImage: "repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in oklab, currentColor 16%, transparent) 4px 8px)" }} />
+            {/* lo que sumarías con la nota simulada */}
+            <div aria-hidden className={cn("absolute inset-y-0 transition-colors duration-300", hit ? "bg-emerald-500" : "bg-brand", !drag && `transition-[width,background-color] duration-500 ${EASE}`)}
+              style={{ left: pct(points), width: mounted ? pct(result - points) : 0 }} />
+            {/* lo que ya llevas */}
+            <div aria-hidden className={cn("absolute inset-y-0 left-0 rounded-full bg-foreground transition-[width] duration-700", EASE)} style={{ width: mounted ? pct(points) : 0 }} />
+          </div>
+
+          {/* meta */}
+          <span aria-hidden className={cn("absolute top-1/2 h-7 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground transition-[left] duration-500", EASE)} style={{ left: pct(goal) }} />
+
+          {/* punto de simulación */}
+          {part > 0 && (
+            <span aria-hidden
+              className={cn(
+                "absolute top-1/2 grid size-7 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 bg-background shadow-md shadow-black/30 group-focus-visible:ring-3 group-focus-visible:ring-brand/40",
+                hit ? "border-emerald-500" : "border-brand",
+                drag ? "scale-110 transition-transform duration-150" : `transition-[left,transform] duration-500 ${EASE}`
+              )}
+              style={{ left: pct(result) }}
+            >
+              <span className={cn("size-2 rounded-full transition-colors", hit ? "bg-emerald-500" : "bg-brand")} />
+              {simulating && hit && <span key="ripple" className="ripple absolute inset-0 rounded-full bg-emerald-500/50" />}
+            </span>
+          )}
+        </div>
+
+        <div className="relative -mt-1 h-4">
+          <span className={cn("num absolute -translate-x-1/2 whitespace-nowrap text-[11px] font-medium text-muted-foreground transition-[left] duration-500", EASE)}
+            style={{ left: `clamp(1.5rem, ${pct(goal)}, calc(100% - 1.5rem))` }}>meta {fmtGoal(goal)}</span>
         </div>
       </div>
 
-      <p className={cn("text-sm", plan.state === "out" || plan.state === "lost" ? "text-destructive" : plan.state === "open" ? "" : "text-emerald-600 dark:text-emerald-400")}>
-        {plan.state === "open" && <>Necesitas promediar <b className="num">{fmt(plan.needed)}</b> en el {plan.remaining}% que falta.</>}
-        {plan.state === "secured" && <>¡Meta asegurada! Aunque saques 0 en lo que falta, llegas a <b className="num">{fmt(plan.points)}</b>.</>}
-        {plan.state === "out" && <>Con esta meta ya no alcanza: lo máximo que puedes lograr es <b className="num">{fmt(plan.maxPossible)}</b>.</>}
-        {plan.state === "done" && <>Terminaste en <b className="num">{fmt(plan.points)}</b>: ¡meta alcanzada!</>}
-        {plan.state === "lost" && <>Terminaste en <b className="num">{fmt(plan.points)}</b>, por debajo de la meta.</>}
-      </p>
-
-      {plan.remaining > 0 && (
-        <div className="space-y-1.5">
-          <div className="flex items-baseline justify-between text-xs text-muted-foreground">
-            <label htmlFor={`sim-${goal}`}>Si saco en lo que falta…</label>
-            <span className="num text-sm font-semibold text-foreground">{guess.toFixed(1)}</span>
-          </div>
-          <input id={`sim-${goal}`} type="range" min={0} max={5} step={0.1} value={guess} onChange={(e) => setSim(Number(e.target.value))} className="w-full accent-brand" />
-          <p className="num text-xs text-muted-foreground">
-            quedarías en <b className={cn("text-sm", hit ? "text-emerald-600 dark:text-emerald-400" : "text-foreground")}>{fmt(result)}</b>
-            {hit ? " · cumples tu meta" : ` · te faltan ${fmt(goal - result)}`}
-          </p>
-        </div>
-      )}
-    </div>
+      <div className="num flex items-center justify-between text-xs text-muted-foreground">
+        <span>Llevas <b className="font-semibold text-foreground">{fmt(points)}</b> · {100 - remaining}% calificado</span>
+        {part > 0 && <span>Máx. {fmt(maxPossible)}</span>}
+      </div>
+    </section>
   )
 }
