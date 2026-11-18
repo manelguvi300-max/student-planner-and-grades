@@ -540,7 +540,7 @@ function SubjectGrades({
                 ) : (
                   <p className="num mt-1 text-2xl font-semibold">{needed.toFixed(2)}{impossible && " 💀"}</p>
                 )}
-                <p className="text-[11px] opacity-80">para quedar en {goal.toFixed(1)}</p>
+                <p className="text-[11px] opacity-80">para quedar en {Number.isInteger(goal * 10) ? goal.toFixed(1) : goal.toFixed(2)}</p>
               </div>
             </div>
           </div>
@@ -557,6 +557,7 @@ const fmt = (n: number) => n.toFixed(2).replace(".", ",")
 function GoalSimulator({ grades, goal, onGoal }: { grades: Grade[]; goal: number; onGoal: (g: number) => void }) {
   const plan = goalPlan(grades, goal)
   const [sim, setSim] = useState<number | null>(null)
+  const [draft, setDraft] = useState<string | null>(null)
   const guess = sim ?? Math.round(Math.min(5, Math.max(0, plan.state === "open" ? plan.needed : PASSING_GRADE)) * 10) / 10
   const result = plan.points + (plan.remaining / 100) * guess
   const hit = result >= goal - 1e-9
@@ -567,11 +568,21 @@ function GoalSimulator({ grades, goal, onGoal }: { grades: Grade[]; goal: number
         <h4 className="text-sm font-semibold">Mi meta</h4>
         <div className="flex gap-1" role="radiogroup" aria-label="Meta de nota">
           {GOALS.map((g) => (
-            <button key={g} type="button" role="radio" aria-checked={goal === g} onClick={() => { onGoal(g); setSim(null) }}
+            <button key={g} type="button" role="radio" aria-checked={goal === g} onClick={() => { onGoal(g); setSim(null); setDraft(null) }}
               className={cn("num h-8 min-w-10 rounded-lg border px-2 text-xs font-semibold transition active:scale-95", goal === g ? "border-transparent bg-foreground text-background" : "text-muted-foreground hover:border-foreground/30 hover:text-foreground")}>
               {g.toFixed(1)}
             </button>
           ))}
+          {/* Meta personalizada: cualquier nota entre 0,1 y 5 (acepta coma o punto) */}
+          <input type="text" inputMode="decimal" aria-label="Otra meta" placeholder="Otra" maxLength={4}
+            value={draft ?? (GOALS.includes(goal) ? "" : String(goal).replace(".", ","))}
+            onChange={(e) => {
+              setDraft(e.target.value)
+              const n = Number(e.target.value.replace(",", "."))
+              if (e.target.value.trim() && Number.isFinite(n) && n > 0 && n <= 5) { onGoal(Math.round(n * 100) / 100); setSim(null) }
+            }}
+            onBlur={() => setDraft(null)}
+            className={cn("num h-8 w-14 rounded-lg border bg-transparent px-2 text-center text-xs font-semibold outline-none transition placeholder:font-normal placeholder:text-muted-foreground focus-visible:border-foreground/40", !GOALS.includes(goal) && "border-transparent bg-foreground text-background")} />
         </div>
       </div>
 
