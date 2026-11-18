@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
-import { Check, ChevronDown, Coffee, Flame, Minus, Pause, Play, Plus, Square, Target, Timer } from "lucide-react"
+import { Check, ChevronDown, Coffee, Flame, Minus, Pause, Play, Plus, Square, Timer } from "lucide-react"
 import { Ring } from "@/components/ui/ring"
+import { SubjectPicker } from "@/components/subject-picker"
 import { useSheetBack } from "@/lib/use-sheet-back"
 import { cn } from "@/lib/utils"
 import { studyFromConfigs, STUDY_KEY, type StudyEntry, type Subject, type SubjectConfig } from "@/lib/horario-data"
@@ -262,19 +263,9 @@ export function FocusTab({ focus, subjects, subjectConfigs, onGoal }: {
               ))}
             </div>
 
-            {/* Materia: tira deslizable */}
-            <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5" role="radiogroup" aria-label="Materia">
-              {[{ id: "", name: "Sin materia", border: "", bg: "" }, ...subjects].map((s) => {
-                const on = valid === s.id
-                return (
-                  <button key={s.id || "none"} type="button" role="radio" aria-checked={on} onClick={() => setSubjectId(s.id)}
-                    className={cn("flex h-10 shrink-0 items-center gap-2 rounded-full border px-3.5 text-sm font-medium transition active:scale-95", on ? "border-transparent text-neutral-900" : "text-muted-foreground hover:text-foreground")}
-                    style={on ? { background: s.id ? s.bg : "var(--foreground)", color: s.id ? undefined : "var(--background)" } : undefined}>
-                    {s.id ? <span className="size-2.5 rounded-full" style={{ background: s.border }} /> : <Target className="size-3.5" />}
-                    <span className="max-w-40 truncate">{s.name}</span>
-                  </button>
-                )
-              })}
+            {/* Materia: el mismo selector (con búsqueda) que usa el resto de la app */}
+            <div className="mx-auto max-w-md">
+              <SubjectPicker subjects={subjects} value={valid} onChange={setSubjectId} noneLabel="Sin materia" />
             </div>
 
             <button type="button" onClick={() => focus.start(valid, minutes)}
