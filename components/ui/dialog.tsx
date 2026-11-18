@@ -123,7 +123,7 @@ function DialogContent({
         ref={setPopupEl}
         data-slot="dialog-content"
         className={cn(
-          "fixed z-50 grid w-full grid-cols-[minmax(0,1fr)] gap-4 bg-popover p-4 text-sm text-popover-foreground ring-1 ring-border shadow-2xl shadow-black/30 outline-none duration-300 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 " +
+          "fixed z-50 grid w-full grid-cols-[minmax(0,1fr)] gap-4 bg-popover p-4 [--sheet-pb:1rem] max-sm:[--sheet-pb:max(1rem,env(safe-area-inset-bottom))] text-sm text-popover-foreground ring-1 ring-border shadow-2xl shadow-black/30 outline-none duration-300 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0 " +
             // móvil: hoja inferior que sube desde abajo
             "max-sm:inset-x-0 max-sm:bottom-0 max-sm:max-h-[92dvh] max-sm:overflow-y-auto max-sm:overscroll-contain max-sm:duration-[380ms] max-sm:ease-[cubic-bezier(0.32,0.72,0,1)] max-sm:data-open:fade-in-100 max-sm:data-closed:fade-out-100 max-sm:rounded-t-2xl max-sm:pb-[max(1rem,env(safe-area-inset-bottom))] max-sm:data-open:slide-in-from-bottom-full max-sm:data-closed:slide-out-to-bottom-full " +
             // tablet / PC: diálogo centrado con zoom suave

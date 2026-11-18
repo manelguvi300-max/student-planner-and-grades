@@ -336,13 +336,15 @@ function ExamForm({ subjects, kindsApi, initial, defaultDate, onSave, onCancel, 
 
 /* ───────────── Tarjeta de examen ───────────── */
 
-function ExamCard({ exam, subject, kind, showDate, overdue, onToggleDone, onEdit }: {
+function ExamCard({ exam, subject, kind, showDate, overdue, calendarUrl, onToggleDone, onEdit }: {
   exam: Exam
   subject?: Subject
   kind: EventKind
   /** Muestra la fecha en la fila (atrasados y pasados; en la lista por días no hace falta) */
   showDate?: boolean
   overdue?: boolean
+  /** Enlace a Google Calendar (solo eventos pendientes que aún no pasan) */
+  calendarUrl?: string
   onToggleDone: () => void
   onEdit: () => void
 }) {
@@ -377,6 +379,12 @@ function ExamCard({ exam, subject, kind, showDate, overdue, onToggleDone, onEdit
         </span>
       </button>
 
+      {calendarUrl && (
+        <a href={calendarUrl} target="_blank" rel="noopener noreferrer" aria-label={`Añadir a Google Calendar: ${title}`} title="Añadir a Google Calendar"
+          className="grid w-10 shrink-0 place-items-center text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground active:bg-foreground/[0.08]">
+          <CalendarPlus className="size-[18px]" />
+        </a>
+      )}
       <button type="button" onClick={onToggleDone} aria-pressed={Boolean(exam.done)} aria-label={exam.done ? "Marcar como pendiente" : "Marcar como hecho"}
         className="grid w-12 shrink-0 place-items-center transition-colors hover:bg-foreground/[0.04] active:bg-foreground/[0.08]">
         <span className={cn("grid size-6 place-items-center rounded-full border-2 transition-[transform,background-color,border-color] duration-300", exam.done ? "scale-100 border-emerald-500 bg-emerald-500 text-white" : "border-foreground/25")}>
@@ -740,6 +748,7 @@ export function ExamenesTab({ subjects, exams, setExams, kinds, setKinds, hidden
   }
   const card = (e: Exam, opts?: { showDate?: boolean; overdue?: boolean }) => (
     <ExamCard key={e.id} exam={e} subject={getSubject(subjects, e.subjectId)} kind={findKind(kinds, e.kind)} showDate={opts?.showDate} overdue={opts?.overdue}
+      calendarUrl={!e.done && e.date >= todayStr ? googleCalendarUrl(toEvent(e)) : undefined}
       onToggleDone={() => toggleDone(e.id)} onEdit={() => setDialog({ open: true, editing: e })} />
   )
   const heading = "flex items-baseline gap-2 px-1 pb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
@@ -787,7 +796,7 @@ export function ExamenesTab({ subjects, exams, setExams, kinds, setKinds, hidden
           </div>
           {pending.length > 0 && (
             <button type="button" onClick={exportCalendar} aria-label="Agregar pendientes al calendario" title="Agregar pendientes al calendario (.ics)"
-              className="grid size-9 place-items-center rounded-lg border text-muted-foreground transition hover:bg-foreground/[0.05] hover:text-foreground active:scale-95">
+              className="hidden size-9 place-items-center rounded-lg border text-muted-foreground transition hover:bg-foreground/[0.05] hover:text-foreground active:scale-95 sm:grid">
               <CalendarPlus className="size-4" />
             </button>
           )}
