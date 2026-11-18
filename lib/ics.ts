@@ -54,6 +54,22 @@ export function downloadIcs(filename: string, events: IcsEvent[]) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
+/** Enlace que abre Google Calendar con el evento ya rellenado: solo queda pulsar «Guardar». Sin permisos ni archivos. */
+export function googleCalendarUrl(e: IcsEvent) {
+  let dates: string
+  if (e.startMin === undefined) {
+    const next = new Date(e.date + "T00:00:00"); next.setDate(next.getDate() + 1)
+    dates = `${compact(e.date)}/${compact(`${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}`)}`
+  } else {
+    const end = e.endMin ?? Math.min(e.startMin + 60, 24 * 60 - 1)
+    dates = `${compact(e.date)}T${clock(e.startMin)}/${compact(e.date)}T${clock(end)}`
+  }
+  const q = new URLSearchParams({ action: "TEMPLATE", text: e.title, dates })
+  if (e.description) q.set("details", e.description)
+  if (e.location) q.set("location", e.location)
+  return `https://calendar.google.com/calendar/render?${q}`
+}
+
 /** Fecha (YYYY-MM-DD) de la próxima vez que cae el día de la semana `day` (0 = lunes), contando hoy. */
 export function nextWeekday(day: number) {
   const d = new Date(); d.setHours(0, 0, 0, 0)

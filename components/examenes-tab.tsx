@@ -19,7 +19,7 @@ import { useSheetBack } from "@/lib/use-sheet-back"
 import { cn } from "@/lib/utils"
 import { getSubject, minutesToLabel, timeToMinutes, allKinds, findKind, KIND_COLORS, type KindColor, type EventKind, type Subject, type Exam } from "@/lib/horario-data"
 import { useSettings } from "@/lib/settings"
-import { downloadIcs, type IcsEvent } from "@/lib/ics"
+import { downloadIcs, googleCalendarUrl, type IcsEvent } from "@/lib/ics"
 
 type Props = {
   subjects: Subject[]
@@ -214,7 +214,7 @@ function KindPicker({ value, onChange, api }: { value: string; onChange: (id: st
   )
 }
 
-function ExamForm({ subjects, kindsApi, initial, defaultDate, onSave, onCancel, onDelete }: {
+function ExamForm({ subjects, kindsApi, initial, defaultDate, onSave, onCancel, onDelete, calendarUrl }: {
   subjects: Subject[]
   kindsApi: KindsApi
   initial?: Exam
@@ -222,6 +222,8 @@ function ExamForm({ subjects, kindsApi, initial, defaultDate, onSave, onCancel, 
   onSave: (e: Omit<Exam, "id" | "done"> & { id?: string }) => void
   onCancel: () => void
   onDelete?: () => void
+  /** Enlace para añadir el evento (ya guardado) a Google Calendar; solo al editar */
+  calendarUrl?: string
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [subjectId, setSubjectId] = useState(initial?.subjectId ?? subjects[0]?.id ?? "")
@@ -301,6 +303,13 @@ function ExamForm({ subjects, kindsApi, initial, defaultDate, onSave, onCancel, 
         <textarea id="exam-note" value={notes} onChange={(e) => setNotes(e.target.value)} rows={3}
           placeholder="Temas, materiales, salón, enlace…" className={TEXTAREA} />
       </div>
+
+      {calendarUrl && (
+        <a href={calendarUrl} target="_blank" rel="noopener noreferrer"
+          className="flex min-h-11 items-center justify-center gap-2 rounded-lg border text-sm font-medium transition hover:bg-foreground/[0.05] active:scale-[0.99]">
+          <CalendarPlus className="size-4" />Añadir a Google Calendar
+        </a>
+      )}
 
       <div className="sheet-actions flex items-center gap-2 pt-1">
         {onDelete && (confirmDelete ? (
@@ -716,17 +725,17 @@ export function ExamenesTab({ subjects, exams, setExams, kinds, setKinds, hidden
   const openNew = (date?: string) => setDialog({ open: true, date })
 
   /** Los pendientes (con los filtros actuales) como archivo de calendario: Google Calendar, Apple, Outlook… */
+  function toEvent(e: Exam): IcsEvent {
+    const subject = getSubject(subjects, e.subjectId)
+    const kind = findKind(kinds, e.kind)
+    return {
+      uid: e.id, date: e.date, startMin: e.time ? timeToMinutes(e.time) : undefined, alarm: true,
+      title: e.title ? (subject ? `${e.title} (${subject.name})` : e.title) : `${kind.name}${subject ? ` · ${subject.name}` : ""}`,
+      description: [e.weight > 0 ? `Vale ${e.weight}%` : "", e.group === "grupal" ? "Trabajo grupal" : "", e.notes?.trim() ?? ""].filter(Boolean).join("\n") || undefined,
+    }
+  }
   function exportCalendar() {
-    const events: IcsEvent[] = pending.filter((e) => shown.includes(e)).map((e) => {
-      const subject = getSubject(subjects, e.subjectId)
-      const kind = findKind(kinds, e.kind)
-      const start = e.time ? timeToMinutes(e.time) : undefined
-      return {
-        uid: e.id, date: e.date, startMin: start, alarm: true,
-        title: e.title ? (subject ? `${e.title} (${subject.name})` : e.title) : `${kind.name}${subject ? ` · ${subject.name}` : ""}`,
-        description: [e.weight > 0 ? `Vale ${e.weight}%` : "", e.group === "grupal" ? "Trabajo grupal" : "", e.notes?.trim() ?? ""].filter(Boolean).join("\n") || undefined,
-      }
-    })
+    const events = pending.filter((e) => shown.includes(e)).map(toEvent)
     if (events.length) downloadIcs("agenda.ics", events)
   }
   const card = (e: Exam, opts?: { showDate?: boolean; overdue?: boolean }) => (
@@ -900,6 +909,7 @@ export function ExamenesTab({ subjects, exams, setExams, kinds, setKinds, hidden
             <DialogDescription>{dialog.editing ? "Cambia lo que necesites." : "Fecha, peso y notas opcionales."}</DialogDescription>
           </DialogHeader>
           <ExamForm subjects={subjects} kindsApi={kindsApi} initial={dialog.editing} defaultDate={dialog.date} onSave={save} onCancel={closeDialog}
+            calendarUrl={dialog.editing ? googleCalendarUrl(toEvent(dialog.editing)) : undefined}
             onDelete={dialog.editing ? () => { remove(dialog.editing!.id); closeDialog() } : undefined} />
         </DialogContent>
       </Dialog>
