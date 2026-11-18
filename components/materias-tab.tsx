@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import {
-  Plus, Pencil, Trash2, X, ArrowLeft, GraduationCap, ChevronRight, Users,
+  Plus, Pencil, Trash2, X, ArrowLeft, GraduationCap, ChevronRight, Users, Search,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -186,6 +186,11 @@ export function MateriasTab({
   const ops: TeacherOps = { subjects, setSubjects, setTeachers, setClasses }
   const [dlg, setDlg] = useState<Dlg | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [query, setQuery] = useState("")
+  const q = norm(query.trim())
+  const shownSubjects = q
+    ? subjects.filter((s) => norm(s.name).includes(q) || teachersOf(s, teachers).some((t) => norm(t.name ?? "").includes(q)))
+    : subjects
 
   // peticiones de fuera (botón del horario vacío, tocar una materia en Profesores): se atienden una vez y se avisa
   useEffect(() => {
@@ -387,7 +392,26 @@ export function MateriasTab({
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">{subjects.map(card)}</div>
+          {/* Buscador: por nombre de la materia o de su profesor (sin importar tildes ni mayúsculas) */}
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar materia o profesor" aria-label="Buscar materia"
+              enterKeyHint="search" className="h-11 rounded-xl pl-10 pr-10 text-base [&::-webkit-search-cancel-button]:hidden" />
+            {query && (
+              <button type="button" onClick={() => setQuery("")} aria-label="Borrar búsqueda"
+                className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted-foreground transition hover:bg-foreground/10 hover:text-foreground">
+                <X className="size-4" />
+              </button>
+            )}
+          </div>
+          {shownSubjects.length > 0 ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">{shownSubjects.map(card)}</div>
+          ) : (
+            <div className="rounded-xl border border-dashed px-6 py-10 text-center">
+              <p className="text-sm text-muted-foreground">Ninguna materia coincide con «{query.trim()}».</p>
+              <button type="button" onClick={() => setQuery("")} className="mt-2 text-sm font-medium text-brand hover:underline">Ver todas</button>
+            </div>
+          )}
         </>
       )}
 
