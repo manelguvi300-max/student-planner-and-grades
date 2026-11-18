@@ -294,12 +294,12 @@ function SubjectGrades({
         )}
       >
         <div className="overflow-hidden">
-          <div className="space-y-5 border-t px-4 pb-4 pt-5">
+          <div className="space-y-4 border-t px-4 pb-4 pt-4">
             {/* Lo importante primero: cuánto necesitas y qué pasaría si… */}
             {grades.length > 0 && <GoalPanel grades={grades} goal={goal} onGoal={onGoal} />}
 
             {/* Evaluaciones: tocar una fila la edita; agregar abre la misma hoja */}
-            <section className={cn(grades.length > 0 && "border-t pt-4")}>
+            <section className={cn(grades.length > 0 && "border-t pt-3")}>
               <h4 className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Evaluaciones</h4>
               {grades.length > 0 && (
                 <ul className="stagger divide-y divide-border/60">
@@ -393,7 +393,6 @@ function GradeSheet({ open, isNew, grade, subjectName, maxWeight, fallbackName, 
   const w = Number(weight.replace(",", "."))
   const scoreOk = score.trim() !== "" && Number.isFinite(s) && s >= 0 && s <= 5
   const weightOk = weight.trim() !== "" && Number.isFinite(w) && w > 0 && w <= maxWeight
-  const quick = [10, 20, 25, 30].filter((n) => n < maxWeight)
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -428,20 +427,6 @@ function GradeSheet({ open, isNew, grade, subjectName, maxWeight, fallbackName, 
               <label htmlFor="grade-weight" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Vale (%)</label>
               <Input id="grade-weight" value={weight} onChange={(e) => { setWeight(e.target.value); setError("") }} placeholder="20" inputMode="decimal" enterKeyHint="done" maxLength={5} className={field} />
             </div>
-          </div>
-
-          {/* Atajos para el porcentaje */}
-          <div className="-mt-2 flex flex-wrap items-center gap-1.5" aria-label="Atajos de porcentaje">
-            {quick.map((n) => (
-              <button key={n} type="button" onClick={() => { setWeight(String(n)); setError("") }}
-                className={cn("num h-8 rounded-full border px-3 text-xs font-semibold transition active:scale-95", w === n ? "border-transparent bg-foreground text-background" : "text-muted-foreground hover:border-foreground/30 hover:text-foreground")}>{n}%</button>
-            ))}
-            {maxWeight > 0 && (
-              <button type="button" onClick={() => { setWeight(String(maxWeight)); setError("") }}
-                className={cn("num h-8 rounded-full border px-3 text-xs font-semibold transition active:scale-95", w === maxWeight ? "border-transparent bg-foreground text-background" : "text-muted-foreground hover:border-foreground/30 hover:text-foreground")}>
-                El resto · {maxWeight}%
-              </button>
-            )}
           </div>
 
           <p aria-live="polite" className={cn("num min-h-5 text-sm", error ? "font-medium text-destructive" : "text-muted-foreground")}>
@@ -561,7 +546,7 @@ function GoalPanel({ grades, goal, onGoal }: { grades: Grade[]; goal: number; on
   const shown = useTween(value)
 
   return (
-    <section aria-label="Meta de nota" className="stagger space-y-4">
+    <section aria-label="Meta de nota" className="stagger space-y-2.5">
       <div className="flex items-center justify-between gap-3">
         <label htmlFor={inputId} className="flex items-center gap-2 text-sm font-semibold"><Target className="size-4 text-brand" />Mi meta</label>
         <input id={inputId} type="text" inputMode="decimal" enterKeyHint="done" maxLength={4} placeholder="3,0" aria-label="Meta de nota (0,1 a 5)"
@@ -574,12 +559,12 @@ function GoalPanel({ grades, goal, onGoal }: { grades: Grade[]; goal: number; on
           }}
           onBlur={() => setDraft(null)}
           onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur() }}
-          className="num h-10 w-20 rounded-xl border bg-muted/40 text-center text-lg font-semibold outline-none transition focus-visible:border-brand focus-visible:ring-3 focus-visible:ring-brand/25" />
+          className="num h-9 w-16 rounded-lg border bg-muted/40 text-center text-base font-semibold outline-none transition focus-visible:border-brand focus-visible:ring-3 focus-visible:ring-brand/25" />
       </div>
 
       {/* Cifra principal */}
       <div>
-        <div className="flex h-5 items-center justify-between gap-2">
+        <div className="flex h-4 items-center justify-between gap-2">
           <p key={label} className="animate-fade-in text-xs font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
           {part > 0 && (simulating ? (
             <button type="button" onClick={() => setSim(null)} className="tap -mr-1 flex items-center gap-1 rounded-md px-1 text-xs text-muted-foreground transition hover:text-foreground active:scale-95">
@@ -589,8 +574,8 @@ function GoalPanel({ grades, goal, onGoal }: { grades: Grade[]; goal: number; on
             <span className="text-[11px] text-muted-foreground">Arrastra el punto para simular</span>
           ))}
         </div>
-        <p className={cn("num text-4xl font-semibold tracking-tight transition-colors duration-300", toneClass)}>{fmt(shown)}</p>
-        <p key={simulating ? "sim" : plan.state} className="animate-fade-in min-h-10 text-sm text-muted-foreground">
+        <p className={cn("num text-3xl font-semibold tracking-tight transition-colors duration-300", toneClass)}>{fmt(shown)}</p>
+        <p key={simulating ? "sim" : plan.state} className="animate-fade-in min-h-8 text-xs text-muted-foreground">
           {sub}{verdict && <span className={cn("block font-medium first-letter:uppercase", toneClass)}>{verdict}</span>}
         </p>
       </div>
@@ -604,7 +589,7 @@ function GoalPanel({ grades, goal, onGoal }: { grades: Grade[]; goal: number; on
           aria-label="Simular la nota en lo que falta"
           aria-valuemin={0} aria-valuemax={5} aria-valuenow={Number(guess.toFixed(1))}
           aria-valuetext={`Sacando ${guess.toFixed(1)} quedarías en ${fmt(result)}`}
-          className={cn("group relative h-12 touch-pan-y select-none outline-none", part > 0 && (drag ? "cursor-grabbing" : "cursor-grab"))}
+          className={cn("group relative h-9 touch-pan-y select-none outline-none", part > 0 && (drag ? "cursor-grabbing" : "cursor-grab"))}
           onPointerDown={(e) => { if (part <= 0) return; e.currentTarget.setPointerCapture(e.pointerId); setDrag(true); move(e.clientX) }}
           onPointerMove={(e) => { if (drag) move(e.clientX) }}
           onPointerUp={() => setDrag(false)}
@@ -620,7 +605,7 @@ function GoalPanel({ grades, goal, onGoal }: { grades: Grade[]; goal: number; on
             e.preventDefault()
           }}
         >
-          <div className="absolute inset-x-0 top-1/2 h-3 -translate-y-1/2 overflow-hidden rounded-full bg-foreground/10">
+          <div className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 overflow-hidden rounded-full bg-foreground/10">
             {/* hasta dónde se puede llegar */}
             <div aria-hidden className="absolute inset-y-0 text-foreground" style={{ left: pct(points), width: pct(maxPossible - points), backgroundImage: "repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in oklab, currentColor 16%, transparent) 4px 8px)" }} />
             {/* lo que sumarías con la nota simulada */}
@@ -631,31 +616,31 @@ function GoalPanel({ grades, goal, onGoal }: { grades: Grade[]; goal: number; on
           </div>
 
           {/* meta */}
-          <span aria-hidden className={cn("absolute top-1/2 h-7 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground transition-[left] duration-500", EASE)} style={{ left: pct(goal) }} />
+          <span aria-hidden className={cn("absolute top-1/2 h-5 w-0.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground transition-[left] duration-500", EASE)} style={{ left: pct(goal) }} />
 
           {/* punto de simulación */}
           {part > 0 && (
             <span aria-hidden
               className={cn(
-                "absolute top-1/2 grid size-7 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 bg-background shadow-md shadow-black/30 group-focus-visible:ring-3 group-focus-visible:ring-brand/40",
+                "absolute top-1/2 grid size-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 bg-background shadow-md shadow-black/30 group-focus-visible:ring-3 group-focus-visible:ring-brand/40",
                 hit ? "border-emerald-500" : "border-brand",
                 drag ? "scale-110 transition-transform duration-150" : `transition-[left,transform] duration-500 ${EASE}`
               )}
               style={{ left: pct(result) }}
             >
-              <span className={cn("size-2 rounded-full transition-colors", hit ? "bg-emerald-500" : "bg-brand")} />
+              <span className={cn("size-1.5 rounded-full transition-colors", hit ? "bg-emerald-500" : "bg-brand")} />
               {simulating && hit && <span key="ripple" className="ripple absolute inset-0 rounded-full bg-emerald-500/50" />}
             </span>
           )}
         </div>
 
-        <div className="relative -mt-1 h-4">
-          <span className={cn("num absolute -translate-x-1/2 whitespace-nowrap text-[11px] font-medium text-muted-foreground transition-[left] duration-500", EASE)}
+        <div className="relative -mt-0.5 h-3.5">
+          <span className={cn("num absolute -translate-x-1/2 whitespace-nowrap text-[10px] font-medium text-muted-foreground transition-[left] duration-500", EASE)}
             style={{ left: `clamp(1.5rem, ${pct(goal)}, calc(100% - 1.5rem))` }}>meta {fmtGoal(goal)}</span>
         </div>
       </div>
 
-      <div className="num flex items-center justify-between text-xs text-muted-foreground">
+      <div className="num flex items-center justify-between text-[11px] text-muted-foreground">
         <span>Llevas <b className="font-semibold text-foreground">{fmt(points)}</b> · {100 - remaining}% calificado</span>
         {part > 0 && <span>Máx. {fmt(maxPossible)}</span>}
       </div>
