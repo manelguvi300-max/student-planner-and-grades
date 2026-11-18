@@ -274,15 +274,6 @@ function SubjectGrades({
             <span className="num text-[10px] font-semibold">{points.toFixed(1)}</span>
           </Ring>
         )}
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onToggleHidden() }}
-          aria-label="Ocultar materia de esta vista"
-          className="tap rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
-          title="Ocultar de esta vista"
-        >
-          <EyeOff className="size-4" />
-        </button>
         <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform duration-300", expanded && "rotate-180")} />
       </div>
 
@@ -343,6 +334,10 @@ function SubjectGrades({
                 </button>
               )}
             </section>
+
+            <button type="button" onClick={onToggleHidden} className="flex items-center gap-1.5 text-xs text-muted-foreground transition hover:text-foreground">
+              <EyeOff className="size-3.5" />Ocultar de esta vista
+            </button>
           </div>
         </div>
       </div>

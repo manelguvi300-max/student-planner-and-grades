@@ -40,7 +40,10 @@ const NAV_ITEMS = [
   { value: "ajustes", label: "Ajustes", icon: Settings },
 ] as const
 // Móvil y tablet: cinco destinos con Enfoque al centro; Faltas vive junto a Notas (selector arriba de la vista).
-const MOBILE_ITEMS = (["hoy", "horario", "enfoque", "notas", "examenes"] as const).map((v) => NAV_ITEMS.find((n) => n.value === v)!)
+const MOBILE_ITEMS = (["hoy", "horario", "enfoque", "notas", "examenes"] as const).map((v) => {
+  const item = NAV_ITEMS.find((n) => n.value === v)!
+  return v === "notas" ? { ...item, label: "Progreso" } : item
+})
 const NOTAS_GROUP = ["notas", "faltas"]
 
 
@@ -338,7 +341,7 @@ export function PlannerView({ initial, userName, userEmail, userImage }: { initi
           </TabsContent>
         </Tabs>
 
-        <footer className="mt-10 text-center text-xs text-muted-foreground">
+        <footer className={cn("mt-10 text-center text-xs text-muted-foreground", !inSettings && "hidden lg:block")}>
           <p>Por Manuel Gutiérrez. Todos los derechos reservados.</p>
         </footer>
 

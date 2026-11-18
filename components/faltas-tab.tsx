@@ -86,7 +86,8 @@ function NumField({ label, value, placeholder, onCommit }: {
 }
 
 export function FaltasTab({ subjects, absences, classes, setAbsences, subjectConfigs, setSubjectConfigs, hiddenSubjects, onToggleHidden }: Props) {
-  const [draftDate, setDraftDate] = useState<string>(() => new Date().toISOString().split("T")[0])
+  // fecha local (no UTC): de noche, toISOString ya daría el día siguiente
+  const [draftDate, setDraftDate] = useState<string>(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` })
   const [draftAbsHours, setDraftAbsHours] = useState("") // horas que faltó (reglas en horas); vacío = un bloque
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const { settings } = useSettings()
@@ -249,7 +250,7 @@ export function FaltasTab({ subjects, absences, classes, setAbsences, subjectCon
 
     // subtítulo del encabezado
     const sub =
-      st.needsHours ? "Falta ingresar las horas HD"
+      st.needsHours ? "Configura su límite"
       : st.mode === "calc" ? `${config?.directHours} h HD · ${hoursUnit ? "en horas" : `clases de ${block} h`}`
       : st.mode === "manual" ? (hoursUnit ? "Máximo manual en horas" : "Máximo manual")
       : "Solo conteo"
@@ -280,7 +281,7 @@ export function FaltasTab({ subjects, absences, classes, setAbsences, subjectCon
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
             {st.needsHours ? (
-              <span className="rounded-full bg-amber-500/15 px-2.5 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">Falta HD</span>
+              <span className="num rounded-full bg-foreground/10 px-2.5 py-0.5 text-[11px] font-bold">{count} {count === 1 ? "falta" : "faltas"}</span>
             ) : (
               <span
                 className={cn(
@@ -295,15 +296,6 @@ export function FaltasTab({ subjects, absences, classes, setAbsences, subjectCon
                     : hoursUnit ? `${fmtHours(used)} h` : `${count} ${count === 1 ? "falta" : "faltas"}`}
               </span>
             )}
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onToggleHidden(subject.id) }}
-              aria-label="Ocultar materia de esta vista"
-              className="tap rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
-              title="Ocultar de esta vista"
-            >
-              <EyeOff className="size-4" />
-            </button>
             <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform duration-300", isExpanded && "rotate-180")} />
           </div>
         </div>
@@ -383,10 +375,10 @@ export function FaltasTab({ subjects, absences, classes, setAbsences, subjectCon
 
               {/* Historial de faltas */}
               <div className="space-y-2">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
-                  <p className="text-xs font-medium text-muted-foreground">Historial</p>
+                <div className="space-y-2 border-t pt-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Registrar falta</p>
                   <div className="flex items-center gap-2">
-                    <Input type="date" value={draftDate} onChange={(e) => setDraftDate(e.target.value)} className="h-7 px-2 text-[11px] w-[115px]" />
+                    <Input type="date" value={draftDate} onChange={(e) => setDraftDate(e.target.value)} aria-label="Fecha de la falta" className="h-10 min-w-0 flex-1 px-3 text-sm" />
                     {hoursUnit && (
                       <Input
                         inputMode="decimal"
@@ -395,18 +387,18 @@ export function FaltasTab({ subjects, absences, classes, setAbsences, subjectCon
                         placeholder={`${fmtHours(block)} h`}
                         aria-label="Horas que faltó ese día"
                         title="Horas que faltó ese día"
-                        className="h-7 w-14 px-2 text-center text-[11px]"
+                        className="h-10 w-16 px-2 text-center text-sm"
                       />
                     )}
-                    <Button size="icon" variant="secondary" className="h-7 w-7 rounded-md shrink-0" onClick={() => handleAddAbsence(subject.id, unit, block)} title="Agregar falta">
-                      <Plus className="size-3.5" />
+                    <Button className="h-10 shrink-0 rounded-lg" onClick={() => handleAddAbsence(subject.id, unit, block)}>
+                      <Plus className="size-4" />Agregar
                     </Button>
                   </div>
                 </div>
                 {hoursUnit && <p className="text-[11px] text-muted-foreground">Indica cuántas horas faltaste ese día (si la dejas vacía, {fmtHours(block)} h).</p>}
 
                 {subjectAbsences.length > 0 ? (
-                  <ul className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                  <ul className="max-h-44 space-y-1.5 overflow-y-auto pr-1">
                     {subjectAbsences.map((absence, index) => (
                       <li key={absence.id} className="flex animate-fade-in items-center justify-between gap-2 rounded-lg bg-muted/50 px-3 py-2 text-sm">
                         <div className="flex items-center gap-2.5">
@@ -416,8 +408,8 @@ export function FaltasTab({ subjects, absences, classes, setAbsences, subjectCon
                         </div>
                         <button
                           onClick={() => handleDeleteAbsence(absence.id)}
-                          className="tap p-1 text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-                          title="Eliminar falta"
+                          className="tap rounded p-1.5 text-muted-foreground/60 transition-colors hover:bg-destructive/10 hover:text-destructive"
+                          aria-label="Eliminar falta"
                         >
                           <Trash2 className="size-3.5" />
                         </button>
@@ -447,6 +439,9 @@ export function FaltasTab({ subjects, absences, classes, setAbsences, subjectCon
                   )}
                 </span>
               </div>
+              <button type="button" onClick={() => onToggleHidden(subject.id)} className="flex items-center gap-1.5 text-xs text-muted-foreground transition hover:text-foreground">
+                <EyeOff className="size-3.5" />Ocultar de esta vista
+              </button>
             </div>
           </div>
         </div>

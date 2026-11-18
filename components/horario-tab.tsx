@@ -1,7 +1,9 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState, useRef } from "react"
-import { Plus, CalendarDays, GraduationCap, Download, Users, CalendarPlus } from "lucide-react"
+import { Plus, CalendarDays, GraduationCap, Download, Users, CalendarPlus, Share } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useSheetBack } from "@/lib/use-sheet-back"
 import { downloadIcs, nextWeekday } from "@/lib/ics"
 import { Button } from "@/components/ui/button"
 import {
@@ -268,12 +270,38 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
     }))
   }
 
+  const [exportOpen, setExportOpen] = useState(false)
+  useSheetBack(exportOpen, () => setExportOpen(false))
+
   const dayList = classesForDay(selectedMobileDay)
   const dayHours = dayList.reduce((n, c) => n + (c.endTime - c.startTime), 0) / 60
 
   return (
     <div className="space-y-5 animate-fade-in">
       {mounted && <HorarioPrint subjects={subjects} classes={classes} format={settings.timeFormat} />}
+      <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+        <DialogContent className="gap-4 sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Exportar horario</DialogTitle>
+            <DialogDescription>Lleva tus clases a otro lugar.</DialogDescription>
+          </DialogHeader>
+          <div className="divide-y overflow-hidden rounded-2xl border">
+            {[
+              { Icon: CalendarPlus, title: "Agregar a mi calendario", sub: "Google, Apple u Outlook · se repite 16 semanas", run: exportIcs },
+              { Icon: Download, title: "Guardar como PDF", sub: "Para imprimir o compartir", run: exportPdf },
+            ].map(({ Icon, title, sub, run }) => (
+              <button key={title} type="button" onClick={() => { setExportOpen(false); setTimeout(run, 250) }}
+                className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-muted/60 active:bg-muted">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-brand/15 text-brand"><Icon className="size-5" /></span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold">{title}</span>
+                  <span className="block text-xs text-muted-foreground">{sub}</span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
       {/* Cabecera */}
       <header className="flex items-end justify-between gap-3">
         <div className="min-w-0">
@@ -294,16 +322,11 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
         )}
         {view === "semana" && (
           <div className="flex items-center gap-2">
+            {/* Un solo botón para sacar el horario de la app: calendario o PDF */}
             {classes.length > 0 && (
-              <Button onClick={exportIcs} variant="outline" size="sm" aria-label="Agregar el horario al calendario" title="Agregar el horario al calendario (.ics): cada clase se repite 16 semanas">
-                <CalendarPlus className="size-4 sm:mr-1" />
-                <span className="hidden sm:inline">Calendario</span>
-              </Button>
-            )}
-            {classes.length > 0 && (
-              <Button onClick={exportPdf} variant="outline" size="sm" aria-label="Exportar horario en PDF" title="Exportar horario en PDF">
-                <Download className="size-4 sm:mr-1" />
-                <span className="hidden sm:inline">PDF</span>
+              <Button onClick={() => setExportOpen(true)} variant="outline" size="sm" aria-label="Exportar horario" className="rounded-full">
+                <Share className="size-4 sm:mr-1" />
+                <span className="hidden sm:inline">Exportar</span>
               </Button>
             )}
             <Button onClick={() => openNew()} size="sm" className="rounded-full" disabled={subjects.length === 0}>

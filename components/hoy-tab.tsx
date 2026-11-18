@@ -11,7 +11,8 @@ import {
   findKind,
   kindsFromConfigs,
   KIND_COLORS,
-  FINAL_WEIGHT,
+  PASSING_GRADE,
+  goalPlan,
   absenceStatus,
   fmtHours,
   GLOBAL_CONFIG_KEY,
@@ -19,7 +20,6 @@ import {
   coveredWeight,
   getSubject,
   minutesToLabel,
-  neededOnFinal,
   studyFromConfigs,
   type Absence,
   type ClassSession,
@@ -125,9 +125,9 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
     }
     const g = grades[s.id] ?? []
     if (coveredWeight(g) > 0) {
-      const need = neededOnFinal(g)
-      if (need > 5) alerts.push({ id: `n${s.id}`, level: "bad", subject: s, text: "Ya no alcanzas a pasar con el final", tab: "notas" })
-      else if (need >= 4) alerts.push({ id: `n${s.id}`, level: "warn", subject: s, text: `Necesitas ${need.toFixed(1)} en el final (${FINAL_WEIGHT}%)`, tab: "notas" })
+      const plan = goalPlan(g, PASSING_GRADE)
+      if (plan.state === "out" || plan.state === "lost") alerts.push({ id: `n${s.id}`, level: "bad", subject: s, text: "Con lo que falta ya no alcanzas a pasar", tab: "notas" })
+      else if (plan.state === "open" && plan.needed >= 4) alerts.push({ id: `n${s.id}`, level: "warn", subject: s, text: `Necesitas ${plan.needed.toFixed(1).replace(".", ",")} de promedio en el ${plan.remaining}% que falta`, tab: "notas" })
     }
   }
   alerts.sort((a, b) => (a.level === b.level ? 0 : a.level === "bad" ? -1 : 1))
