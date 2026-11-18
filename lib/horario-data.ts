@@ -40,7 +40,7 @@ export const TEACHERS_KEY = "__teachers"
 /* ───────────── Semestres ─────────────
  * El semestre ACTIVO vive en las columnas de siempre (materias, clases, notas…), así que todo el resto de la app no se entera.
  * Los demás semestres se guardan archivados dentro de subjectConfigs[SEMESTERS_KEY] (sin migrar la base de datos).
- * Se comparten entre semestres: el directorio de profesores y la regla global de faltas. */
+ * Se comparten entre semestres la regla global de faltas, las categorías y el estudio; los profesores van con cada semestre. */
 export const SEMESTERS_KEY = "__semesters"
 
 export type Semester = { id: string; name: string }

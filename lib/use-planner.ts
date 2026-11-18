@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { migrateFromLocal, savePlannerData, type PlannerState } from "@/app/actions/planner"
-import { DEFAULT_CLASSES, NO_HIDDEN, normalizeHidden, migrateTeachers, teachersFromConfigs, withDirectory, kindsFromConfigs, withKinds, semestersFromConfigs, withSemesters, SEMESTERS_KEY, type SemesterData, type Teacher, type EventKind, type ClassSession, type Exam, type Grade, type Absence, type SubjectConfig, type HiddenMap } from "@/lib/horario-data"
+import { DEFAULT_CLASSES, NO_HIDDEN, normalizeHidden, migrateTeachers, teachersFromConfigs, withDirectory, kindsFromConfigs, withKinds, semestersFromConfigs, withSemesters, SEMESTERS_KEY, TEACHERS_KEY, type SemesterData, type Teacher, type EventKind, type ClassSession, type Exam, type Grade, type Absence, type SubjectConfig, type HiddenMap } from "@/lib/horario-data"
 import type { Subject } from "@/lib/horario-data"
 
 const LOCAL_KEYS = {
@@ -134,19 +134,22 @@ export function usePlanner(initial: PlannerState) {
   function loadSemester(nextId: string, list: typeof semesters.list, target: SemesterData, archive: typeof semesters.archive) {
     const current: SemesterData = {
       subjects, classes, grades, exams, absences, hidden,
-      subjectConfigs: Object.fromEntries(Object.entries(subjectConfigs).filter(([k]) => !isReserved(k))),
+      subjectConfigs: Object.fromEntries(Object.entries(subjectConfigs).filter(([k]) => !isReserved(k) || k === TEACHERS_KEY)),
     }
     const nextArchive = { ...archive, [semesters.activeId]: current }
     delete nextArchive[nextId]
-    // lo compartido entre semestres (directorio de profesores, regla global de faltas) se queda
-    const shared = Object.fromEntries(Object.entries(subjectConfigs).filter(([k]) => isReserved(k) && k !== SEMESTERS_KEY))
+    // lo compartido entre semestres (regla global de faltas, categorías, estudio) se queda; los profesores van con su semestre
+    const shared = Object.fromEntries(Object.entries(subjectConfigs).filter(([k]) => isReserved(k) && k !== SEMESTERS_KEY && k !== TEACHERS_KEY))
+    // semestres archivados antes de este cambio no traen profesores: se rescatan del directorio los que usan sus materias
+    const used = new Set(target.subjects.flatMap((s) => s.teacherIds ?? []))
+    const targetTeachers = target.subjectConfigs[TEACHERS_KEY]?.teachers ?? teachers.filter((t) => used.has(t.id))
     setSubjects(target.subjects)
     setClasses(target.classes)
     setGrades(target.grades)
     setExams(target.exams)
     setAbsences(target.absences)
     setHidden(target.hidden)
-    setSubjectConfigs(withSemesters({ ...target.subjectConfigs, ...shared }, { list, activeId: nextId, archive: nextArchive }))
+    setSubjectConfigs(withSemesters(withDirectory({ ...target.subjectConfigs, ...shared }, targetTeachers), { list, activeId: nextId, archive: nextArchive }))
   }
 
   const switchSemester = (id: string) => {

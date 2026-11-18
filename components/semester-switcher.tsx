@@ -120,7 +120,7 @@ export function SemesterSwitcher({ semesters, activeSubjectCount, onSwitch, onCr
                 <label htmlFor="new-semester" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nombre del nuevo semestre</label>
                 <Input id="new-semester" autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ej. 2027-1" maxLength={24} />
               </div>
-              <p className="text-xs text-muted-foreground">Empieza desde cero. Tus profesores y la regla de faltas se mantienen; lo de {active.name} queda guardado y puedes volver a verlo cuando quieras.</p>
+              <p className="text-xs text-muted-foreground">Empieza desde cero, sin materias ni profesores. La regla de faltas se mantiene; lo de {active.name} queda guardado y puedes volver a verlo cuando quieras.</p>
               <div className="flex justify-end gap-2">
                 <Button type="button" size="sm" variant="ghost" onClick={() => setCreating(false)}>Cancelar</Button>
                 <Button type="submit" size="sm" disabled={!newName.trim()}>Crear y empezar</Button>
