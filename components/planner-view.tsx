@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { CalendarDays, GraduationCap, ClipboardList, UserX, House, Settings } from "lucide-react"
+import { CalendarDays, GraduationCap, ClipboardList, UserX, House, Settings, WifiOff } from "lucide-react"
+import { clearOfflineCache } from "@/components/sw-register"
 import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { HoyTab } from "@/components/hoy-tab"
 import { NO_HIDDEN, type HiddenMap } from "@/lib/horario-data"
@@ -67,7 +68,10 @@ export function PlannerView({ initial, userName, userEmail, userImage }: { initi
 
   // Abrir en la pestaña elegida en Ajustes (solo la primera vez que se leen los ajustes)
   useEffect(() => {
-    if (loaded) setTab(settings.startTab)
+    if (!loaded) return
+    // los atajos del icono (/?tab=examenes) mandan sobre la pestaña de inicio elegida en Ajustes
+    const wanted = new URLSearchParams(window.location.search).get("tab")
+    setTab(NAV_ITEMS.some((n) => n.value === wanted) ? wanted! : settings.startTab)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded])
 
@@ -82,7 +86,7 @@ export function PlannerView({ initial, userName, userEmail, userImage }: { initi
       try {
         const r = await fetch("/api/auth/get-session", { cache: "no-store" })
         const d = r.ok ? await r.json() : null
-        if (!d?.session) window.location.replace("/sign-in")
+        if (!d?.session) { await clearOfflineCache(); window.location.replace("/sign-in") }
       } catch {} // sin red: se vuelve a comprobar en la próxima visita
     }
     const onShow = (e: PageTransitionEvent) => { if (e.persisted) window.location.reload() }
@@ -115,6 +119,15 @@ export function PlannerView({ initial, userName, userEmail, userImage }: { initi
   }
 
   const hiddenCount = Object.values(hiddenSubjectsByTab).reduce((n, ids) => n + ids.length, 0)
+
+  // Aviso de conexión: sin red la app sigue abierta y los cambios se envían al volver
+  const [offline, setOffline] = useState(false)
+  useEffect(() => {
+    const sync = () => setOffline(!navigator.onLine)
+    sync()
+    window.addEventListener("online", sync); window.addEventListener("offline", sync)
+    return () => { window.removeEventListener("online", sync); window.removeEventListener("offline", sync) }
+  }, [])
 
   const idx = Math.max(0, NAV_ITEMS.findIndex((n) => n.value === tab))
   const inSettings = tab === "ajustes"
@@ -200,6 +213,13 @@ export function PlannerView({ initial, userName, userEmail, userImage }: { initi
             </button>
           </div>
         </div>
+
+        {offline && (
+          <div role="status" className="mb-4 flex animate-rise items-center gap-2 rounded-lg bg-amber-500/15 px-3 py-2 text-sm text-amber-700 dark:text-amber-300">
+            <WifiOff className="size-4 shrink-0" />
+            <span>Sin conexión. Puedes seguir usando la app; tus cambios se guardan al volver internet.</span>
+          </div>
+        )}
 
         {/* Saludo: solo en Hoy y en Ajustes; las demás vistas abren directo con su propio título */}
         {(tab === "hoy" || inSettings) && (

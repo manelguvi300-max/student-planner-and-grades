@@ -12,6 +12,7 @@ import {
   FINAL_WEIGHT,
   PASSING_GRADE,
   accumulatedPoints,
+  averageOf,
   coveredWeight,
   neededOnFinal,
   type Subject,
@@ -56,7 +57,7 @@ export function NotasTab({ subjects, grades, setGrades, hiddenSubjects, onToggle
   // Promedio del ACUMULADO de las materias visibles (las ocultas no cuentan; las que aún no tienen notas tampoco).
   // El estado "aprobando / en riesgo" sí mira el promedio de lo ya calificado de cada materia.
   const graded = visibleSubjects.filter((s) => coveredWeight(grades[s.id] ?? []) > 0)
-  const avg = graded.length ? graded.reduce((n, s) => n + accumulatedPoints(grades[s.id]), 0) / graded.length : null
+  const { avg, weighted } = averageOf(visibleSubjects, grades)
   const passing = graded.filter((s) => {
     const g = grades[s.id]
     return accumulatedPoints(g) / (coveredWeight(g) / 100) >= PASSING_GRADE
@@ -79,7 +80,7 @@ export function NotasTab({ subjects, grades, setGrades, hiddenSubjects, onToggle
         <div className="min-w-0 flex-1">
           <h2 className="text-xl font-semibold tracking-tight">Mis notas</h2>
           <p className={cn("mt-0.5 text-xs text-muted-foreground sm:text-sm", avg !== null && "hidden sm:block")}>
-            {avg === null ? "Agrega notas a tus materias para ver tu promedio." : "Promedio del acumulado de tus materias visibles."}
+            {avg === null ? "Agrega notas a tus materias para ver tu promedio." : weighted ? "Promedio ponderado por créditos de tus materias visibles." : "Promedio del acumulado de tus materias visibles."}
           </p>
           {avg !== null && (
             <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-medium sm:mt-3">

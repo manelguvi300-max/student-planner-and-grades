@@ -13,7 +13,7 @@ import {
   absenceStatus,
   fmtHours,
   GLOBAL_CONFIG_KEY,
-  accumulatedPoints,
+  averageOf,
   coveredWeight,
   getSubject,
   minutesToLabel,
@@ -103,8 +103,7 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
   const dueLabel = (n: number) => (n === 0 ? "Hoy" : n === 1 ? "Mañana" : `En ${n} días`)
 
   // promedio del acumulado de las materias con notas, sin contar las ocultas en Notas
-  const graded = subjects.filter((s) => !hiddenNotas.includes(s.id) && coveredWeight(grades[s.id] ?? []) > 0)
-  const avg = graded.length ? graded.reduce((n, s) => n + accumulatedPoints(grades[s.id]), 0) / graded.length : null
+  const { avg, weighted } = averageOf(subjects.filter((s) => !hiddenNotas.includes(s.id)), grades)
 
   // alertas de faltas y notas
   type Alert = { id: string; level: "bad" | "warn"; subject: Subject; text: string; tab: string }
@@ -154,7 +153,7 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
   const stats = [
     { tab: "horario", label: "Clases hoy", value: String(todays.length), sub: todays.length ? `${remaining} por ver` : "Día libre", warn: false },
     { tab: "examenes", label: "Próximo en agenda", value: upcoming[0] ? dueLabel(daysUntil(upcoming[0].date)) : "Ninguno", sub: upcoming[0] ? getSubject(subjects, upcoming[0].subjectId)?.name ?? findKind(kindsFromConfigs(subjectConfigs), upcoming[0].kind).name : "Nada a la vista", warn: false },
-    { tab: "notas", label: "Promedio", value: avg === null ? "—" : avg.toFixed(2).replace(".", ","), sub: avg === null ? "Aún sin notas" : "Acumulado", warn: false },
+    { tab: "notas", label: "Promedio", value: avg === null ? "—" : avg.toFixed(2).replace(".", ","), sub: avg === null ? "Aún sin notas" : weighted ? "Ponderado" : "Acumulado", warn: false },
     { tab: "faltas", label: "Faltas", value: String(absences.length), sub: atRisk ? `${atRisk} materia${atRisk > 1 ? "s" : ""} en riesgo` : "Todo en orden", warn: atRisk > 0 },
   ]
 

@@ -113,7 +113,8 @@ export function usePlanner(initial: PlannerState) {
     const onHide = () => { if (document.visibilityState === "hidden") flush() }
     document.addEventListener("visibilitychange", onHide)
     window.addEventListener("pagehide", flush)
-    return () => { document.removeEventListener("visibilitychange", onHide); window.removeEventListener("pagehide", flush); flush() }
+    window.addEventListener("online", flush) // al volver la red se envían los cambios que quedaron pendientes
+    return () => { document.removeEventListener("visibilitychange", onHide); window.removeEventListener("pagehide", flush); window.removeEventListener("online", flush); flush() }
   }, [flush])
 
   // directorio de profesores (vive dentro de subjectConfigs, sin cambiar la base de datos)

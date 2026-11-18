@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState, useRef } from "react"
-import { Plus, CalendarDays, GraduationCap, Download, Users } from "lucide-react"
+import { Plus, CalendarDays, GraduationCap, Download, Users, CalendarPlus } from "lucide-react"
+import { downloadIcs, nextWeekday } from "@/lib/ics"
 import { Button } from "@/components/ui/button"
 import {
   DAYS,
@@ -256,6 +257,17 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
     document.title = title
   }
 
+  /** Cada clase como evento semanal (16 semanas, lo típico de un semestre; se puede recortar en el calendario). */
+  function exportIcs() {
+    downloadIcs("horario.ics", classes.map((c) => {
+      const subject = subjects.find((s) => s.id === c.subjectId)
+      return {
+        uid: c.id, title: subject?.name ?? "Clase", date: nextWeekday(c.day), startMin: c.startTime, endMin: c.endTime,
+        location: c.room || undefined, description: c.group ? `Grupo ${c.group}` : undefined, weeklyCount: 16,
+      }
+    }))
+  }
+
   const dayList = classesForDay(selectedMobileDay)
   const dayHours = dayList.reduce((n, c) => n + (c.endTime - c.startTime), 0) / 60
 
@@ -282,6 +294,12 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
         )}
         {view === "semana" && (
           <div className="flex items-center gap-2">
+            {classes.length > 0 && (
+              <Button onClick={exportIcs} variant="outline" size="sm" aria-label="Agregar el horario al calendario" title="Agregar el horario al calendario (.ics): cada clase se repite 16 semanas">
+                <CalendarPlus className="size-4 sm:mr-1" />
+                <span className="hidden sm:inline">Calendario</span>
+              </Button>
+            )}
             {classes.length > 0 && (
               <Button onClick={exportPdf} variant="outline" size="sm" aria-label="Exportar horario en PDF" title="Exportar horario en PDF">
                 <Download className="size-4 sm:mr-1" />

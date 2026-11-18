@@ -22,6 +22,7 @@ export type Subject = {
   bg: string
   border: string
   teacherIds?: string[] // profesores asignados (ids del directorio)
+  credits?: number // créditos académicos (opcional): ponderan el promedio
   // Formatos anteriores (profesores dentro de la materia): se pasan al directorio con migrateTeachers().
   teachers?: Teacher[]
   teacherName?: string
@@ -317,6 +318,18 @@ export function getSubject(subjects: Subject[], id: string) {
 
 export function accumulatedPoints(grades: Grade[]) {
   return grades.reduce((acc, g) => acc + (g.score * g.weight) / 100, 0)
+}
+
+/** Promedio del acumulado de las materias con notas; si hay créditos, cada materia pesa según sus créditos (sin créditos cuenta como 1). */
+export function averageOf(subjects: Subject[], grades: Record<string, Grade[]>) {
+  const graded = subjects.filter((s) => coveredWeight(grades[s.id] ?? []) > 0)
+  if (graded.length === 0) return { avg: null as number | null, weighted: false }
+  const w = (s: Subject) => (s.credits && s.credits > 0 ? s.credits : 1)
+  const total = graded.reduce((n, s) => n + w(s), 0)
+  return {
+    avg: graded.reduce((n, s) => n + accumulatedPoints(grades[s.id]) * w(s), 0) / total,
+    weighted: graded.some((s) => s.credits && s.credits > 0),
+  }
 }
 
 export function coveredWeight(grades: Grade[]) {

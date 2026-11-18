@@ -99,12 +99,13 @@ function SubjectForm({ subject, subjects, teachers, onCreateTeacher, onSave, onC
   subjects: Subject[]
   teachers: Teacher[]
   onCreateTeacher: (name: string) => string
-  onSave: (name: string, color: ColorSwatch, teacherIds: string[]) => void
+  onSave: (name: string, color: ColorSwatch, teacherIds: string[], credits?: number) => void
   onCancel: () => void
 }) {
   const [name, setName] = useState(subject?.name ?? "")
   const [color, setColor] = useState<ColorSwatch>(subject ? { bg: subject.bg, border: subject.border } : pickDefaultColor(subjects))
   const [ids, setIds] = useState<string[]>(subject?.teacherIds ?? [])
+  const [credits, setCredits] = useState<number | undefined>(subject?.credits)
   const ok = name.trim().length > 0
 
   function addTeacher(n: string) {
@@ -114,7 +115,7 @@ function SubjectForm({ subject, subjects, teachers, onCreateTeacher, onSave, onC
 
   // Misma estructura que la ficha de la materia: barra de color + nombre → (color) → profesores
   return (
-    <form onSubmit={(e) => { e.preventDefault(); if (ok) onSave(name.trim(), color, ids) }} className="animate-fade-in space-y-5">
+    <form onSubmit={(e) => { e.preventDefault(); if (ok) onSave(name.trim(), color, ids, credits) }} className="animate-fade-in space-y-5">
       <div className="flex items-center gap-3 pr-6">
         <span className="h-11 w-1.5 shrink-0 rounded-full transition-colors" style={{ background: color.border }} />
         <Input id="subject-name" aria-label="Nombre de la materia" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Nombre de la materia" maxLength={60} className="h-11 text-base font-semibold" />
@@ -123,6 +124,16 @@ function SubjectForm({ subject, subjects, teachers, onCreateTeacher, onSave, onC
       <section className="space-y-2">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Color</h3>
         <ColorPicker value={color} onChange={setColor} />
+      </section>
+
+      <section className="space-y-2">
+        <h3 className="flex items-baseline gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Créditos<span className="font-normal normal-case tracking-normal">opcional · ponderan tu promedio</span></h3>
+        <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Créditos">
+          {[1, 2, 3, 4, 5, 6].map((n) => (
+            <button key={n} type="button" role="radio" aria-checked={credits === n} onClick={() => setCredits(credits === n ? undefined : n)}
+              className={cn("num grid size-10 place-items-center rounded-lg border text-sm font-semibold transition active:scale-95", credits === n ? "border-transparent bg-foreground text-background" : "text-muted-foreground hover:border-foreground/30 hover:text-foreground")}>{n}</button>
+          ))}
+        </div>
       </section>
 
       <section className="space-y-2">
@@ -195,15 +206,15 @@ export function MateriasTab({
     return saveTeacher(ops, undefined, { name }, [])
   }
 
-  function saveSubject(name: string, color: ColorSwatch, teacherIds: string[]) {
+  function saveSubject(name: string, color: ColorSwatch, teacherIds: string[], credits?: number) {
     if (current) {
       const removed = (current.teacherIds ?? []).filter((id) => !teacherIds.includes(id))
-      setSubjects((prev) => prev.map((s) => (s.id === current.id ? { ...s, name, bg: color.bg, border: color.border, teacherIds } : s)))
+      setSubjects((prev) => prev.map((s) => (s.id === current.id ? { ...s, name, bg: color.bg, border: color.border, teacherIds, credits } : s)))
       if (removed.length) setClasses((prev) => prev.map((c) => (c.subjectId === current.id && c.teacherId && removed.includes(c.teacherId) ? { ...c, teacherId: undefined } : c)))
       open({ subjectId: current.id, view: "detail" })
     } else {
       const id = crypto.randomUUID()
-      setSubjects((prev) => [...prev, { id, name, bg: color.bg, border: color.border, teacherIds }])
+      setSubjects((prev) => [...prev, { id, name, bg: color.bg, border: color.border, teacherIds, credits }])
       open({ subjectId: id, view: "detail", fresh: true })
     }
   }
@@ -236,7 +247,7 @@ export function MateriasTab({
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold leading-tight">{s.name}</span>
           <span className="num mt-0.5 block truncate text-xs text-muted-foreground">
-            {cl.length === 0 ? "Sin clases aún" : `${days.join(" · ")} · ${hoursText(weekMin)} por semana`}
+            {cl.length === 0 ? "Sin clases aún" : `${days.join(" · ")} · ${hoursText(weekMin)} por semana`}{s.credits ? ` · ${s.credits} ${s.credits === 1 ? "crédito" : "créditos"}` : ""}
           </span>
           <span className={cn("mt-1.5 flex items-center gap-1.5 text-xs", own.length ? "text-foreground/80" : "text-muted-foreground/60")}>
             <Users className="size-3.5 shrink-0" />

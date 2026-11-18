@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next'
 import { Sora, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 import { SettingsProvider } from '@/lib/settings'
+import { SwRegister } from '@/components/sw-register'
 
 const THEME_SCRIPT = `try{var s=JSON.parse(localStorage.getItem("planner.settings")||"{}"),t=s.theme||"system",d=document.documentElement;if(t==="system")t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";d.dataset.theme=t;d.dataset.motion=s.motion||"full"}catch(e){}`
 
@@ -58,6 +59,7 @@ export default function RootLayout({
       </head>
       <body className="font-sans">
         <SettingsProvider>{children}</SettingsProvider>
+        <SwRegister />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

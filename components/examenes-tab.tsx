@@ -5,7 +5,7 @@ import { createPortal } from "react-dom"
 import {
   Plus, Trash2, Users, User, FileText, Presentation, Handshake, Puzzle, ListChecks, PackageCheck, Tag, StickyNote, ChevronDown,
   List, Calendar, ChevronLeft, ChevronRight, Eye, Pencil, Check, Clock,
-  ClipboardList, CalendarDays, SlidersHorizontal, X,
+  ClipboardList, CalendarDays, SlidersHorizontal, X, CalendarPlus,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,6 +19,7 @@ import { useSheetBack } from "@/lib/use-sheet-back"
 import { cn } from "@/lib/utils"
 import { getSubject, minutesToLabel, timeToMinutes, allKinds, findKind, KIND_COLORS, type KindColor, type EventKind, type Subject, type Exam } from "@/lib/horario-data"
 import { useSettings } from "@/lib/settings"
+import { downloadIcs, type IcsEvent } from "@/lib/ics"
 
 type Props = {
   subjects: Subject[]
@@ -713,6 +714,21 @@ export function ExamenesTab({ subjects, exams, setExams, kinds, setKinds, hidden
   }
 
   const openNew = (date?: string) => setDialog({ open: true, date })
+
+  /** Los pendientes (con los filtros actuales) como archivo de calendario: Google Calendar, Apple, Outlook… */
+  function exportCalendar() {
+    const events: IcsEvent[] = pending.filter((e) => shown.includes(e)).map((e) => {
+      const subject = getSubject(subjects, e.subjectId)
+      const kind = findKind(kinds, e.kind)
+      const start = e.time ? timeToMinutes(e.time) : undefined
+      return {
+        uid: e.id, date: e.date, startMin: start, alarm: true,
+        title: e.title ? (subject ? `${e.title} (${subject.name})` : e.title) : `${kind.name}${subject ? ` · ${subject.name}` : ""}`,
+        description: [e.weight > 0 ? `Vale ${e.weight}%` : "", e.group === "grupal" ? "Trabajo grupal" : "", e.notes?.trim() ?? ""].filter(Boolean).join("\n") || undefined,
+      }
+    })
+    if (events.length) downloadIcs("agenda.ics", events)
+  }
   const card = (e: Exam, opts?: { showDate?: boolean; overdue?: boolean }) => (
     <ExamCard key={e.id} exam={e} subject={getSubject(subjects, e.subjectId)} kind={findKind(kinds, e.kind)} showDate={opts?.showDate} overdue={opts?.overdue}
       onToggleDone={() => toggleDone(e.id)} onEdit={() => setDialog({ open: true, editing: e })} />
@@ -760,6 +776,12 @@ export function ExamenesTab({ subjects, exams, setExams, kinds, setKinds, hidden
               </button>
             ))}
           </div>
+          {pending.length > 0 && (
+            <button type="button" onClick={exportCalendar} aria-label="Agregar pendientes al calendario" title="Agregar pendientes al calendario (.ics)"
+              className="grid size-9 place-items-center rounded-lg border text-muted-foreground transition hover:bg-foreground/[0.05] hover:text-foreground active:scale-95">
+              <CalendarPlus className="size-4" />
+            </button>
+          )}
           <Button size="sm" onClick={() => openNew()} className="hidden md:inline-flex"><Plus className="size-4" />Nuevo</Button>
         </div>
       </div>

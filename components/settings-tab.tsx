@@ -6,6 +6,7 @@ import { DEFAULT_SETTINGS, useSettings, type Settings } from "@/lib/settings"
 import { minutesToLabel } from "@/lib/horario-data"
 import { cn } from "@/lib/utils"
 import { OtherApps } from "@/components/other-apps"
+import { clearOfflineCache } from "@/components/sw-register"
 
 type Opt<T extends string> = { value: T; label: string; icon?: typeof Sun }
 
@@ -79,6 +80,7 @@ export function SettingsTab({ userName, userEmail, userImage, hiddenCount, onSho
     try {
       await fetch("/api/logout", { method: "POST", cache: "no-store" })
     } finally {
+      await clearOfflineCache()
       // recarga completa: descarta la caché del router y cualquier estado en memoria
       window.location.replace("/sign-in")
     }
