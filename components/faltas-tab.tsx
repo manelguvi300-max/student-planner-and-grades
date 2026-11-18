@@ -390,7 +390,7 @@ export function FaltasTab({ subjects, absences, classes, setAbsences, subjectCon
                         className="h-10 w-16 px-2 text-center text-sm"
                       />
                     )}
-                    <Button className="h-10 shrink-0 rounded-lg" onClick={() => handleAddAbsence(subject.id, unit, block)}>
+                    <Button className="h-10 shrink-0 rounded-lg sm:h-10" onClick={() => handleAddAbsence(subject.id, unit, block)}>
                       <Plus className="size-4" />Agregar
                     </Button>
                   </div>
