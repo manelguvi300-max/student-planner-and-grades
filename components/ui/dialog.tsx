@@ -40,13 +40,13 @@ function DialogOverlay({
 }
 
 /**
- * Móvil: la hoja se arrastra hacia abajo para cerrarla (desde cualquier punto, si su contenido está arriba del todo).
+ * Táctil (móvil y tablet): la hoja o el diálogo se arrastra hacia abajo para cerrarlo (desde cualquier punto, si su contenido está arriba del todo).
  * Mueve el elemento directo con `transform` (sin re-render) para que siga al dedo a 60 fps.
  */
 function useSheetDrag(el: HTMLElement | null, close: () => void) {
   React.useEffect(() => {
     if (!el) return
-    const mq = window.matchMedia("(max-width: 639px)")
+    const sheet = window.matchMedia("(max-width: 639px)") // móvil: hoja inferior; tablet y más: diálogo centrado
     let startY = 0, dy = 0, t0 = 0, tracking = false, dragging = false
 
     // ¿el toque empezó dentro de algo que se desplaza (lista interna) y no está en su tope?
@@ -57,7 +57,7 @@ function useSheetDrag(el: HTMLElement | null, close: () => void) {
       return false
     }
     const onStart = (e: TouchEvent) => {
-      if (!mq.matches || e.touches.length !== 1) return
+      if (e.touches.length !== 1) return
       tracking = true; dragging = false; dy = 0
       startY = e.touches[0].clientY; t0 = Date.now()
       if (innerScrolled(e.target)) tracking = false
@@ -81,8 +81,9 @@ function useSheetDrag(el: HTMLElement | null, close: () => void) {
       tracking = false; dragging = false
       const v = dy / Math.max(1, Date.now() - t0)
       if (dy > 120 || (dy > 40 && v > 0.5)) {
-        el.style.transition = "transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)"
-        el.style.transform = "translateY(100%)"
+        el.style.transition = "transform 0.3s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.3s ease"
+        el.style.transform = `translateY(${window.innerHeight}px)`
+        if (!sheet.matches) el.style.opacity = "0" // el diálogo centrado se desvanece al salir (su animación de cierre es otra)
         close()
       } else {
         el.style.transition = "transform 0.4s cubic-bezier(0.32, 0.72, 0, 1)"
@@ -132,7 +133,7 @@ function DialogContent({
         )}
         {...props}
       >
-        <div aria-hidden className="-mt-[9px] -mb-2 flex h-5 items-center justify-center sm:hidden">
+        <div aria-hidden className="-mt-[9px] -mb-2 flex h-5 items-center justify-center sm:pointer-fine:hidden">
           <span className="h-1 w-10 rounded-full bg-foreground/20" />
         </div>
         <DialogPrimitive.Close ref={closeRef} tabIndex={-1} aria-hidden className="hidden" />
