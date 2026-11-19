@@ -222,7 +222,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
     return c.endTime <= nowMin ? "done" : c.startTime <= nowMin ? "live" : "next"
   }
 
-  /** Bloque de clase: color plano de la materia, barra lateral y sombra tintada (sin degradados). */
+  /** Bloque de clase: color plano de la materia y barra lateral (sin sombras ni degradados). */
   function block(c: ClassSession, mobile: boolean, delay = 0) {
     const subject = getSubject(subjects, c.subjectId)
     if (!subject) return null
@@ -237,7 +237,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
         title={[subject.name, `${timeLabel(c.startTime)}–${timeLabel(c.endTime)}`, c.room, c.group && `Grupo ${c.group}`, teacherOf(c)].filter(Boolean).join(" · ")}
         className={cn(
           "absolute left-1.5 right-1.5 cursor-pointer overflow-hidden rounded-lg py-1.5 pl-3 pr-2 text-left text-[11px] leading-tight text-neutral-900 transition duration-300 ease-out",
-          "shadow-[inset_3px_0_0_var(--c),0_10px_22px_-14px_var(--c)] hover:z-20 hover:-translate-y-0.5 hover:scale-[1.02] hover:shadow-[inset_3px_0_0_var(--c),0_18px_30px_-12px_var(--c)] active:scale-[0.98]",
+          "shadow-[inset_3px_0_0_var(--c)] hover:z-20 hover:brightness-[0.96] active:scale-[0.98] lg:py-2 lg:pl-3.5",
           !mobile && "animate-pop",
           st === "done" && "opacity-50",
           st === "live" && "z-10 ring-2 ring-foreground/60",
@@ -245,9 +245,10 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
         style={{ "--c": subject.border, top: minutesToPx(c.startTime) + 1, height: h, backgroundColor: subject.bg, animationDelay: `${delay}ms` } as React.CSSProperties}
       >
         {st === "live" && <span aria-hidden className="absolute top-2 right-2 size-1.5 animate-glow rounded-full bg-emerald-600" />}
-        <p className="truncate pr-2 text-xs font-semibold">{subject.name}</p>
-        {!compact && <p className="num mt-0.5 text-[10px] opacity-70">{timeLabel(c.startTime)}–{timeLabel(c.endTime)}</p>}
-        {!compact && c.room && (mobile || h >= 70) && <p className="mt-0.5 truncate text-[10px] opacity-70">{c.room}</p>}
+        <p className="truncate pr-2 text-xs font-semibold lg:text-[13px]">{subject.name}</p>
+        {!compact && <p className="num mt-0.5 text-[10px] opacity-70 lg:text-[11px]">{timeLabel(c.startTime)}–{timeLabel(c.endTime)}</p>}
+        {!compact && c.room && (mobile || h >= 60) && <p className="mt-0.5 truncate text-[10px] opacity-70 lg:text-[11px]">{c.room}</p>}
+        {!mobile && h >= 96 && teacherOf(c) && <p className="mt-0.5 hidden truncate text-[11px] opacity-70 lg:block">{teacherOf(c)}</p>}
       </button>
     )
   }
@@ -303,9 +304,10 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
           </div>
         </DialogContent>
       </Dialog>
-      {/* Cabecera */}
-      <header className="flex items-end justify-between gap-3">
-        <div className="min-w-0">
+      {/* Cabecera (en PC: título · pestañas · acciones en una fila) */}
+      <div className="space-y-5 lg:flex lg:items-center lg:gap-6 lg:space-y-0">
+      <header className="flex items-end justify-between gap-3 lg:contents">
+        <div className="min-w-0 lg:mr-auto">
           <h2 className="text-xl font-semibold tracking-tight">{view === "semana" ? "Mi horario" : view === "materias" ? "Mis materias" : "Mis profesores"}</h2>
           <p className="num hidden text-sm text-muted-foreground md:block">
             {view === "materias"
@@ -316,13 +318,13 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
           </p>
         </div>
         {view === "materias" && subjects.length > 0 && (
-          <Button onClick={() => setRequest({ kind: "new" })} size="sm" className="hidden shrink-0 rounded-full md:inline-flex"><Plus className="mr-1 size-4" /> Materia</Button>
+          <Button onClick={() => setRequest({ kind: "new" })} size="sm" className="hidden shrink-0 rounded-full md:inline-flex lg:order-3"><Plus className="mr-1 size-4" /> Materia</Button>
         )}
         {view === "profesores" && teachers.length > 0 && (
-          <Button onClick={() => setTeacherRequest({ kind: "new" })} size="sm" className="hidden shrink-0 rounded-full md:inline-flex"><Plus className="mr-1 size-4" /> Profesor</Button>
+          <Button onClick={() => setTeacherRequest({ kind: "new" })} size="sm" className="hidden shrink-0 rounded-full md:inline-flex lg:order-3"><Plus className="mr-1 size-4" /> Profesor</Button>
         )}
         {view === "semana" && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 lg:order-3">
             {/* Un solo botón para sacar el horario de la app: calendario o PDF */}
             {classes.length > 0 && (
               <Button onClick={() => setExportOpen(true)} variant="outline" size="sm" aria-label="Exportar horario" className="rounded-full">
@@ -336,13 +338,8 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
           </div>
         )}
       </header>
-      {/* Móvil: agregar con el botón flotante, como en la agenda */}
-      {view === "semana" && classes.length > 0 && <Fab label="Nueva clase" onClick={() => openNew()} disabled={subjects.length === 0} />}
-      {view === "materias" && subjects.length > 0 && <Fab label="Nueva materia" onClick={() => setRequest({ kind: "new" })} />}
-      {view === "profesores" && teachers.length > 0 && <Fab label="Nuevo profesor" onClick={() => setTeacherRequest({ kind: "new" })} />}
-
-      {/* Semana | Materias */}
-      <div className={cn("relative grid rounded-xl bg-muted p-1 text-sm font-medium sm:inline-grid", "grid-cols-3 sm:w-[26rem]")} role="tablist" aria-label="Sección del horario">
+      {/* Semana | Materias | Profesores */}
+      <div className={cn("relative grid rounded-xl bg-muted p-1 text-sm font-medium sm:inline-grid lg:order-2", "grid-cols-3 sm:w-[26rem] lg:w-[24rem]")} role="tablist" aria-label="Sección del horario">
         <span aria-hidden className="absolute inset-y-1 left-1 rounded-lg bg-background shadow-sm ring-1 ring-border/60" style={{ width: `calc((100% - 0.5rem) / ${tabs.length})`, transform: `translateX(${Math.max(0, tabs.findIndex((t) => t[0] === view)) * 100}%)`, transition: `transform .4s ${spring}` }} />
         {tabs.map(([v, label, Icon]) => (
           <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => { setRequest(null); setTeacherRequest(null); setView(v) }}
@@ -351,6 +348,12 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
           </button>
         ))}
       </div>
+      </div>
+      {/* Móvil: agregar con el botón flotante, como en la agenda */}
+      {view === "semana" && classes.length > 0 && <Fab label="Nueva clase" onClick={() => openNew()} disabled={subjects.length === 0} />}
+      {view === "materias" && subjects.length > 0 && <Fab label="Nueva materia" onClick={() => setRequest({ kind: "new" })} />}
+      {view === "profesores" && teachers.length > 0 && <Fab label="Nuevo profesor" onClick={() => setTeacherRequest({ kind: "new" })} />}
+
 
       {view === "profesores" ? (
         <ProfesoresTab
@@ -543,7 +546,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
           </div>
 
           {/* ───────── Tablet / escritorio: semana completa ───────── */}
-          <div className="relative hidden animate-slide-up overflow-x-auto rounded-xl border bg-card shadow-(--card-shadow) sm:block">
+          <div className="relative hidden animate-slide-up overflow-x-auto rounded-2xl border bg-card sm:block">
             <div className="relative min-w-[600px]">
               {/* Días */}
               <div className="flex px-1 pt-2 pb-1.5">

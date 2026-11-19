@@ -67,7 +67,7 @@ export function ProfesoresTab({ teachers, setTeachers, subjects, setSubjects, cl
     const own = subjectsOf(t.id, subjects)
     return (
       <button key={t.id} type="button" onClick={() => open({ view: "detail", teacherId: t.id })}
-        className="group animate-pop flex w-full items-center gap-3 rounded-xl border bg-card p-3 text-left shadow-(--card-shadow) transition duration-200 hover:-translate-y-0.5 hover:border-foreground/25 active:scale-[0.99]">
+        className="group animate-pop flex w-full items-center gap-3 rounded-xl border bg-card p-3 text-left transition duration-200 hover:border-foreground/25 hover:bg-foreground/[0.02] active:scale-[0.99]">
         <Avatar name={t.name} color={teacherColor(t, subjects)} size="size-11" />
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">

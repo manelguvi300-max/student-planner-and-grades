@@ -341,7 +341,7 @@ export function PlannerView({ initial, userName, userEmail, userImage }: { initi
           </TabsContent>
         </Tabs>
 
-        <footer className={cn("mt-10 text-center text-xs text-muted-foreground", !inSettings && "hidden lg:block")}>
+        <footer className={cn("mt-10 text-center text-xs text-muted-foreground", !inSettings && "hidden")}>
           <p>Por Manuel Gutiérrez. Todos los derechos reservados.</p>
         </footer>
 

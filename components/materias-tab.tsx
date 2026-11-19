@@ -246,7 +246,7 @@ export function MateriasTab({
         key={s.id}
         type="button"
         onClick={() => open({ subjectId: s.id, view: "detail" })}
-        className="group animate-pop flex w-full items-center gap-3 rounded-xl border bg-card p-4 text-left shadow-(--card-shadow) transition duration-200 hover:-translate-y-0.5 hover:border-foreground/25 active:scale-[0.99]"
+        className="group animate-pop flex w-full items-center gap-3 rounded-xl border bg-card p-4 text-left transition duration-200 hover:border-foreground/25 hover:bg-foreground/[0.02] active:scale-[0.99]"
       >
         <span className="h-11 w-1.5 shrink-0 rounded-full" style={{ background: s.border }} />
         <span className="min-w-0 flex-1">
