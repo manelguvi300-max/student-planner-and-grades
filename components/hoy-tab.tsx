@@ -89,12 +89,12 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
   const next = todays.find((c) => c.startTime > nowMin)
 
   // primera clase de los próximos días (cuando hoy ya no hay más)
-  let later: { day: number; cls: ClassSession } | null = null
+  let later: { day: number; off: number; cls: ClassSession } | null = null
   if (!current && !next) {
     for (let off = 1; off <= 7 && !later; off++) {
       const d = (todayIdx + off + 7) % 7 // todayIdx puede ser -1 (domingo) o 5 (sábado)
       const cls = classes.filter((c) => c.day === d && getSubject(subjects, c.subjectId)).sort(byStart)[0]
-      if (cls) later = { day: d, cls }
+      if (cls) later = { day: d, off, cls }
     }
   }
 
@@ -158,14 +158,26 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
   const rest = todays.filter((c) => c !== heroCls && c.endTime > nowMin)
   // lo de la agenda para hoy que aún no pasa (sin hora = al final del día)
   const tmin = (t?: string) => (t ? Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)) : undefined)
-  const todayEvents = upcoming.filter((e) => daysUntil(e.date) === 0 && (tmin(e.time) ?? 24 * 60) >= nowMin)
+  const passed = (e: Exam) => daysUntil(e.date) === 0 && (tmin(e.time) ?? 24 * 60) < nowMin
+  const todayEvents = upcoming.filter((e) => daysUntil(e.date) === 0 && !passed(e))
   type Item = { at: number; cls?: ClassSession; ev?: Exam }
-  const timeline: Item[] = [
+  const byAt = (a: Item, b: Item) => a.at - b.at
+  const todayLine: Item[] = [
     ...rest.map((c) => ({ at: c.startTime, cls: c })),
     ...todayEvents.map((e) => ({ at: tmin(e.time) ?? 24 * 60, ev: e })),
-  ].sort((a, b) => a.at - b.at)
-  // la fila de Agenda de la tarjeta principal no repite lo que ya está en la línea de tiempo
-  const laterEvents = upcoming.filter((e) => !todayEvents.includes(e))
+  ].sort(byAt)
+  // si hoy ya no queda nada, la línea de tiempo muestra el siguiente día con clases (la primera ya está arriba)
+  const showNext = todayLine.length === 0 && later !== null
+  const nextDayEvents = showNext ? upcoming.filter((e) => daysUntil(e.date) === later!.off) : []
+  const timeline: Item[] = showNext
+    ? [
+        ...classes.filter((c) => c.day === later!.day && c !== later!.cls && getSubject(subjects, c.subjectId)).map((c) => ({ at: c.startTime, cls: c })),
+        ...nextDayEvents.map((e) => ({ at: tmin(e.time) ?? 24 * 60, ev: e })),
+      ].sort(byAt)
+    : todayLine
+  const lineTitle = showNext ? (later!.off === 1 ? "Mañana" : `Tu ${DAYS[later!.day].toLowerCase()}`) : "Resto del día"
+  // la fila de Agenda de la tarjeta principal no repite lo de la línea de tiempo ni lo de hoy que ya pasó
+  const laterEvents = upcoming.filter((e) => !todayEvents.includes(e) && !nextDayEvents.includes(e) && !passed(e))
   const nextEvent = laterEvents[0]
 
   // estudio de hoy (modo enfoque)
@@ -373,10 +385,15 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
           </section>
         </div>
       </div>
-      {/* Móvil: el resto del día como línea de tiempo: clases (con los huecos libres) y lo de la agenda para hoy */}
-      {timeline.length > 0 && (
-        <section className="lg:hidden">
-          <Heading title="Resto del día" action="Ver horario" onAction={() => onNavigate("horario")} />
+      {/* Móvil: el resto del día como línea de tiempo: clases (con los huecos libres) y lo de la agenda para hoy.
+          Siempre visible: si ya no queda nada, lo dice */}
+      <section className="lg:hidden">
+          <Heading title={lineTitle} action="Ver horario" onAction={() => onNavigate("horario")} />
+          {timeline.length === 0 ? (
+            <p className="rounded-2xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+              {showNext ? "Ese día solo tienes la clase de arriba." : todays.length ? "Por hoy no te queda nada más. ¡Buen trabajo!" : "Hoy no tienes clases ni pendientes en la agenda."}
+            </p>
+          ) : (
           <ol className={cn(card, "px-4 py-2")}>
             {timeline.map((it, i) => {
               const prev = i === 0 ? (heroCls ? { cls: heroCls } : undefined) : timeline[i - 1]
@@ -432,8 +449,8 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
               )
             })}
           </ol>
-        </section>
-      )}
+          )}
+      </section>
     </div>
   )
 }
