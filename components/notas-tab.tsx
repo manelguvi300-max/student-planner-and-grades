@@ -82,7 +82,7 @@ export function NotasTab({ subjects, grades, setGrades, subjectConfigs, setSubje
           </Ring>
         )}
         <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-semibold tracking-tight">Mis notas</h2>
+          <h2 className="text-xl font-semibold tracking-tight">{avg !== null ? <><span className="sm:hidden">Tu promedio</span><span className="max-sm:hidden">Mis notas</span></> : "Mis notas"}</h2>
           <p className={cn("mt-0.5 text-xs text-muted-foreground sm:text-sm", avg !== null && "hidden sm:block")}>
             {avg === null ? "Agrega notas a tus materias para ver tu promedio." : weighted ? "Promedio ponderado por créditos de tus materias visibles." : "Promedio del acumulado de tus materias visibles."}
           </p>
@@ -107,7 +107,7 @@ export function NotasTab({ subjects, grades, setGrades, subjectConfigs, setSubje
           {/* Materias visibles */}
           <>
             {/* Móvil: una sola lista en el orden original */}
-            <div className="space-y-4 sm:hidden animate-slide-up">
+            <div className="space-y-3 sm:hidden animate-slide-up">
               {visibleSubjects.map((s) => (
                 <SubjectGrades
                   key={s.id}

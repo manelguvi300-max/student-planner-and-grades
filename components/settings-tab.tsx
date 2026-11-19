@@ -86,6 +86,24 @@ export function SettingsTab({ userName, userEmail, userImage, hiddenCount, onSho
     }
   }
 
+  const account = (
+    <>
+      <button
+        type="button"
+        onClick={logout}
+        disabled={leaving}
+        className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-lg border lg:mt-5 text-sm font-medium transition hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive active:scale-[0.97] disabled:opacity-60"
+      >
+        {leaving ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
+        {leaving ? "Saliendo…" : "Cerrar sesión"}
+      </button>
+      <p className="mt-3 text-center text-xs text-muted-foreground">
+        <a href="/terminos.html" target="_blank" rel="noreferrer" className="underline">Términos</a> · <a href="/privacidad.html" target="_blank" rel="noreferrer" className="underline">Privacidad</a>
+      </p>
+      <OtherApps />
+    </>
+  )
+
   return (
     <div className="mx-auto grid max-w-4xl gap-6 lg:grid-cols-[17rem_1fr] lg:items-start">
       {/* Cuenta */}
@@ -103,19 +121,8 @@ export function SettingsTab({ userName, userEmail, userImage, hiddenCount, onSho
             <p className="truncate text-xs text-muted-foreground">{userEmail || "Sin correo"}</p>
           </div>
           </div>
-          <button
-            type="button"
-            onClick={logout}
-            disabled={leaving}
-            className="mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-lg border lg:mt-5 text-sm font-medium transition hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive active:scale-[0.97] disabled:opacity-60"
-          >
-            {leaving ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
-            {leaving ? "Saliendo…" : "Cerrar sesión"}
-          </button>
-          <p className="mt-3 text-center text-xs text-muted-foreground">
-            <a href="/terminos.html" target="_blank" rel="noreferrer" className="underline">Términos</a> · <a href="/privacidad.html" target="_blank" rel="noreferrer" className="underline">Privacidad</a>
-          </p>
-          <OtherApps />
+          {/* PC: cuenta en la columna lateral; en móvil va al final, como en las apps */}
+          <div className="hidden lg:block">{account}</div>
         </div>
       </section>
 
@@ -178,6 +185,8 @@ export function SettingsTab({ userName, userEmail, userImage, hiddenCount, onSho
         </Group>
 
         <p className="px-1 text-center text-xs text-muted-foreground lg:text-left">Los ajustes se guardan en este dispositivo.</p>
+
+        <section className="rounded-xl border bg-card p-4 pt-0 lg:hidden">{account}</section>
       </div>
     </div>
   )

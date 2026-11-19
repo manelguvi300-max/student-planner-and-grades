@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { createPortal } from "react-dom"
 import {
   Plus, Trash2, Users, User, FileText, Presentation, Handshake, Puzzle, ListChecks, PackageCheck, Tag, StickyNote, ChevronDown,
   List, Calendar, ChevronLeft, ChevronRight, Eye, Pencil, Check, Clock,
@@ -16,6 +15,7 @@ import {
 } from "@/components/ui/dialog"
 import { SubjectPicker } from "@/components/subject-picker"
 import { useSheetBack } from "@/lib/use-sheet-back"
+import { Fab } from "@/components/fab"
 import { cn } from "@/lib/utils"
 import { getSubject, minutesToLabel, timeToMinutes, allKinds, findKind, KIND_COLORS, type KindColor, type EventKind, type Subject, type Exam } from "@/lib/horario-data"
 import { useSettings } from "@/lib/settings"
@@ -359,16 +359,16 @@ function ExamCard({ exam, subject, kind, showDate, overdue, calendarUrl, onToggl
   return (
     <div className={cn("lift flex overflow-hidden rounded-xl border bg-card transition-opacity", exam.done && "opacity-60")}>
       <button type="button" onClick={onEdit} aria-label={`Editar: ${title}`}
-        className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-3 pr-1 text-left transition-colors hover:bg-foreground/[0.03] active:bg-foreground/[0.06]">
-        <span className="w-12 shrink-0 text-center">
+        className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-3 pr-1 text-left transition-colors hover:bg-foreground/[0.03] active:bg-foreground/[0.06] lg:gap-4 lg:py-3.5 lg:pl-4">
+        <span className="w-12 shrink-0 text-center lg:w-14">
           {time
-            ? <span className="num text-xs font-semibold leading-tight">{time}</span>
+            ? <span className="num text-xs font-semibold leading-tight lg:text-sm">{time}</span>
             : <span className="mx-auto grid size-8 place-items-center rounded-lg" style={{ background: tint(kind.color, 18), color: KIND_COLORS[kind.color] }}><Icon className="size-4" /></span>}
         </span>
-        <span aria-hidden className="h-9 w-1 shrink-0 rounded-full" style={{ background: tone.border }} />
+        <span aria-hidden className="h-9 w-1 shrink-0 rounded-full lg:h-11" style={{ background: tone.border }} />
         <span className="min-w-0 flex-1">
-          <span className={cn("block truncate font-medium leading-tight transition-colors", exam.done && "text-muted-foreground line-through")}>{title}</span>
-          <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className={cn("block truncate font-medium leading-tight transition-colors lg:text-[17px]", exam.done && "text-muted-foreground line-through")}>{title}</span>
+          <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground lg:mt-1 lg:text-sm">
             <Icon className="size-3.5 shrink-0" style={{ color: KIND_COLORS[kind.color] }} />
             <span className="truncate">
               {dateText && <span className={cn("font-medium", overdue ? "text-destructive" : "text-foreground/70")}>{dateText} · </span>}
@@ -381,12 +381,12 @@ function ExamCard({ exam, subject, kind, showDate, overdue, calendarUrl, onToggl
 
       {calendarUrl && (
         <a href={calendarUrl} target="_blank" rel="noopener noreferrer" aria-label={`Añadir a Google Calendar: ${title}`} title="Añadir a Google Calendar"
-          className="grid w-10 shrink-0 place-items-center text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground active:bg-foreground/[0.08]">
+          className="hidden w-10 shrink-0 place-items-center text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground active:bg-foreground/[0.08] sm:grid lg:w-12">
           <CalendarPlus className="size-[18px]" />
         </a>
       )}
       <button type="button" onClick={onToggleDone} aria-pressed={Boolean(exam.done)} aria-label={exam.done ? "Marcar como pendiente" : "Marcar como hecho"}
-        className="grid w-12 shrink-0 place-items-center transition-colors hover:bg-foreground/[0.04] active:bg-foreground/[0.08]">
+        className="grid w-12 shrink-0 place-items-center transition-colors hover:bg-foreground/[0.04] active:bg-foreground/[0.08] lg:w-14">
         <span className={cn("grid size-6 place-items-center rounded-full border-2 transition-[transform,background-color,border-color] duration-300", exam.done ? "scale-100 border-emerald-500 bg-emerald-500 text-white" : "border-foreground/25")}>
           {exam.done && <Check className="size-3.5 animate-pop" strokeWidth={3} />}
         </span>
@@ -481,7 +481,7 @@ function CalendarView({ exams, subjects, kinds, renderExam, onAdd }: {
 
         <div className="grid grid-cols-7 divide-x divide-y">
           {cells.map((day, idx) => {
-            if (day === null) return <div key={`e-${idx}`} className="h-14 bg-muted/10 sm:h-20" />
+            if (day === null) return <div key={`e-${idx}`} className="h-14 bg-muted/10 sm:h-20 lg:h-28" />
             const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
             const list = byDate[dateStr] ?? []
             const isToday = dateStr === todayStr
@@ -495,7 +495,7 @@ function CalendarView({ exams, subjects, kinds, renderExam, onAdd }: {
                 aria-pressed={isSel}
                 aria-label={`${day} de ${MONTH_NAMES[month]}${list.length ? `, ${list.length} ${list.length === 1 ? "evento" : "eventos"}` : ""}`}
                 className={cn(
-                  "flex h-14 flex-col gap-0.5 overflow-hidden p-1 text-left transition-colors sm:h-20 hover:bg-foreground/[0.04]",
+                  "flex h-14 flex-col gap-0.5 overflow-hidden p-1 text-left transition-colors sm:h-20 lg:h-28 lg:p-1.5 hover:bg-foreground/[0.04]",
                   isPast && "bg-muted/5",
                   isSel && "bg-primary/10 ring-1 ring-inset ring-primary/40"
                 )}
@@ -512,18 +512,19 @@ function CalendarView({ exams, subjects, kinds, renderExam, onAdd }: {
                   ))}
                 </span>
                 <span className="hidden min-h-0 flex-1 flex-col gap-0.5 overflow-hidden sm:flex">
-                  {list.slice(0, 2).map((e) => {
+                  {list.slice(0, 3).map((e, i) => {
                     const s = getSubject(subjects, e.subjectId)
                     const k = findKind(kinds, e.kind)
                     const t = eventTone(s, k)
                     return (
-                      <span key={e.id} className={cn("truncate rounded px-1 py-0.5 text-[10px] font-semibold leading-tight", e.done && "line-through opacity-50")}
+                      <span key={e.id} className={cn("truncate rounded px-1 py-0.5 text-[10px] font-semibold leading-tight lg:text-xs", i === 2 && "hidden lg:block", e.done && "line-through opacity-50")}
                         style={{ backgroundColor: t.bg, color: t.text, borderLeft: `2px solid ${t.border}` }}>
                         {e.title || s?.name || k.name}
                       </span>
                     )
                   })}
-                  {list.length > 2 && <span className="pl-1 text-[10px] text-muted-foreground">+{list.length - 2} más</span>}
+                  {list.length > 2 && <span className="pl-1 text-[10px] text-muted-foreground lg:hidden">+{list.length - 2} más</span>}
+                  {list.length > 3 && <span className="hidden pl-1 text-xs text-muted-foreground lg:block">+{list.length - 3} más</span>}
                 </span>
               </button>
             )
@@ -641,8 +642,6 @@ export function ExamenesTab({ subjects, exams, setExams, kinds, setKinds, hidden
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [showPast, setShowPast] = useState(false)
   const [activeDay, setActiveDay] = useState<string | null>(null)
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
   const [dialog, setDialog] = useState<{ open: boolean; editing?: Exam; date?: string }>({ open: false })
 
   const closeDialog = () => setDialog((d) => ({ ...d, open: false }))
@@ -759,19 +758,19 @@ export function ExamenesTab({ subjects, exams, setExams, kinds, setKinds, hidden
 
   const summary = visible.length > 0 && (
     <div className="hidden grid-cols-3 gap-3 sm:grid lg:grid-cols-1">
-      <div className="rounded-xl border bg-card p-3">
+      <div className="rounded-xl border bg-card p-3 lg:p-4">
         <p className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground"><ClipboardList className="size-3.5" />Próximo</p>
-        <p className="mt-2 text-lg font-semibold leading-none tracking-tight">{next ? dueLabel(daysUntil(next.date)) : "Libre"}</p>
+        <p className="mt-2 text-lg font-semibold leading-none lg:text-2xl tracking-tight">{next ? dueLabel(daysUntil(next.date)) : "Libre"}</p>
         <p className="mt-1 truncate text-xs text-muted-foreground">{next ? (next.title || getSubject(subjects, next.subjectId)?.name || findKind(kinds, next.kind).name) : "Nada a la vista"}</p>
       </div>
-      <div className="rounded-xl border bg-card p-3">
+      <div className="rounded-xl border bg-card p-3 lg:p-4">
         <p className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground"><CalendarDays className="size-3.5" />Esta semana</p>
-        <p className="num mt-2 text-lg font-semibold leading-none">{weekCount}</p>
+        <p className="num mt-2 text-lg font-semibold leading-none lg:text-2xl">{weekCount}</p>
         <p className="mt-1 text-xs text-muted-foreground">próximos 7 días</p>
       </div>
-      <div className="rounded-xl border bg-card p-3">
+      <div className="rounded-xl border bg-card p-3 lg:p-4">
         <p className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground"><Check className="size-3.5" />Hechos</p>
-        <p className="num mt-2 text-lg font-semibold leading-none">{visible.filter((e) => e.done).length}<span className="text-sm font-normal text-muted-foreground">/{visible.length}</span></p>
+        <p className="num mt-2 text-lg font-semibold leading-none lg:text-2xl">{visible.filter((e) => e.done).length}<span className="text-sm font-normal text-muted-foreground">/{visible.length}</span></p>
         <p className="mt-1 text-xs text-muted-foreground">en total</p>
       </div>
     </div>
@@ -779,10 +778,10 @@ export function ExamenesTab({ subjects, exams, setExams, kinds, setKinds, hidden
 
   return (
     <>
-    <div className="mx-auto flex max-w-5xl flex-col gap-4 pb-16 animate-fade-in md:pb-0 lg:grid lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start lg:gap-x-8">
+    <div className="flex flex-col gap-4 pb-16 animate-fade-in md:pb-0 lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-x-8 lg:gap-y-5">
       <div className="flex items-start justify-between gap-3 lg:col-start-1">
         <div className="min-w-0">
-          <h2 className="text-lg font-semibold">Agenda</h2>
+          <h2 className="text-xl font-semibold tracking-tight lg:text-2xl">Agenda</h2>
           <p className="text-sm text-muted-foreground">{subtitle}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -854,7 +853,7 @@ export function ExamenesTab({ subjects, exams, setExams, kinds, setKinds, hidden
             {exams.length === 0 && <Button className="mt-4" onClick={() => openNew()}><Plus className="size-4" />Agregar el primero</Button>}
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-6 lg:space-y-8">
             {overdue.length > 0 && (
               <section>
                 <h3 className={cn(heading, "text-destructive")}>Atrasados<span className="font-normal normal-case tracking-normal">{overdue.length}</span></h3>
@@ -868,11 +867,11 @@ export function ExamenesTab({ subjects, exams, setExams, kinds, setKinds, hidden
               return (
                 <section key={g.date} data-day={g.date} className="scroll-mt-[calc(var(--appbar-h)+5.25rem)] lg:scroll-mt-6">
                   <h3 className="flex items-baseline gap-2 px-1 pb-2">
-                    <span className={cn("text-sm font-semibold", t.title === "Hoy" && "text-brand")}>{t.title}</span>
-                    <span className="text-xs text-muted-foreground">{t.sub}</span>
-                    <span className="num ml-auto text-xs text-muted-foreground">{g.list.length}</span>
+                    <span className={cn("text-sm font-semibold lg:text-base", t.title === "Hoy" && "text-brand")}>{t.title}</span>
+                    <span className="text-xs text-muted-foreground lg:text-sm">{t.sub}</span>
+                    <span className="num ml-auto hidden text-xs text-muted-foreground sm:inline">{g.list.length}</span>
                   </h3>
-                  <div className="stagger space-y-2">{g.list.map((e) => card(e))}</div>
+                  <div className="stagger space-y-2 lg:space-y-2.5">{g.list.map((e) => card(e))}</div>
                 </section>
               )
             })}
@@ -923,14 +922,7 @@ export function ExamenesTab({ subjects, exams, setExams, kinds, setKinds, hidden
         </DialogContent>
       </Dialog>
     </div>
-      {/* Móvil: botón flotante. Va en un portal al body: las pestañas animan con transform y eso rompe `fixed` */}
-      {mounted && createPortal(
-        <button type="button" onClick={() => openNew()} aria-label="Nuevo evento"
-          className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom)+1rem)] right-4 z-30 grid size-14 animate-pop place-items-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition active:scale-90 md:hidden">
-          <Plus className="size-6" />
-        </button>,
-        document.body
-      )}
+      <Fab label="Nuevo evento" onClick={() => openNew()} />
     </>
   )
 }

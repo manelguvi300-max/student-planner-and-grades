@@ -281,7 +281,7 @@ export function FaltasTab({ subjects, absences, classes, setAbsences, subjectCon
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
             {st.needsHours ? (
-              <span className="num rounded-full bg-foreground/10 px-2.5 py-0.5 text-[11px] font-bold">{count} {count === 1 ? "falta" : "faltas"}</span>
+              <span className={cn("num rounded-full bg-foreground/10 px-2.5 py-0.5 text-[11px] font-bold", count === 0 && "max-sm:hidden")}>{count} {count === 1 ? "falta" : "faltas"}</span>
             ) : (
               <span
                 className={cn(
@@ -477,11 +477,11 @@ export function FaltasTab({ subjects, absences, classes, setAbsences, subjectCon
           </div>
 
           {items.length > 0 && (
-            <ul className="mt-4 flex flex-wrap gap-2">
+            <ul className={cn("mt-4 flex flex-wrap gap-2", !items.some((i) => i.level === "block" || i.level === "last") && "max-sm:hidden")}>
               {items.map((i) => {
                 const tip = i.level === "block" ? "Una falta más y pasas tu límite" : i.level === "last" ? "Te queda una sola falta de margen" : i.level === "free" ? "Sin riesgo por ahora" : "Sin límite definido para esta materia"
                 return (
-                  <li key={i.cls.id} title={tip} className={cn("flex max-w-full items-center gap-1.5 rounded-full border py-1 pl-2.5 pr-3 text-xs", i.level === "block" && "border-destructive/40")}>
+                  <li key={i.cls.id} title={tip} className={cn("flex max-w-full items-center gap-1.5 rounded-full border py-1 pl-2.5 pr-3 text-xs", i.level === "block" && "border-destructive/40", i.level !== "block" && i.level !== "last" && "max-sm:hidden")}>
                     {i.level === "block" ? <Ban className="size-3.5 shrink-0 text-destructive" />
                       : i.level === "last" ? <AlertTriangle className="size-3.5 shrink-0 text-amber-500" />
                       : null}
@@ -496,7 +496,7 @@ export function FaltasTab({ subjects, absences, classes, setAbsences, subjectCon
       </section>
 
       {/* Móvil: una sola lista en el orden original */}
-      <div className="stagger space-y-4 sm:hidden">{shown.map(renderCard)}</div>
+      <div className="stagger space-y-3 sm:hidden">{shown.map(renderCard)}</div>
 
       {/* Escritorio: dos columnas independientes, conservando el mismo orden/emparejamiento de siempre */}
       <div className="hidden gap-4 sm:grid sm:grid-cols-2 sm:items-start">

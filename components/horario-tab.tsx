@@ -26,6 +26,7 @@ import { ClaseDialog, type ClassDialogState } from "./clase-dialog"
 import { MateriasTab, type MateriasRequest } from "./materias-tab"
 import { ProfesoresTab, type ProfesoresRequest } from "./profesores-tab"
 import { ROW_PX, useSettings } from "@/lib/settings"
+import { Fab } from "@/components/fab"
 import { cn } from "@/lib/utils"
 import { HorarioPrint } from "./horario-print"
 
@@ -277,7 +278,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
   const dayHours = dayList.reduce((n, c) => n + (c.endTime - c.startTime), 0) / 60
 
   return (
-    <div className="space-y-5 animate-fade-in">
+    <div className="space-y-5 pb-16 animate-fade-in md:pb-0">
       {mounted && <HorarioPrint subjects={subjects} classes={classes} format={settings.timeFormat} />}
       <Dialog open={exportOpen} onOpenChange={setExportOpen}>
         <DialogContent className="gap-4 sm:max-w-sm">
@@ -306,7 +307,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
       <header className="flex items-end justify-between gap-3">
         <div className="min-w-0">
           <h2 className="text-xl font-semibold tracking-tight">{view === "semana" ? "Mi horario" : view === "materias" ? "Mis materias" : "Mis profesores"}</h2>
-          <p className="num text-sm text-muted-foreground">
+          <p className="num hidden text-sm text-muted-foreground md:block">
             {view === "materias"
               ? `${subjects.length} materia${subjects.length === 1 ? "" : "s"}`
               : view === "profesores"
@@ -315,10 +316,10 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
           </p>
         </div>
         {view === "materias" && subjects.length > 0 && (
-          <Button onClick={() => setRequest({ kind: "new" })} size="sm" className="rounded-full shrink-0"><Plus className="mr-1 size-4" /> Materia</Button>
+          <Button onClick={() => setRequest({ kind: "new" })} size="sm" className="hidden shrink-0 rounded-full md:inline-flex"><Plus className="mr-1 size-4" /> Materia</Button>
         )}
         {view === "profesores" && teachers.length > 0 && (
-          <Button onClick={() => setTeacherRequest({ kind: "new" })} size="sm" className="rounded-full shrink-0"><Plus className="mr-1 size-4" /> Profesor</Button>
+          <Button onClick={() => setTeacherRequest({ kind: "new" })} size="sm" className="hidden shrink-0 rounded-full md:inline-flex"><Plus className="mr-1 size-4" /> Profesor</Button>
         )}
         {view === "semana" && (
           <div className="flex items-center gap-2">
@@ -329,12 +330,16 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                 <span className="hidden sm:inline">Exportar</span>
               </Button>
             )}
-            <Button onClick={() => openNew()} size="sm" className="rounded-full" disabled={subjects.length === 0}>
+            <Button onClick={() => openNew()} size="sm" className="hidden rounded-full md:inline-flex" disabled={subjects.length === 0}>
               <Plus className="mr-1 size-4" /> Clase
             </Button>
           </div>
         )}
       </header>
+      {/* Móvil: agregar con el botón flotante, como en la agenda */}
+      {view === "semana" && classes.length > 0 && <Fab label="Nueva clase" onClick={() => openNew()} disabled={subjects.length === 0} />}
+      {view === "materias" && subjects.length > 0 && <Fab label="Nueva materia" onClick={() => setRequest({ kind: "new" })} />}
+      {view === "profesores" && teachers.length > 0 && <Fab label="Nuevo profesor" onClick={() => setTeacherRequest({ kind: "new" })} />}
 
       {/* Semana | Materias */}
       <div className={cn("relative grid rounded-xl bg-muted p-1 text-sm font-medium sm:inline-grid", "grid-cols-3 sm:w-[26rem]")} role="tablist" aria-label="Sección del horario">
@@ -407,11 +412,11 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
           {/* ───────── Móvil ───────── */}
           <div className="space-y-4 sm:hidden">
             {/* Selector de día con fecha y puntos de "hay clases" */}
-            <div className="relative grid grid-cols-5 rounded-xl bg-muted p-1">
+            <div className="relative grid grid-cols-5">
               <span
                 aria-hidden
-                className="absolute inset-y-1 left-1 rounded-lg bg-background shadow-sm ring-1 ring-border/60"
-                style={{ width: "calc((100% - 0.5rem) / 5)", transform: `translateX(${selectedMobileDay * 100}%)`, transition: `transform .45s ${spring}` }}
+                className="absolute inset-y-0 left-0 rounded-lg bg-foreground/[0.08]"
+                style={{ width: "20%", transform: `translateX(${selectedMobileDay * 100}%)`, transition: `transform .45s ${spring}` }}
               />
               {DAYS.map((d, i) => (
                 <button
@@ -420,13 +425,13 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                   onClick={() => setSelectedMobileDay(i)}
                   aria-label={d}
                   aria-pressed={selectedMobileDay === i}
-                  className="relative flex select-none flex-col items-center gap-0.5 rounded-lg py-2 active:scale-95"
+                  className="relative flex select-none flex-col items-center gap-0.5 rounded-lg py-1.5 active:scale-95"
                 >
-                  <span className={cn("text-[10px] font-semibold uppercase tracking-wider transition-colors", selectedMobileDay === i ? "text-foreground" : "text-muted-foreground")}>{SHORT[i]}</span>
-                  <span className={cn("num grid size-7 place-items-center rounded-full text-sm font-semibold transition-colors", i === todayIdx && "bg-foreground text-background")}>
+                  <span className={cn("text-[10px] font-medium uppercase transition-colors", selectedMobileDay === i ? "text-foreground" : "text-muted-foreground")}>{SHORT[i]}</span>
+                  <span className={cn("num grid size-7 place-items-center rounded-full text-sm font-semibold transition-colors", i === todayIdx && "bg-primary text-primary-foreground")}>
                     {weekDates?.[i] ?? "·"}
                   </span>
-                  <span className={cn("size-1 rounded-full", classesForDay(i).length ? "bg-muted-foreground/70" : "bg-transparent")} />
+                  <span className={cn("size-1.5 rounded-full", classesForDay(i).length ? "bg-muted-foreground/60" : "bg-transparent")} />
                 </button>
               ))}
             </div>
@@ -495,7 +500,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                             <span className="min-w-0 flex-1">
                               <span className="block truncate text-sm font-semibold">{subject.name}</span>
                               <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                                {[c.room, c.group && `Gr. ${c.group}`, teacherOf(c), durText(c.endTime - c.startTime)].filter(Boolean).join(" · ")}
+                                {[c.room, teacherOf(c), durText(c.endTime - c.startTime)].filter(Boolean).join(" · ")}
                               </span>
                               {st === "live" && (
                                 <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-foreground/10">
@@ -551,7 +556,7 @@ export function HorarioTab({ subjects, setSubjects, classes, setClasses, setGrad
                     className="group mx-0.5 flex flex-1 items-center justify-center gap-2 rounded-lg py-1.5 transition duration-300 hover:bg-foreground/[0.06] active:scale-[0.97]"
                   >
                     <span className={cn("text-[11px] font-semibold uppercase tracking-[0.16em] transition-colors", i === todayIdx ? "text-foreground" : "text-muted-foreground group-hover:text-foreground")}>{SHORT[i]}</span>
-                    <span className={cn("num grid size-7 place-items-center rounded-full text-sm font-semibold transition-transform duration-300 group-hover:scale-110", i === todayIdx && "bg-foreground text-background")}>
+                    <span className={cn("num grid size-7 place-items-center rounded-full text-sm font-semibold transition-transform duration-300 group-hover:scale-110", i === todayIdx && "bg-primary text-primary-foreground")}>
                       {weekDates?.[i] ?? ""}
                     </span>
                   </button>

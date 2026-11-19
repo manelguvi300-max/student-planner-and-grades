@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { ArrowRight, Timer } from "lucide-react"
 import { Ring } from "@/components/ui/ring"
 import { dailyGoalOf, focusStats, fmtMin } from "@/components/focus"
@@ -56,7 +56,7 @@ function useNow() {
 }
 
 /** Encabezado pequeño de cada bloque, con un enlace opcional a la pestaña completa */
-function Heading({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
+function Heading({ title, action, onAction }: { title: ReactNode; action?: string; onAction?: () => void }) {
   return (
     <div className="mb-2 flex items-baseline justify-between px-1">
       <h2 className="text-sm font-semibold">{title}</h2>
@@ -105,6 +105,7 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
     .filter((e) => !e.done && daysUntil(e.date) >= 0 && (e.subjectId === "" || getSubject(subjects, e.subjectId)))
     .sort((a, b) => a.date.localeCompare(b.date))
   const dueLabel = (n: number) => (n === 0 ? "Hoy" : n === 1 ? "Mañana" : `En ${n} días`)
+  const dueToday = upcoming.filter((e) => daysUntil(e.date) === 0).sort((a, b) => (a.time ?? "99").localeCompare(b.time ?? "99"))
 
   // promedio del acumulado de las materias con notas, sin contar las ocultas en Notas
   const { avg, weighted } = averageOf(subjects.filter((s) => !hiddenNotas.includes(s.id)), grades)
@@ -154,6 +155,9 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
   const pct = current ? Math.round(((nowMin - current.startTime) / (current.endTime - current.startTime)) * 100) : 0
   const heroLabel = current ? "Ahora" : next ? "Sigue" : later ? `Próxima clase · ${DAYS[later.day].toLowerCase()}` : todays.length ? "Por hoy ya terminaste" : "Hoy no tienes clases"
 
+  // móvil: la lista del día no repite la clase de arriba ni las que ya pasaron
+  const restCount = todays.filter((c) => c !== heroCls && c.endTime > nowMin).length
+
   // estudio de hoy (modo enfoque)
   const studied = focusStats(studyFromConfigs(subjectConfigs), now).today
   const studyGoal = dailyGoalOf(subjectConfigs)
@@ -189,6 +193,20 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
               {classes.length === 0 ? "Aún no has agregado clases al horario." : "Nada pendiente por ahora."}
             </p>
           )}
+          {dueToday.length > 0 && (() => {
+            const e = dueToday[0]
+            const s = getSubject(subjects, e.subjectId)
+            const k = findKind(kindsFromConfigs(subjectConfigs), e.kind)
+            return (
+              <button type="button" onClick={() => onNavigate("examenes")}
+                className="mt-4 flex w-full items-center gap-2.5 rounded-xl bg-foreground/[0.05] px-3 py-2.5 text-left text-sm transition active:scale-[0.98]">
+                <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: s ? s.border : KIND_COLORS[k.color] }} />
+                <span className="min-w-0 flex-1 truncate"><b className="font-semibold">Hoy:</b> {e.title || s?.name || k.name}{e.time ? ` · ${label(Number(e.time.slice(0, 2)) * 60 + Number(e.time.slice(3, 5)))}` : ""}</span>
+                {dueToday.length > 1 && <span className="num shrink-0 text-xs text-muted-foreground">+{dueToday.length - 1}</span>}
+                <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
+              </button>
+            )
+          })()}
         </div>
       </section>
 
@@ -215,18 +233,19 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
-        {/* Agenda del día */}
-        <section>
-          <Heading title={todayIdx >= 0 && todayIdx <= 4 ? `Tu ${DAYS[todayIdx].toLowerCase()}` : "Tu día"} action="Ver horario" onAction={() => onNavigate("horario")} />
+        {/* Agenda del día (en móvil va al final y solo con lo que falta) */}
+        <section className={cn("order-last lg:order-none lg:col-start-1 lg:row-start-1", restCount === 0 && "max-lg:hidden")}>
+          <Heading title={<><span className="lg:hidden">Más tarde</span><span className="max-lg:hidden">{todayIdx >= 0 && todayIdx <= 4 ? `Tu ${DAYS[todayIdx].toLowerCase()}` : "Tu día"}</span></>} action="Ver horario" onAction={() => onNavigate("horario")} />
           {todays.length === 0 ? (
             <p className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">Sin clases hoy. Un buen día para ponerte al día.</p>
           ) : (
-            <ol className={cn(card, "divide-y")}>
+            // bordes por fila y -mt-px: en móvil algunas filas se ocultan y la primera visible no debe dibujar borde arriba
+            <div className={card}><ol className="-mt-px">
               {todays.map((c) => {
                 const s = getSubject(subjects, c.subjectId)!
                 const state = c.endTime <= nowMin ? "done" : c.startTime <= nowMin ? "now" : "next"
                 return (
-                  <li key={c.id}>
+                  <li key={c.id} className={cn("border-t", (c === heroCls || state === "done") && "max-lg:hidden")}>
                     <button type="button" onClick={() => onNavigate("horario")} className={cn(row, "flex items-center gap-3", state === "now" && "bg-foreground/[0.04]")}>
                       <span className={cn("num w-12 shrink-0 text-sm", state === "done" ? "text-muted-foreground" : "font-medium")}>{label(c.startTime)}</span>
                       <span className="h-9 w-1 shrink-0 rounded-full" style={{ background: s.border, opacity: state === "done" ? 0.4 : 1 }} />
@@ -241,11 +260,11 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
                   </li>
                 )
               })}
-            </ol>
+            </ol></div>
           )}
         </section>
 
-        <div className="space-y-6">
+        <div className="space-y-6 lg:col-start-2 lg:row-start-1">
           {/* Avisos: solo aparecen si hay algo que atender */}
           {alerts.length > 0 && (
             <section>
@@ -272,13 +291,13 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
               <p className="rounded-2xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">Nada programado.</p>
             ) : (
               <ul className={cn(card, "divide-y")}>
-                {upcoming.slice(0, 4).map((e) => {
+                {upcoming.slice(0, 4).map((e, i) => {
                   const s = getSubject(subjects, e.subjectId)
                   const k = findKind(kindsFromConfigs(subjectConfigs), e.kind)
                   const n = daysUntil(e.date)
                   const d = dateOf(e.date)
                   return (
-                    <li key={e.id}>
+                    <li key={e.id} className={cn(i === 3 && "max-lg:hidden")}>
                       <button type="button" onClick={() => onNavigate("examenes")} className={cn(row, "flex items-center gap-3")}>
                         <span className="w-10 shrink-0 text-center leading-none">
                           <span className="num block text-lg font-semibold">{d.getDate()}</span>

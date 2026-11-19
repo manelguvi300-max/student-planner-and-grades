@@ -248,7 +248,7 @@ export function PlannerView({ initial, userName, userEmail, userImage }: { initi
             <h1 key={inSettings ? "s" : "h"} className="animate-rise text-xl font-semibold tracking-tight text-balance sm:text-2xl lg:text-3xl">
               {inSettings ? "Ajustes" : firstName ? `Hola, ${firstName}` : "Mi semestre"}
             </h1>
-            <p className="h-4 truncate text-xs text-muted-foreground first-letter:uppercase sm:h-5 sm:text-sm">
+            <p className={cn("h-4 truncate text-xs text-muted-foreground first-letter:uppercase sm:h-5 sm:text-sm", inSettings && "max-md:hidden")}>
               {inSettings ? "Personaliza tu planner y administra tu cuenta" : today}
             </p>
           </header>
