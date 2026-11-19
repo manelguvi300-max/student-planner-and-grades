@@ -156,7 +156,17 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
 
   // lo que queda del día después de la clase de arriba (en móvil, como línea de tiempo con los huecos libres)
   const rest = todays.filter((c) => c !== heroCls && c.endTime > nowMin)
-  const nextEvent = upcoming[0]
+  // lo de la agenda para hoy que aún no pasa (sin hora = al final del día)
+  const tmin = (t?: string) => (t ? Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)) : undefined)
+  const todayEvents = upcoming.filter((e) => daysUntil(e.date) === 0 && (tmin(e.time) ?? 24 * 60) >= nowMin)
+  type Item = { at: number; cls?: ClassSession; ev?: Exam }
+  const timeline: Item[] = [
+    ...rest.map((c) => ({ at: c.startTime, cls: c })),
+    ...todayEvents.map((e) => ({ at: tmin(e.time) ?? 24 * 60, ev: e })),
+  ].sort((a, b) => a.at - b.at)
+  // la fila de Agenda de la tarjeta principal no repite lo que ya está en la línea de tiempo
+  const laterEvents = upcoming.filter((e) => !todayEvents.includes(e))
+  const nextEvent = laterEvents[0]
 
   // estudio de hoy (modo enfoque)
   const { today: studied, streak } = focusStats(studyFromConfigs(subjectConfigs), now)
@@ -209,7 +219,7 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
                 <span className={cn("shrink-0 text-sm font-semibold", n <= 1 && "text-amber-600 dark:text-amber-400")}>{n <= 1 ? dueLabel(n) : `${n} días`}</span>
                 <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: s ? s.border : KIND_COLORS[k.color] }} />
                 <span className="min-w-0 flex-1 truncate text-sm">{nextEvent.title || s?.name || k.name}{t}</span>
-                {upcoming.length > 1 && <span className="num shrink-0 text-xs text-muted-foreground">+{upcoming.length - 1}</span>}
+                {laterEvents.length > 1 && <span className="num shrink-0 text-xs text-muted-foreground">+{laterEvents.length - 1}</span>}
                 <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
               </button>
             )
@@ -363,17 +373,41 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
           </section>
         </div>
       </div>
-      {/* Móvil: el resto del día como línea de tiempo, con los huecos libres entre clases */}
-      {rest.length > 0 && (
+      {/* Móvil: el resto del día como línea de tiempo: clases (con los huecos libres) y lo de la agenda para hoy */}
+      {timeline.length > 0 && (
         <section className="lg:hidden">
           <Heading title="Resto del día" action="Ver horario" onAction={() => onNavigate("horario")} />
           <ol className={cn(card, "px-4 py-2")}>
-            {rest.map((c, i) => {
-              const s = getSubject(subjects, c.subjectId)!
-              const prevEnd = i === 0 ? heroCls?.endTime : rest[i - 1].endTime
-              const gap = prevEnd !== undefined ? c.startTime - prevEnd : 0
+            {timeline.map((it, i) => {
+              const prev = i === 0 ? (heroCls ? { cls: heroCls } : undefined) : timeline[i - 1]
+              // "Libre" solo entre dos clases seguidas
+              const gap = it.cls && prev?.cls ? it.cls.startTime - prev.cls.endTime : 0
               const first = i === 0 && gap < 30
-              const last = i === rest.length - 1
+              const last = i === timeline.length - 1
+              const line = <span className={cn("absolute w-px bg-foreground/15", first ? "top-1/2" : "top-0", last ? "bottom-1/2" : "bottom-0")} />
+              if (it.ev) {
+                const e = it.ev
+                const es = getSubject(subjects, e.subjectId)
+                const k = findKind(kindsFromConfigs(subjectConfigs), e.kind)
+                return (
+                  <li key={e.id}>
+                    <button type="button" onClick={() => onNavigate("examenes")} className="flex w-full items-center gap-3 py-2.5 text-left transition active:opacity-70">
+                      <span className={cn("num w-11 shrink-0 text-sm font-semibold", !e.time && "text-xs font-medium text-muted-foreground")}>{e.time ? label(tmin(e.time)!) : "Hoy"}</span>
+                      <span aria-hidden className="relative flex w-3 shrink-0 items-center justify-center self-stretch">
+                        {line}
+                        <span className="relative size-2.5 rotate-45 rounded-[3px] ring-4 ring-card" style={{ background: es ? es.border : KIND_COLORS[k.color] }} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">{e.title || es?.name || k.name}</span>
+                        <span className="block truncate text-xs text-muted-foreground">{[k.name, e.title ? es?.name : "", e.weight > 0 ? `${e.weight}%` : ""].filter(Boolean).join(" · ")}</span>
+                      </span>
+                      <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
+                    </button>
+                  </li>
+                )
+              }
+              const c = it.cls!
+              const cs = getSubject(subjects, c.subjectId)!
               return (
                 <li key={c.id}>
                   {gap >= 30 && (
@@ -386,11 +420,11 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
                   <button type="button" onClick={() => onNavigate("horario")} className="flex w-full items-center gap-3 py-2.5 text-left transition active:opacity-70">
                     <span className="num w-11 shrink-0 text-sm font-semibold">{label(c.startTime)}</span>
                     <span aria-hidden className="relative flex w-3 shrink-0 items-center justify-center self-stretch">
-                      <span className={cn("absolute w-px bg-foreground/15", first ? "top-1/2" : "top-0", last ? "bottom-1/2" : "bottom-0")} />
-                      <span className="relative size-3 rounded-full ring-4 ring-card" style={{ background: s.border }} />
+                      {line}
+                      <span className="relative size-3 rounded-full ring-4 ring-card" style={{ background: cs.border }} />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium">{s.name}</span>
+                      <span className="block truncate text-sm font-medium">{cs.name}</span>
                       <span className="num block truncate text-xs text-muted-foreground">{[c.room, `hasta ${label(c.endTime)}`].filter(Boolean).join(" · ")}</span>
                     </span>
                   </button>
