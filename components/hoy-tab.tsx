@@ -288,8 +288,38 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
         </button>
       </div>
 
-      <div className={cn("grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]", alerts.length === 0 && timeline.length === 0 && "max-lg:hidden")}>
-        <div className={cn("space-y-6 lg:col-start-2 lg:row-start-1", alerts.length === 0 && "max-lg:hidden")}>
+      <div className={cn("grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]", alerts.length === 0 && "max-lg:hidden")}>
+        {/* Agenda del día (solo PC; en móvil se resume en la tarjeta principal) */}
+        <section className="max-lg:hidden lg:col-start-1 lg:row-start-1">
+          <Heading title={todayIdx >= 0 && todayIdx <= 4 ? `Tu ${DAYS[todayIdx].toLowerCase()}` : "Tu día"} action="Ver horario" onAction={() => onNavigate("horario")} />
+          {todays.length === 0 ? (
+            <p className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">Sin clases hoy. Un buen día para ponerte al día.</p>
+          ) : (
+            <ol className={cn(card, "divide-y")}>
+              {todays.map((c) => {
+                const s = getSubject(subjects, c.subjectId)!
+                const state = c.endTime <= nowMin ? "done" : c.startTime <= nowMin ? "now" : "next"
+                return (
+                  <li key={c.id}>
+                    <button type="button" onClick={() => onNavigate("horario")} className={cn(row, "flex items-center gap-3", state === "now" && "bg-foreground/[0.04]")}>
+                      <span className={cn("num w-12 shrink-0 text-sm", state === "done" ? "text-muted-foreground" : "font-medium")}>{label(c.startTime)}</span>
+                      <span className="h-9 w-1 shrink-0 rounded-full" style={{ background: s.border, opacity: state === "done" ? 0.4 : 1 }} />
+                      <span className="min-w-0 flex-1">
+                        <span className={cn("block truncate text-sm font-medium", state === "done" && "text-muted-foreground")}>{s.name}</span>
+                        <span className="num block truncate text-xs text-muted-foreground">
+                          hasta {label(c.endTime)}{c.room && ` · ${c.room}`}
+                        </span>
+                      </span>
+                      {state === "now" && <span className="shrink-0 text-xs font-medium text-emerald-600 dark:text-emerald-400">En curso</span>}
+                    </button>
+                  </li>
+                )
+              })}
+            </ol>
+          )}
+        </section>
+
+        <div className="space-y-6 lg:col-start-2 lg:row-start-1">
           {/* Avisos: solo aparecen si hay algo que atender */}
           {alerts.length > 0 && (
             <section>
@@ -312,11 +342,11 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
 
           <section className="max-lg:hidden">
             <Heading title="Tu agenda" action="Ver todos" onAction={() => onNavigate("examenes")} />
-            {laterEvents.length === 0 ? (
+            {upcoming.length === 0 ? (
               <p className="rounded-2xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">Nada programado.</p>
             ) : (
               <ul className={cn(card, "divide-y")}>
-                {laterEvents.slice(0, 4).map((e) => {
+                {upcoming.slice(0, 4).map((e) => {
                   const s = getSubject(subjects, e.subjectId)
                   const k = findKind(kindsFromConfigs(subjectConfigs), e.kind)
                   const n = daysUntil(e.date)
@@ -342,70 +372,68 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
             )}
           </section>
         </div>
-        {/* El resto del día como línea de tiempo: clases (con los huecos libres) y lo de la agenda para hoy. En PC, columna izquierda */}
-        <section className={cn("lg:col-start-1 lg:row-start-1", timeline.length === 0 && "max-lg:hidden")}>
-            <Heading title="Resto del día" action="Ver horario" onAction={() => onNavigate("horario")} />
-            {timeline.length === 0 ? (
-              <p className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">{todays.length ? "Por hoy no te queda nada más." : "Sin clases hoy. Un buen día para ponerte al día."}</p>
-            ) : (
-            <ol className={cn(card, "px-4 py-2 lg:px-5")}>
-              {timeline.map((it, i) => {
-                const prev = i === 0 ? (heroCls ? { cls: heroCls } : undefined) : timeline[i - 1]
-                // "Libre" solo entre dos clases seguidas
-                const gap = it.cls && prev?.cls ? it.cls.startTime - prev.cls.endTime : 0
-                const first = i === 0 && gap < 30
-                const last = i === timeline.length - 1
-                const line = <span className={cn("absolute w-px bg-foreground/15", first ? "top-1/2" : "top-0", last ? "bottom-1/2" : "bottom-0")} />
-                if (it.ev) {
-                  const e = it.ev
-                  const es = getSubject(subjects, e.subjectId)
-                  const k = findKind(kindsFromConfigs(subjectConfigs), e.kind)
-                  return (
-                    <li key={e.id}>
-                      <button type="button" onClick={() => onNavigate("examenes")} className="flex w-full items-center gap-3 py-2.5 text-left transition hover:opacity-80 active:opacity-70">
-                        <span className={cn("num w-11 shrink-0 text-sm font-semibold", !e.time && "text-xs font-medium text-muted-foreground")}>{e.time ? label(tmin(e.time)!) : "Hoy"}</span>
-                        <span aria-hidden className="relative flex w-3 shrink-0 items-center justify-center self-stretch">
-                          {line}
-                          <span className="relative size-2.5 rotate-45 rounded-[3px] ring-4 ring-card" style={{ background: es ? es.border : KIND_COLORS[k.color] }} />
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-medium">{e.title || es?.name || k.name}</span>
-                          <span className="block truncate text-xs text-muted-foreground">{[k.name, e.title ? es?.name : "", e.weight > 0 ? `${e.weight}%` : ""].filter(Boolean).join(" · ")}</span>
-                        </span>
-                        <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
-                      </button>
-                    </li>
-                  )
-                }
-                const c = it.cls!
-                const cs = getSubject(subjects, c.subjectId)!
+      </div>
+      {/* Móvil: el resto del día como línea de tiempo: clases (con los huecos libres) y lo de la agenda para hoy */}
+      {timeline.length > 0 && (
+        <section className="lg:hidden">
+          <Heading title="Resto del día" action="Ver horario" onAction={() => onNavigate("horario")} />
+          <ol className={cn(card, "px-4 py-2")}>
+            {timeline.map((it, i) => {
+              const prev = i === 0 ? (heroCls ? { cls: heroCls } : undefined) : timeline[i - 1]
+              // "Libre" solo entre dos clases seguidas
+              const gap = it.cls && prev?.cls ? it.cls.startTime - prev.cls.endTime : 0
+              const first = i === 0 && gap < 30
+              const last = i === timeline.length - 1
+              const line = <span className={cn("absolute w-px bg-foreground/15", first ? "top-1/2" : "top-0", last ? "bottom-1/2" : "bottom-0")} />
+              if (it.ev) {
+                const e = it.ev
+                const es = getSubject(subjects, e.subjectId)
+                const k = findKind(kindsFromConfigs(subjectConfigs), e.kind)
                 return (
-                  <li key={c.id}>
-                    {gap >= 30 && (
-                      <div className="flex items-center gap-3">
-                        <span className="w-11 shrink-0" />
-                        <span aria-hidden className={cn("flex w-3 shrink-0 justify-center self-stretch", i === 0 && "pt-3")}><span className="border-l border-dashed border-foreground/25" /></span>
-                        <span className="num py-2 text-xs text-muted-foreground">Libre · {fmtDur(gap)}</span>
-                      </div>
-                    )}
-                    <button type="button" onClick={() => onNavigate("horario")} className="flex w-full items-center gap-3 py-2.5 text-left transition hover:opacity-80 active:opacity-70">
-                      <span className="num w-11 shrink-0 text-sm font-semibold">{label(c.startTime)}</span>
+                  <li key={e.id}>
+                    <button type="button" onClick={() => onNavigate("examenes")} className="flex w-full items-center gap-3 py-2.5 text-left transition active:opacity-70">
+                      <span className={cn("num w-11 shrink-0 text-sm font-semibold", !e.time && "text-xs font-medium text-muted-foreground")}>{e.time ? label(tmin(e.time)!) : "Hoy"}</span>
                       <span aria-hidden className="relative flex w-3 shrink-0 items-center justify-center self-stretch">
                         {line}
-                        <span className="relative size-3 rounded-full ring-4 ring-card" style={{ background: cs.border }} />
+                        <span className="relative size-2.5 rotate-45 rounded-[3px] ring-4 ring-card" style={{ background: es ? es.border : KIND_COLORS[k.color] }} />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">{cs.name}</span>
-                        <span className="num block truncate text-xs text-muted-foreground">{[c.room, `hasta ${label(c.endTime)}`].filter(Boolean).join(" · ")}</span>
+                        <span className="block truncate text-sm font-medium">{e.title || es?.name || k.name}</span>
+                        <span className="block truncate text-xs text-muted-foreground">{[k.name, e.title ? es?.name : "", e.weight > 0 ? `${e.weight}%` : ""].filter(Boolean).join(" · ")}</span>
                       </span>
+                      <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
                     </button>
                   </li>
                 )
-              })}
-            </ol>
-            )}
+              }
+              const c = it.cls!
+              const cs = getSubject(subjects, c.subjectId)!
+              return (
+                <li key={c.id}>
+                  {gap >= 30 && (
+                    <div className="flex items-center gap-3">
+                      <span className="w-11 shrink-0" />
+                      <span aria-hidden className={cn("flex w-3 shrink-0 justify-center self-stretch", i === 0 && "pt-3")}><span className="border-l border-dashed border-foreground/25" /></span>
+                      <span className="num py-2 text-xs text-muted-foreground">Libre · {fmtDur(gap)}</span>
+                    </div>
+                  )}
+                  <button type="button" onClick={() => onNavigate("horario")} className="flex w-full items-center gap-3 py-2.5 text-left transition active:opacity-70">
+                    <span className="num w-11 shrink-0 text-sm font-semibold">{label(c.startTime)}</span>
+                    <span aria-hidden className="relative flex w-3 shrink-0 items-center justify-center self-stretch">
+                      {line}
+                      <span className="relative size-3 rounded-full ring-4 ring-card" style={{ background: cs.border }} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{cs.name}</span>
+                      <span className="num block truncate text-xs text-muted-foreground">{[c.room, `hasta ${label(c.endTime)}`].filter(Boolean).join(" · ")}</span>
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ol>
         </section>
-      </div>
+      )}
     </div>
   )
 }
