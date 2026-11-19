@@ -154,12 +154,9 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
   const pct = current ? Math.round(((nowMin - current.startTime) / (current.endTime - current.startTime)) * 100) : 0
   const heroLabel = current ? "Ahora" : next ? "Sigue" : later ? `Próxima clase · ${DAYS[later.day].toLowerCase()}` : todays.length ? "Por hoy ya terminaste" : "Hoy no tienes clases"
 
-  // lo que queda del día después de la clase de arriba (en móvil se resume dentro de la tarjeta principal)
+  // lo que queda del día después de la clase de arriba (en móvil, como línea de tiempo con los huecos libres)
   const rest = todays.filter((c) => c !== heroCls && c.endTime > nowMin)
-  const after = rest[0]
-  const afterSubject = after ? getSubject(subjects, after.subjectId) : undefined
   const nextEvent = upcoming[0]
-  const countdown = current ? `Termina en ${fmtDur(current.endTime - nowMin)}` : next ? `En ${fmtDur(next.startTime - nowMin)}` : ""
 
   // estudio de hoy (modo enfoque)
   const { today: studied, streak } = focusStats(studyFromConfigs(subjectConfigs), now)
@@ -170,65 +167,54 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
 
   return (
     <div className="animate-fade-in space-y-6">
-      {/* Qué sigue: la clase y, en móvil, lo que viene después y lo próximo de la agenda en la misma tarjeta */}
-      <section className={card} style={heroSubject ? { background: `color-mix(in oklab, ${heroSubject.border} 9%, var(--card))` } : undefined}>
-        <div className="p-4 sm:p-5">
-          <div className="flex items-center justify-between gap-3">
-            <p className="flex min-w-0 items-center gap-2 truncate text-sm font-medium" style={heroSubject ? { color: heroSubject.border } : undefined}>
-              {current && <span aria-hidden className="size-2 shrink-0 animate-pulse rounded-full bg-current" />}
-              <span className={cn(!heroSubject && "text-muted-foreground")}>{heroLabel}</span>
-            </p>
-            {countdown && <span className="num shrink-0 rounded-full bg-foreground/[0.07] px-2.5 py-1 text-xs font-medium">{countdown}</span>}
-          </div>
-          {heroCls && heroSubject ? (
-            <>
-              <h2 className="mt-1 text-[26px] font-semibold leading-tight tracking-tight text-balance sm:text-3xl">{heroSubject.name}</h2>
-              <p className="num mt-1 text-sm text-muted-foreground">
-                {label(heroCls.startTime)} – {label(heroCls.endTime)}
-                {heroCls.room && ` · ${heroCls.room}`}
+      {/* Qué sigue (y, en móvil, lo próximo de la agenda en la misma tarjeta) */}
+      <section className={cn(card, "flex")}>
+        <span aria-hidden className="w-1.5 shrink-0" style={{ background: heroSubject?.border ?? "var(--border)" }} />
+        <div className="min-w-0 flex-1">
+          <div className="p-4 sm:p-5">
+            <p className="text-sm text-muted-foreground">{heroLabel}</p>
+            {heroCls && heroSubject ? (
+              <>
+                <h2 className="mt-0.5 text-2xl font-semibold tracking-tight text-balance sm:text-3xl">{heroSubject.name}</h2>
+                <p className="num mt-1 text-sm text-muted-foreground">
+                  {label(heroCls.startTime)} – {label(heroCls.endTime)}
+                  {heroCls.room && ` · ${heroCls.room}`}
+                </p>
+                {current ? (
+                  <div className="mt-4">
+                    <div className="h-1.5 overflow-hidden rounded-full bg-foreground/10">
+                      <div className="h-full rounded-full transition-[width] duration-1000" style={{ width: `${pct}%`, background: heroSubject.border }} />
+                    </div>
+                    <p className="num mt-1.5 text-sm">Termina en {fmtDur(current.endTime - nowMin)}</p>
+                  </div>
+                ) : next ? (
+                  <p className="num mt-3 text-sm font-medium">Empieza en {fmtDur(next.startTime - nowMin)}</p>
+                ) : null}
+              </>
+            ) : (
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                {classes.length === 0 ? "Aún no has agregado clases al horario." : "Nada pendiente por ahora."}
               </p>
-              {current && (
-                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-foreground/10">
-                  <div className="h-full rounded-full transition-[width] duration-1000" style={{ width: `${pct}%`, background: heroSubject.border }} />
-                </div>
-              )}
-            </>
-          ) : (
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {classes.length === 0 ? "Aún no has agregado clases al horario." : "Nada pendiente por ahora."}
-            </p>
-          )}
-        </div>
-
-        {(after || nextEvent) && (
-          <div className="divide-y divide-foreground/10 border-t border-foreground/10 lg:hidden">
-            {after && afterSubject && (
-              <button type="button" onClick={() => onNavigate("horario")} className="flex w-full items-center gap-3 px-4 py-3 text-left transition active:bg-foreground/[0.05]">
-                <span className="w-16 shrink-0 text-xs text-muted-foreground">Después</span>
-                <span className="num shrink-0 text-sm font-semibold">{label(after.startTime)}</span>
-                <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: afterSubject.border }} />
-                <span className="min-w-0 flex-1 truncate text-sm">{afterSubject.name}</span>
-                {rest.length > 1 && <span className="num shrink-0 text-xs text-muted-foreground">+{rest.length - 1}</span>}
-              </button>
             )}
-            {nextEvent && (() => {
-              const s = getSubject(subjects, nextEvent.subjectId)
-              const k = findKind(kindsFromConfigs(subjectConfigs), nextEvent.kind)
-              const n = daysUntil(nextEvent.date)
-              const t = nextEvent.time ? ` · ${label(Number(nextEvent.time.slice(0, 2)) * 60 + Number(nextEvent.time.slice(3, 5)))}` : ""
-              return (
-                <button type="button" onClick={() => onNavigate("examenes")} className="flex w-full items-center gap-3 px-4 py-3 text-left transition active:bg-foreground/[0.05]">
-                  <span className="w-16 shrink-0 text-xs text-muted-foreground">Agenda</span>
-                  <span className={cn("shrink-0 text-sm font-semibold", n <= 1 && "text-amber-600 dark:text-amber-400")}>{n <= 1 ? dueLabel(n) : `${n} días`}</span>
-                  <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: s ? s.border : KIND_COLORS[k.color] }} />
-                  <span className="min-w-0 flex-1 truncate text-sm">{nextEvent.title || s?.name || k.name}{t}</span>
-                  {upcoming.length > 1 && <span className="num shrink-0 text-xs text-muted-foreground">+{upcoming.length - 1}</span>}
-                  <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
-                </button>
-              )
-            })()}
           </div>
-        )}
+
+          {nextEvent && (() => {
+            const s = getSubject(subjects, nextEvent.subjectId)
+            const k = findKind(kindsFromConfigs(subjectConfigs), nextEvent.kind)
+            const n = daysUntil(nextEvent.date)
+            const t = nextEvent.time ? ` · ${label(Number(nextEvent.time.slice(0, 2)) * 60 + Number(nextEvent.time.slice(3, 5)))}` : ""
+            return (
+              <button type="button" onClick={() => onNavigate("examenes")} className="flex w-full items-center gap-3 border-t px-4 py-3 text-left transition active:bg-muted lg:hidden">
+                <span className="w-14 shrink-0 text-xs text-muted-foreground">Agenda</span>
+                <span className={cn("shrink-0 text-sm font-semibold", n <= 1 && "text-amber-600 dark:text-amber-400")}>{n <= 1 ? dueLabel(n) : `${n} días`}</span>
+                <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: s ? s.border : KIND_COLORS[k.color] }} />
+                <span className="min-w-0 flex-1 truncate text-sm">{nextEvent.title || s?.name || k.name}{t}</span>
+                {upcoming.length > 1 && <span className="num shrink-0 text-xs text-muted-foreground">+{upcoming.length - 1}</span>}
+                <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
+              </button>
+            )
+          })()}
+        </div>
       </section>
 
       {/* Móvil: un solo bloque. Arriba el estudio de hoy (con acceso directo a Enfoque); abajo promedio y faltas */}
@@ -292,7 +278,7 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className={cn("grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]", alerts.length === 0 && "max-lg:hidden")}>
         {/* Agenda del día (solo PC; en móvil se resume en la tarjeta principal) */}
         <section className="max-lg:hidden lg:col-start-1 lg:row-start-1">
           <Heading title={todayIdx >= 0 && todayIdx <= 4 ? `Tu ${DAYS[todayIdx].toLowerCase()}` : "Tu día"} action="Ver horario" onAction={() => onNavigate("horario")} />
@@ -377,6 +363,43 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
           </section>
         </div>
       </div>
+      {/* Móvil: el resto del día como línea de tiempo, con los huecos libres entre clases */}
+      {rest.length > 0 && (
+        <section className="lg:hidden">
+          <Heading title="Resto del día" action="Ver horario" onAction={() => onNavigate("horario")} />
+          <ol className={cn(card, "px-4 py-2")}>
+            {rest.map((c, i) => {
+              const s = getSubject(subjects, c.subjectId)!
+              const prevEnd = i === 0 ? heroCls?.endTime : rest[i - 1].endTime
+              const gap = prevEnd !== undefined ? c.startTime - prevEnd : 0
+              const first = i === 0 && gap < 30
+              const last = i === rest.length - 1
+              return (
+                <li key={c.id}>
+                  {gap >= 30 && (
+                    <div className="flex items-center gap-3">
+                      <span className="w-11 shrink-0" />
+                      <span aria-hidden className={cn("flex w-3 shrink-0 justify-center self-stretch", i === 0 && "pt-3")}><span className="border-l border-dashed border-foreground/25" /></span>
+                      <span className="num py-2 text-xs text-muted-foreground">Libre · {fmtDur(gap)}</span>
+                    </div>
+                  )}
+                  <button type="button" onClick={() => onNavigate("horario")} className="flex w-full items-center gap-3 py-2.5 text-left transition active:opacity-70">
+                    <span className="num w-11 shrink-0 text-sm font-semibold">{label(c.startTime)}</span>
+                    <span aria-hidden className="relative flex w-3 shrink-0 items-center justify-center self-stretch">
+                      <span className={cn("absolute w-px bg-foreground/15", first ? "top-1/2" : "top-0", last ? "bottom-1/2" : "bottom-0")} />
+                      <span className="relative size-3 rounded-full ring-4 ring-card" style={{ background: s.border }} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium">{s.name}</span>
+                      <span className="num block truncate text-xs text-muted-foreground">{[c.room, `hasta ${label(c.endTime)}`].filter(Boolean).join(" · ")}</span>
+                    </span>
+                  </button>
+                </li>
+              )
+            })}
+          </ol>
+        </section>
+      )}
     </div>
   )
 }
