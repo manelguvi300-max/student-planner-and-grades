@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, type ReactNode } from "react"
-import { ArrowRight, Timer } from "lucide-react"
+import { ArrowRight, GraduationCap, Play, Timer, UserX } from "lucide-react"
 import { Ring } from "@/components/ui/ring"
 import { dailyGoalOf, focusStats, fmtMin } from "@/components/focus"
 import { cn } from "@/lib/utils"
@@ -159,8 +159,10 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
   const restCount = todays.filter((c) => c !== heroCls && c.endTime > nowMin).length
 
   // estudio de hoy (modo enfoque)
-  const studied = focusStats(studyFromConfigs(subjectConfigs), now).today
+  const { today: studied, streak } = focusStats(studyFromConfigs(subjectConfigs), now)
   const studyGoal = dailyGoalOf(subjectConfigs)
+  const goalMet = studied >= studyGoal
+  const avgText = avg === null ? "—" : avg.toFixed(2).replace(".", ",")
 
 
   return (
@@ -210,20 +212,59 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
         </div>
       </section>
 
-      {/* Resumen: promedio, estudio de hoy y faltas */}
-      <div className="grid grid-cols-3 gap-2">
+      {/* Móvil: un solo bloque. Arriba el estudio de hoy (con acceso directo a Enfoque); abajo promedio y faltas */}
+      <section className={cn(card, "md:hidden")}>
+        <button type="button" onClick={onFocus} className="flex w-full items-center gap-3.5 p-4 text-left transition active:bg-muted">
+          <span className={cn("shrink-0", goalMet ? "text-emerald-500" : "text-brand")}>
+            <Ring value={studied / studyGoal} size={52} stroke={5} className="text-current">
+              <Timer className="size-5" />
+            </Ring>
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs text-muted-foreground">Estudio de hoy</span>
+            <span className="num block text-xl font-semibold leading-tight">
+              {fmtMin(studied)}<span className="text-sm font-normal text-muted-foreground"> de {fmtMin(studyGoal)}</span>
+            </span>
+            <span className="block truncate text-xs text-muted-foreground">
+              {goalMet ? "¡Meta cumplida!" : `Te faltan ${fmtMin(studyGoal - studied)}`}{streak > 1 ? ` · 🔥 ${streak} días` : ""}
+            </span>
+          </span>
+          <span aria-hidden className="grid size-11 shrink-0 place-items-center rounded-full bg-brand text-background">
+            <Play className="size-4 translate-x-px fill-current" />
+          </span>
+        </button>
+        <div className="grid grid-cols-2 divide-x border-t">
+          <button type="button" onClick={() => onNavigate("notas")} className="flex min-w-0 items-center gap-3 px-4 py-3.5 text-left transition active:bg-muted">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-foreground/[0.06] text-muted-foreground"><GraduationCap className="size-[18px]" /></span>
+            <span className="min-w-0">
+              <span className="num block text-lg font-semibold leading-tight">{avgText}</span>
+              <span className="block truncate text-xs text-muted-foreground">{avg === null ? "Sin notas aún" : "Promedio"}</span>
+            </span>
+          </button>
+          <button type="button" onClick={() => onNavigate("faltas")} className="flex min-w-0 items-center gap-3 px-4 py-3.5 text-left transition active:bg-muted">
+            <span className={cn("grid size-9 shrink-0 place-items-center rounded-xl", atRisk ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" : "bg-foreground/[0.06] text-muted-foreground")}><UserX className="size-[18px]" /></span>
+            <span className="min-w-0">
+              <span className="num block text-lg font-semibold leading-tight">{absences.length}</span>
+              <span className={cn("block truncate text-xs", atRisk ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>{atRisk ? `${atRisk} en riesgo` : absences.length === 1 ? "Falta" : "Faltas"}</span>
+            </span>
+          </button>
+        </div>
+      </section>
+
+      {/* Tablet y PC: tres tarjetas */}
+      <div className="hidden grid-cols-3 gap-2 md:grid">
         <button type="button" onClick={() => onNavigate("notas")} className={tile}>
           <span className="block text-xs text-muted-foreground">Promedio</span>
-          <span className="num mt-1 block text-xl font-semibold">{avg === null ? "—" : avg.toFixed(2).replace(".", ",")}</span>
+          <span className="num mt-1 block text-xl font-semibold">{avgText}</span>
           <span className="block truncate text-[11px] text-muted-foreground">{avg === null ? "Sin notas" : weighted ? "Ponderado" : "Acumulado"}</span>
         </button>
         <button type="button" onClick={onFocus} className={cn(tile, "relative overflow-hidden")}>
           <span className="flex items-center justify-between text-xs text-muted-foreground">Estudio <Timer className="size-3.5 text-brand" /></span>
           <span className="mt-1 flex items-center gap-2">
-            <span className={studied >= studyGoal ? "text-emerald-500" : "text-brand"}><Ring value={studied / studyGoal} size={26} stroke={3.5} className="text-current" /></span>
+            <span className={goalMet ? "text-emerald-500" : "text-brand"}><Ring value={studied / studyGoal} size={26} stroke={3.5} className="text-current" /></span>
             <span className="num text-xl font-semibold">{studied}<span className="text-xs font-normal text-muted-foreground">m</span></span>
           </span>
-          <span className="block truncate text-[11px] text-muted-foreground">{studied >= studyGoal ? "¡Meta cumplida!" : `meta ${fmtMin(studyGoal)}`}</span>
+          <span className="block truncate text-[11px] text-muted-foreground">{goalMet ? "¡Meta cumplida!" : `meta ${fmtMin(studyGoal)}`}</span>
         </button>
         <button type="button" onClick={() => onNavigate("faltas")} className={tile}>
           <span className="block text-xs text-muted-foreground">Faltas</span>

@@ -244,11 +244,11 @@ export function PlannerView({ initial, userName, userEmail, userImage }: { initi
 
         {/* Saludo: solo en Hoy y en Ajustes; las demás vistas abren directo con su propio título */}
         {(tab === "hoy" || inSettings) && (
-          <header className="mb-5 lg:mb-8">
-            <h1 key={inSettings ? "s" : "h"} className="animate-rise text-xl font-semibold tracking-tight text-balance sm:text-2xl lg:text-3xl">
+          <header className="mb-5 flex flex-col-reverse md:block lg:mb-8">
+            <h1 key={inSettings ? "s" : "h"} className="animate-rise text-2xl font-semibold tracking-tight text-balance lg:text-3xl">
               {inSettings ? "Ajustes" : firstName ? `Hola, ${firstName}` : "Mi semestre"}
             </h1>
-            <p className={cn("h-4 truncate text-xs text-muted-foreground first-letter:uppercase sm:h-5 sm:text-sm", inSettings && "max-md:hidden")}>
+            <p className={cn("h-4 truncate text-xs text-muted-foreground first-letter:uppercase sm:h-5 sm:text-sm", inSettings ? "max-md:hidden" : "max-md:mb-0.5 max-md:text-[11px] max-md:font-semibold max-md:uppercase max-md:tracking-wider")}>
               {inSettings ? "Personaliza tu planner y administra tu cuenta" : today}
             </p>
           </header>
