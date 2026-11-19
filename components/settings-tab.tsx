@@ -139,6 +139,12 @@ export function SettingsTab({ userName, userEmail, userImage, hiddenCount, onSho
           </Row>
         </Group>
 
+        <Group title="Agenda" delay={90}>
+          <Row title="Al pasar la hora de un evento" note={settings.eventDone === "auto" ? "Se marca como hecho; puedes desmarcarlo" : "Lo marcas tú cuando lo hagas"}>
+            <Seg label="Marcar eventos como hechos" value={settings.eventDone} onChange={(v) => set("eventDone", v)} options={[{ value: "auto", label: "Automático" }, { value: "manual", label: "Manual" }]} />
+          </Row>
+        </Group>
+
         <Group title="Apariencia" delay={120}>
           <Row title="Tema">
             <Seg

@@ -168,6 +168,18 @@ export const allKinds = (custom: EventKind[]): EventKind[] => [...BUILTIN_KINDS,
 export const findKind = (custom: EventKind[], id: string): EventKind =>
   allKinds(custom).find((k) => k.id === id) ?? { id, name: "Evento", color: "slate" }
 
+/**
+ * Con el modo automático, un evento sin marcar cuenta como hecho cuando ya pasó su hora (o su día, si no tiene hora).
+ * Lo que marques o desmarques a mano siempre manda (`done` definido). No cambia los datos guardados.
+ */
+export function resolveDone(exams: Exam[], auto: boolean, now: Date): Exam[] {
+  if (!auto) return exams
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
+  const nowMin = now.getHours() * 60 + now.getMinutes()
+  const passed = (e: Exam) => e.date < today || (e.date === today && !!e.time && Number(e.time.slice(0, 2)) * 60 + Number(e.time.slice(3, 5)) <= nowMin)
+  return exams.map((e) => (e.done === undefined && passed(e) ? { ...e, done: true } : e))
+}
+
 export type Absence = {
   id: string
   subjectId: string

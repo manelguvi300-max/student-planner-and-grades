@@ -11,6 +11,8 @@ export type Settings = {
   rowHeight: "compact" | "normal" | "roomy"
   weekStart: "mon" | "sun"
   startTab: TabKey
+  /** Eventos de la agenda: "auto" = cuentan como hechos al pasar su hora (salvo que los desmarques); "manual" = solo al marcarlos */
+  eventDone: "auto" | "manual"
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -20,6 +22,7 @@ export const DEFAULT_SETTINGS: Settings = {
   rowHeight: "normal",
   weekStart: "mon",
   startTab: "hoy",
+  eventDone: "auto",
 }
 
 export const SETTINGS_KEY = "planner.settings"

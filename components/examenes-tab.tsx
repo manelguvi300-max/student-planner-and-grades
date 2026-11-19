@@ -17,7 +17,7 @@ import { SubjectPicker } from "@/components/subject-picker"
 import { useSheetBack } from "@/lib/use-sheet-back"
 import { Fab } from "@/components/fab"
 import { cn } from "@/lib/utils"
-import { getSubject, minutesToLabel, timeToMinutes, allKinds, findKind, KIND_COLORS, type KindColor, type EventKind, type Subject, type Exam } from "@/lib/horario-data"
+import { getSubject, resolveDone, minutesToLabel, timeToMinutes, allKinds, findKind, KIND_COLORS, type KindColor, type EventKind, type Subject, type Exam } from "@/lib/horario-data"
 import { useSettings } from "@/lib/settings"
 import { downloadIcs, googleCalendarUrl, type IcsEvent } from "@/lib/ics"
 
@@ -635,7 +635,10 @@ function FilterSheet({ open, onClose, subjects, kinds, hasNone, subjectCount, ki
 
 /* ───────────── Pestaña ───────────── */
 
-export function ExamenesTab({ subjects, exams, setExams, kinds, setKinds, hiddenSubjects, onToggleHidden }: Props) {
+export function ExamenesTab({ subjects, exams: savedExams, setExams, kinds, setKinds, hiddenSubjects, onToggleHidden }: Props) {
+  // con el modo automático, lo que ya pasó cuenta como hecho (sin cambiar lo guardado)
+  const { settings } = useSettings()
+  const exams = resolveDone(savedExams, settings.eventDone === "auto", new Date())
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list")
   const [selSubjects, setSelSubjects] = useState<string[]>([])
   const [selKinds, setSelKinds] = useState<string[]>([])
@@ -664,7 +667,10 @@ export function ExamenesTab({ subjects, exams, setExams, kinds, setKinds, hidden
     remove: (id) => { setKinds((p) => p.filter((k) => k.id !== id)); setExams((p) => p.map((e) => (e.kind === id ? { ...e, kind: "actividad" } : e))) },
   }
   const remove = (id: string) => setExams((prev) => prev.filter((e) => e.id !== id))
-  const toggleDone = (id: string) => setExams((prev) => prev.map((e) => (e.id === id ? { ...e, done: !e.done } : e)))
+  const toggleDone = (id: string) => {
+    const done = !exams.find((e) => e.id === id)?.done
+    setExams((prev) => prev.map((e) => (e.id === id ? { ...e, done } : e)))
+  }
 
   // Solo eventos de materias existentes y no ocultas en esta vista (los sin materia siempre se ven)
   const visible = exams.filter((e) => (e.subjectId === "" || getSubject(subjects, e.subjectId)) && !hiddenSubjects.includes(e.subjectId)).sort(byDateTime)

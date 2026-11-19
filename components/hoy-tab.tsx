@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowRight, GraduationCap, Play, Timer, UserX } from "lucide-react"
+import { ArrowRight, Check, GraduationCap, Play, Timer, UserX } from "lucide-react"
 import { Ring } from "@/components/ui/ring"
 import { dailyGoalOf, focusStats, fmtMin } from "@/components/focus"
 import { cn } from "@/lib/utils"
@@ -13,6 +13,7 @@ import {
   KIND_COLORS,
   PASSING_GRADE,
   goalPlan,
+  resolveDone,
   absenceStatus,
   fmtHours,
   GLOBAL_CONFIG_KEY,
@@ -74,7 +75,7 @@ const card = "overflow-hidden rounded-2xl border bg-card"
 const row = "w-full px-4 py-3 text-left transition hover:bg-muted/60 active:bg-muted"
 const tile = "min-w-0 rounded-2xl border bg-card px-3 py-3 text-left transition hover:bg-muted/60 active:scale-[0.97]"
 
-export function HoyTab({ subjects, classes, grades, exams, absences, subjectConfigs, hiddenNotas, onNavigate, onFocus }: Props) {
+export function HoyTab({ subjects, classes, grades, exams: savedExams, absences, subjectConfigs, hiddenNotas, onNavigate, onFocus }: Props) {
   const { settings } = useSettings()
   const now = useNow()
   const label = (m: number) => minutesToLabel(m, settings.timeFormat)
@@ -97,6 +98,9 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
       if (cls) later = { day: d, off, cls }
     }
   }
+
+  // con el modo automático, lo de la agenda que ya pasó cuenta como hecho (sin cambiar lo guardado)
+  const exams = resolveDone(savedExams, settings.eventDone === "auto", now)
 
   // próximos eventos de la agenda
   const today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
@@ -159,7 +163,10 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
   // lo de la agenda para hoy que aún no pasa (sin hora = al final del día)
   const tmin = (t?: string) => (t ? Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)) : undefined)
   const passed = (e: Exam) => daysUntil(e.date) === 0 && (tmin(e.time) ?? 24 * 60) < nowMin
-  const todayEvents = upcoming.filter((e) => daysUntil(e.date) === 0 && !passed(e))
+  // todo lo de hoy, también lo ya hecho: se queda en la línea de tiempo, marcado como completado
+  const todayEvents = exams
+    .filter((e) => daysUntil(e.date) === 0 && (e.subjectId === "" || getSubject(subjects, e.subjectId)))
+    .sort((a, b) => (a.time ?? "99").localeCompare(b.time ?? "99"))
   type Item = { at: number; cls?: ClassSession; ev?: Exam }
   const byAt = (a: Item, b: Item) => a.at - b.at
   const todayLine: Item[] = [
@@ -408,17 +415,19 @@ export function HoyTab({ subjects, classes, grades, exams, absences, subjectConf
                 const k = findKind(kindsFromConfigs(subjectConfigs), e.kind)
                 return (
                   <li key={e.id}>
-                    <button type="button" onClick={() => onNavigate("examenes")} className="flex w-full items-center gap-3 py-2.5 text-left transition active:opacity-70">
-                      <span className={cn("num w-11 shrink-0 text-sm font-semibold", !e.time && "text-xs font-medium text-muted-foreground")}>{e.time ? label(tmin(e.time)!) : "Hoy"}</span>
+                    <button type="button" onClick={() => onNavigate("examenes")} className="flex w-full items-center gap-3 py-2.5 text-left transition hover:opacity-80 active:opacity-70">
+                      <span className={cn("num w-11 shrink-0 text-sm font-semibold", !e.time && "text-xs font-medium text-muted-foreground", e.done && "text-muted-foreground")}>{e.time ? label(tmin(e.time)!) : "Hoy"}</span>
                       <span aria-hidden className="relative flex w-3 shrink-0 items-center justify-center self-stretch">
                         {line}
-                        <span className="relative size-2.5 rotate-45 rounded-[3px] ring-4 ring-card" style={{ background: es ? es.border : KIND_COLORS[k.color] }} />
+                        <span className={cn("relative size-2.5 rotate-45 rounded-[3px] ring-4 ring-card", e.done && "opacity-40")} style={{ background: es ? es.border : KIND_COLORS[k.color] }} />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">{e.title || es?.name || k.name}</span>
+                        <span className={cn("block truncate text-sm font-medium", e.done && "text-muted-foreground line-through")}>{e.title || es?.name || k.name}</span>
                         <span className="block truncate text-xs text-muted-foreground">{[k.name, e.title ? es?.name : "", e.weight > 0 ? `${e.weight}%` : ""].filter(Boolean).join(" · ")}</span>
                       </span>
-                      <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
+                      {e.done
+                        ? <span className="grid size-5 shrink-0 place-items-center rounded-full bg-emerald-500 text-white" aria-label="Hecho"><Check className="size-3" strokeWidth={3} /></span>
+                        : <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />}
                     </button>
                   </li>
                 )
